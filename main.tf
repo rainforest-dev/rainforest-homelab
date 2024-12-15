@@ -5,3 +5,7 @@ module "ingress" {
 module "flowise" {
   source = "./modules/flowise"
 }
+
+module "postgresql" {
+  source = "./modules/postgresql"
+}
