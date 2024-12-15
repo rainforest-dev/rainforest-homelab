@@ -1,0 +1,14 @@
+{
+  "sqltools.connections": [
+    {
+      "previewLimit": 50,
+      "server": "postgresql.homelab.svc.cluster.local",
+      "port": 5432,
+      "driver": "PostgreSQL",
+      "name": "psql",
+      "database": "postgres",
+      "username": "postgres",
+      "password": "0I9hnRmuEr"
+    }
+  ]
+}
