@@ -1,0 +1,200 @@
+## ComfyUI-Manager: installing dependencies done.
+[2024-12-28 09:11:27.225] ** ComfyUI startup time: 2024-12-28 09:11:27.225410
+[2024-12-28 09:11:27.225] ** Platform: Darwin
+[2024-12-28 09:11:27.225] ** Python version: 3.12.8 (main, Dec  3 2024, 18:42:41) [Clang 16.0.0 (clang-1600.0.26.4)]
+[2024-12-28 09:11:27.225] ** Python executable: /Users/rainforest/Library/Caches/pypoetry/virtualenvs/comfyui-7hfeczBV-py3.12/bin/python
+[2024-12-28 09:11:27.225] ** ComfyUI Path: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui
+[2024-12-28 09:11:27.225] ** Log path: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui.log
+
+Prestartup times for custom nodes:
+[2024-12-28 09:11:27.498]    0.7 seconds: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/custom_nodes/ComfyUI-Manager
+[2024-12-28 09:11:27.498] 
+[2024-12-28 09:11:28.343] Total VRAM 24576 MB, total RAM 24576 MB
+[2024-12-28 09:11:28.343] pytorch version: 2.6.0.dev20241227
+[2024-12-28 09:11:28.343] Set vram state to: SHARED
+[2024-12-28 09:11:28.343] Device: mps
+[2024-12-28 09:11:28.992] Using sub quadratic optimization for attention, if you have memory or speed issues try using: --use-split-cross-attention
+[2024-12-28 09:11:29.696] [Prompt Server] web root: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/web
+[2024-12-28 09:11:29.871] ### Loading: ComfyUI-Manager (V2.55.5)
+[2024-12-28 09:11:29.974] ### ComfyUI Version: v0.3.10-4-g4b5bcd8a | Released on '2024-12-27'
+[2024-12-28 09:11:29.977] 
+Import times for custom nodes:
+[2024-12-28 09:11:29.977]    0.0 seconds: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/custom_nodes/websocket_image_save.py
+[2024-12-28 09:11:29.977]    0.1 seconds: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/custom_nodes/ComfyUI-Manager
+[2024-12-28 09:11:29.977] 
+[2024-12-28 09:11:29.980] Starting server
+
+[2024-12-28 09:11:29.981] To see the GUI go to: http://127.0.0.1:8188
+[2024-12-28 09:11:30.270] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/model-list.json
+[2024-12-28 09:11:30.272] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/alter-list.json
+[2024-12-28 09:11:30.409] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/github-stats.json
+[2024-12-28 09:11:30.471] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/custom-node-list.json
+[2024-12-28 09:11:30.482] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/extension-node-map.json
+[2024-12-28 09:11:40.611] FETCH DATA from: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/custom_nodes/ComfyUI-Manager/extension-node-map.json [DONE]
+[2024-12-28 09:29:49.589] FETCH DATA from: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/custom_nodes/ComfyUI-Manager/extension-node-map.json [DONE]
+[2024-12-28 09:30:03.255] got prompt
+[2024-12-28 09:30:03.377] model weight dtype torch.float8_e4m3fn, manual cast: torch.bfloat16
+[2024-12-28 09:30:03.379] model_type FLUX
+[2024-12-28 09:30:20.876] Using split attention in VAE
+[2024-12-28 09:30:20.921] Using split attention in VAE
+[2024-12-28 09:30:21.738] VAE load device: mps, offload device: cpu, dtype: torch.bfloat16
+[2024-12-28 09:30:21.989] Requested to load FluxClipModel_
+[2024-12-28 09:30:21.998] loaded completely 9.5367431640625e+25 4777.53759765625 True
+[2024-12-28 09:30:22.000] CLIP model load device: cpu, offload device: cpu, current: cpu, dtype: torch.float16
+[2024-12-28 09:30:29.601] loaded straight to GPU
+[2024-12-28 09:30:29.604] Requested to load Flux
+[2024-12-28 09:30:29.611] 0 models unloaded.
+[2024-12-28 09:30:29.636] loaded completely 9.5367431640625e+25 11350.067443847656 True
+[2024-12-28 09:30:40.809] 
+[2024-12-28 09:30:40.825] !!! Exception during processing !!! Trying to convert Float8_e4m3fn to the MPS backend but it does not have support for that dtype.
+[2024-12-28 09:30:40.829] Traceback (most recent call last):
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/execution.py", line 328, in execute
+    output_data, output_ui, has_subgraph = get_output_data(obj, input_data_all, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb)
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/execution.py", line 203, in get_output_data
+    return_values = _map_node_over_list(obj, input_data_all, obj.FUNCTION, allow_interrupt=True, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/execution.py", line 174, in _map_node_over_list
+    process_inputs(input_dict, i)
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/execution.py", line 163, in process_inputs
+    results.append(getattr(obj, func)(**inputs))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/nodes.py", line 1519, in sample
+    return common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent_image, denoise=denoise)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/nodes.py", line 1486, in common_ksampler
+    samples = comfy.sample.sample(model, noise, steps, cfg, sampler_name, scheduler, positive, negative, latent_image,
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/sample.py", line 43, in sample
+    samples = sampler.sample(noise, positive, negative, cfg=cfg, latent_image=latent_image, start_step=start_step, last_step=last_step, force_full_denoise=force_full_denoise, denoise_mask=noise_mask, sigmas=sigmas, callback=callback, disable_pbar=disable_pbar, seed=seed)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/samplers.py", line 1013, in sample
+    return sample(self.model, noise, positive, negative, cfg, self.device, sampler, sigmas, self.model_options, latent_image=latent_image, denoise_mask=denoise_mask, callback=callback, disable_pbar=disable_pbar, seed=seed)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/samplers.py", line 911, in sample
+    return cfg_guider.sample(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/samplers.py", line 897, in sample
+    output = executor.execute(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/patcher_extension.py", line 110, in execute
+    return self.original(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/samplers.py", line 866, in outer_sample
+    output = self.inner_sample(noise, latent_image, device, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/samplers.py", line 850, in inner_sample
+    samples = executor.execute(self, sigmas, extra_args, callback, noise, latent_image, denoise_mask, disable_pbar)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/patcher_extension.py", line 110, in execute
+    return self.original(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/samplers.py", line 707, in sample
+    samples = self.sampler_function(model_k, noise, sigmas, extra_args=extra_args, callback=k_callback, disable=disable_pbar, **self.extra_options)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Library/Caches/pypoetry/virtualenvs/comfyui-7hfeczBV-py3.12/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 116, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/k_diffusion/sampling.py", line 155, in sample_euler
+    denoised = model(x, sigma_hat * s_in, **extra_args)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/samplers.py", line 379, in __call__
+    out = self.inner_model(x, sigma, model_options=model_options, seed=seed)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/samplers.py", line 832, in __call__
+    return self.predict_noise(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/samplers.py", line 835, in predict_noise
+    return sampling_function(self.inner_model, x, timestep, self.conds.get("negative", None), self.conds.get("positive", None), self.cfg, model_options=model_options, seed=seed)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/samplers.py", line 359, in sampling_function
+    out = calc_cond_batch(model, conds, x, timestep, model_options)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/samplers.py", line 195, in calc_cond_batch
+    return executor.execute(model, conds, x_in, timestep, model_options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/patcher_extension.py", line 110, in execute
+    return self.original(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/samplers.py", line 308, in _calc_cond_batch
+    output = model.apply_model(input_x, timestep_, **c).chunk(batch_chunks)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/model_base.py", line 130, in apply_model
+    return comfy.patcher_extension.WrapperExecutor.new_class_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/patcher_extension.py", line 110, in execute
+    return self.original(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/model_base.py", line 159, in _apply_model
+    model_output = self.diffusion_model(xc, t, context=context, control=control, transformer_options=transformer_options, **extra_conds).float()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Library/Caches/pypoetry/virtualenvs/comfyui-7hfeczBV-py3.12/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Library/Caches/pypoetry/virtualenvs/comfyui-7hfeczBV-py3.12/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/ldm/flux/model.py", line 204, in forward
+    out = self.forward_orig(img, img_ids, context, txt_ids, timestep, y, guidance, control, transformer_options, attn_mask=kwargs.get("attention_mask", None))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/ldm/flux/model.py", line 109, in forward_orig
+    img = self.img_in(img)
+          ^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Library/Caches/pypoetry/virtualenvs/comfyui-7hfeczBV-py3.12/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Library/Caches/pypoetry/virtualenvs/comfyui-7hfeczBV-py3.12/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/ops.py", line 68, in forward
+    return self.forward_comfy_cast_weights(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/ops.py", line 63, in forward_comfy_cast_weights
+    weight, bias = cast_bias_weight(self, input)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/ops.py", line 42, in cast_bias_weight
+    bias = comfy.model_management.cast_to(s.bias, bias_dtype, device, non_blocking=non_blocking, copy=has_function)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/comfy/model_management.py", line 866, in cast_to
+    return weight.to(dtype=dtype, copy=copy)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Trying to convert Float8_e4m3fn to the MPS backend but it does not have support for that dtype.
+
+[2024-12-28 09:30:40.831] Prompt executed in 37.57 seconds
+[2024-12-28 09:59:26.780] FETCH DATA from: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/custom_nodes/ComfyUI-Manager/extension-node-map.json [DONE]
+[2024-12-28 09:59:33.031] got prompt
+[2024-12-28 09:59:33.583] model weight dtype torch.float16, manual cast: None
+[2024-12-28 09:59:33.585] model_type EPS
+[2024-12-28 10:00:04.868] Using split attention in VAE
+[2024-12-28 10:00:04.872] Using split attention in VAE
+[2024-12-28 10:00:05.373] VAE load device: mps, offload device: cpu, dtype: torch.bfloat16
+[2024-12-28 10:00:05.511] Requested to load SDXLClipModel
+[2024-12-28 10:00:05.522] loaded completely 9.5367431640625e+25 1560.802734375 True
+[2024-12-28 10:00:05.528] CLIP model load device: cpu, offload device: cpu, current: cpu, dtype: torch.float16
+[2024-12-28 10:00:09.099] loaded straight to GPU
+[2024-12-28 10:00:09.099] Requested to load SDXL
+[2024-12-28 10:00:09.130] loaded completely 9.5367431640625e+25 4897.0483474731445 True
+[2024-12-28 10:00:29.672] 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:19<00:00,  1.51it/s]100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:19<00:00,  1.04it/s]
+[2024-12-28 10:00:29.701] Requested to load AutoencoderKL
+[2024-12-28 10:00:29.783] loaded completely 9.5367431640625e+25 159.55708122253418 True
+[2024-12-28 10:00:31.953] Prompt executed in 58.91 seconds
+[2024-12-28 10:02:48.339] got prompt
+[2024-12-28 10:02:54.572] got prompt
+[2024-12-28 10:03:09.992] 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:20<00:00,  1.51it/s]100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:20<00:00,  1.01s/it]
+[2024-12-28 10:03:10.793] Prompt executed in 22.45 seconds
+[2024-12-28 10:03:24.363] 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:13<00:00,  1.51it/s]100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:13<00:00,  1.50it/s]
+[2024-12-28 10:03:25.134] Prompt executed in 14.17 seconds
+[2024-12-28 10:03:54.147] got prompt
+[2024-12-28 10:04:09.746] 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:14<00:00,  1.51it/s]100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:14<00:00,  1.33it/s]
+[2024-12-28 10:04:10.677] Prompt executed in 16.53 seconds
+[2024-12-28 10:04:35.502] got prompt
+[2024-12-28 10:04:51.042] 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:14<00:00,  1.51it/s]100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:14<00:00,  1.34it/s]
+[2024-12-28 10:04:51.935] Prompt executed in 16.43 seconds
+[2024-12-28 10:05:14.709] got prompt
+[2024-12-28 10:05:28.730] 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:13<00:00,  1.51it/s]100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:13<00:00,  1.49it/s]
+[2024-12-28 10:05:29.645] Prompt executed in 14.93 seconds
+[2024-12-28 10:06:09.115] got prompt
+[2024-12-28 10:06:24.752] 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:14<00:00,  1.51it/s]100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 20/20 [00:14<00:00,  1.33it/s]
+[2024-12-28 10:06:25.616] Prompt executed in 16.50 seconds
+[2024-12-28 10:07:46.033] 
+Stopped server
