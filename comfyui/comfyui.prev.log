@@ -1,0 +1,38 @@
+## ComfyUI-Manager: installing dependencies done.
+[2024-12-27 23:52:08.594] ** ComfyUI startup time: 2024-12-27 23:52:08.594768
+[2024-12-27 23:52:08.594] ** Platform: Darwin
+[2024-12-27 23:52:08.594] ** Python version: 3.12.8 (main, Dec  3 2024, 18:42:41) [Clang 16.0.0 (clang-1600.0.26.4)]
+[2024-12-27 23:52:08.594] ** Python executable: /Users/rainforest/Library/Caches/pypoetry/virtualenvs/comfyui-7hfeczBV-py3.12/bin/python
+[2024-12-27 23:52:08.594] ** ComfyUI Path: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui
+[2024-12-27 23:52:08.595] ** Log path: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui.log
+
+Prestartup times for custom nodes:
+[2024-12-27 23:52:11.646]    3.3 seconds: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/custom_nodes/ComfyUI-Manager
+[2024-12-27 23:52:11.646] 
+[2024-12-27 23:52:14.013] Total VRAM 24576 MB, total RAM 24576 MB
+[2024-12-27 23:52:14.013] pytorch version: 2.6.0.dev20241227
+[2024-12-27 23:52:14.013] Set vram state to: SHARED
+[2024-12-27 23:52:14.013] Device: mps
+[2024-12-27 23:52:14.419] Using sub quadratic optimization for attention, if you have memory or speed issues try using: --use-split-cross-attention
+[2024-12-27 23:52:14.883] ****** User settings have been changed to be stored on the server instead of browser storage. ******
+[2024-12-27 23:52:14.883] ****** For multi-user setups add the --multi-user CLI argument to enable multiple user profiles. ******
+[2024-12-27 23:52:14.883] [Prompt Server] web root: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/web
+[2024-12-27 23:52:15.055] ### Loading: ComfyUI-Manager (V2.55.5)
+[2024-12-27 23:52:15.141] ### ComfyUI Version: v0.3.10-4-g4b5bcd8a | Released on '2024-12-27'
+[2024-12-27 23:52:15.146] 
+Import times for custom nodes:
+[2024-12-27 23:52:15.146]    0.0 seconds: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/custom_nodes/websocket_image_save.py
+[2024-12-27 23:52:15.146]    0.1 seconds: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/custom_nodes/ComfyUI-Manager
+[2024-12-27 23:52:15.146] 
+[2024-12-27 23:52:15.149] Starting server
+
+[2024-12-27 23:52:15.150] To see the GUI go to: http://127.0.0.1:8188
+[2024-12-27 23:52:15.339] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/model-list.json
+[2024-12-27 23:52:15.351] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/alter-list.json
+[2024-12-27 23:52:15.407] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/github-stats.json
+[2024-12-27 23:52:15.481] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/custom-node-list.json
+[2024-12-27 23:52:15.500] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/extension-node-map.json
+[2024-12-27 23:52:29.312] FETCH DATA from: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/custom_nodes/ComfyUI-Manager/extension-node-map.json [DONE]
+[2024-12-27 23:53:07.720] FETCH DATA from: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/custom_nodes/ComfyUI-Manager/.cache/1742899825_extension-node-map.json [DONE]
+[2024-12-27 23:53:07.839] FETCH DATA from: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/custom_nodes/ComfyUI-Manager/.cache/1514988643_custom-node-list.json [DONE]
+[2024-12-27 23:53:07.850] FETCH DATA from: /Users/rainforest/Repositiries/rainforest-homelab/comfyui/comfyui/custom_nodes/ComfyUI-Manager/.cache/746607195_github-stats.json [DONE]
