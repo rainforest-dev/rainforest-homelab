@@ -1,3 +1,7 @@
+module "nfs-client-provisioner" {
+  source = "./modules/nfs-client-provisioner"
+}
+
 module "ingress" {
   source = "./modules/ingress"
 }
