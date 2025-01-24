@@ -17,3 +17,7 @@ module "flowise" {
 module "postgresql" {
   source = "./modules/postgresql"
 }
+
+module "openspeedtest" {
+  source = "./modules/openspeedtest"
+}
