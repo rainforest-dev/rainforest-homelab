@@ -1,6 +1,6 @@
-output "ingress_id" {
-  description = "The ID of the ingress resource."
-  value       = module.ingress.ingress_id
+output "traefik_id" {
+  description = "The ID of the traefik resource."
+  value       = module.traefik.traefik_id
 }
 
 output "open_webui_id" {

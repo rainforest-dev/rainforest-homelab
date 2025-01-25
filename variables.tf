@@ -3,3 +3,13 @@ variable "container_name" {
   type        = string
   default     = "ExampleNginxContainer"
 }
+
+variable "cloudflare_api_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "cloudflare_email" {
+  type      = string
+  sensitive = true
+}

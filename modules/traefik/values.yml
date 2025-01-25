@@ -1,0 +1,42 @@
+# additionalArguments:
+#   - --entrypoints.websecure.http.tls.certresolver=cloudflare
+#   - --entrypoints.websecure.http.tls.domains[0].main=rainforest.tools
+#   - --entrypoints.websecure.http.tls.domains[0].sans=*.rainforest.tools
+#   - --certificatesResolvers.cloudflare.acme.dnschallenge.provider=cloudflare
+#   - --certificatesResolvers.cloudflare.acme.email=contact@rainforest.tools
+#   - --certificatesResolvers.cloudflare.acme.dnschallenge.resolver=1.1.1.1
+#   - --certificatesResolvers.cloudflare.acme.storage=/certs/acme.json
+
+# env:
+#   - name: CF_API_EMAIL
+#     valueFrom:
+#       secretKeyRef:
+#         key: email
+#         name: cloudflare-api-credentials
+#   - name: CF_API_KEY
+#     valueFrom:
+#       secretKeyRef:
+#         key: apiKey
+#         name: cloudflare-api-credentials
+
+# persistence:
+#   enabled: false
+#   path: /certs
+#   size: 128Mi
+
+ingressRoute:
+  dashboard:
+    enabled: true
+
+providers:
+  kubernetesCRD:
+    enabled: true
+    allowCrossNamespace: true
+
+ports:
+  web:
+    redirections:
+      entryPoints:
+        to: websecure
+        scheme: https
+        permanent: true
