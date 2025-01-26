@@ -1,10 +1,3 @@
-provider "helm" {
-  kubernetes {
-    config_path    = "~/.kube/config"
-    config_context = "orbstack"
-  }
-}
-
 terraform {
   required_providers {
     docker = {

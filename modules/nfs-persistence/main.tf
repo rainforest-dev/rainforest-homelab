@@ -7,13 +7,13 @@ provider "kubernetes" {
 
 resource "kubernetes_persistent_volume" "nfs-pv" {
   metadata {
-    name = "nfs-pv"
+    name = "${var.name}-pv"
   }
   spec {
     storage_class_name = "nfs"
     access_modes       = ["ReadWriteMany"]
     capacity = {
-      storage = "10Gi"
+      storage = var.capacity
     }
     persistent_volume_source {
       nfs {
@@ -26,14 +26,15 @@ resource "kubernetes_persistent_volume" "nfs-pv" {
 
 resource "kubernetes_persistent_volume_claim" "nfs-pvc" {
   metadata {
-    name = "nfs-pvc"
+    name      = "${var.name}-pvc"
+    namespace = var.namespace
   }
   spec {
     storage_class_name = "nfs"
     access_modes       = ["ReadWriteMany"]
     resources {
       requests = {
-        storage = "5Gi"
+        storage = var.requests
       }
     }
     volume_name = kubernetes_persistent_volume.nfs-pv.metadata[0].name
