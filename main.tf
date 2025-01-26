@@ -1,5 +1,22 @@
-module "nfs-client-provisioner" {
-  source = "./modules/nfs-client-provisioner"
+provider "kubernetes" {
+  config_path    = "~/.kube/config"
+  config_context = "orbstack"
+}
+
+resource "kubernetes_namespace" "homelab" {
+  metadata {
+    name = "homelab"
+  }
+}
+resource "kubernetes_namespace" "traefik" {
+  metadata {
+    name = "traefik"
+  }
+}
+
+module "nfs-persistence" {
+  source = "./modules/nfs-persistence"
+  name   = "test"
 }
 
 module "traefik" {
