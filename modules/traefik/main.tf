@@ -77,3 +77,32 @@ resource "kubectl_manifest" "openwebui-ingress-route" {
             port: 80
   YAML
 }
+
+
+resource "kubectl_manifest" "flowise-ingress-route" {
+  depends_on = [helm_release.traefik]
+
+  yaml_body = yamlencode({
+    apiVersion = "traefik.io/v1alpha1"
+    kind       = "IngressRoute"
+    metadata = {
+      name      = "flowise"
+      namespace = "homelab"
+    }
+    spec = {
+      entryPoints = ["websecure"]
+      routes = [
+        {
+          match = "Host(`flowise.k8s.orb.local`)"
+          kind  = "Rule"
+          services = [
+            {
+              name = "flowise"
+              port = 3000
+            }
+          ]
+        }
+      ]
+    }
+  })
+}

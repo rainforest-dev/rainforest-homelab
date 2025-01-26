@@ -13,5 +13,5 @@ echo $(kubectl get secret --namespace homelab postgresql -o jsonpath="{.data.pos
 ### Traefik
 
 ```bash
-kubectl port-forward $(kubectl get pods --selector "app.kubernetes.io/name=traefik" --output=name --namespace=homelab) --namespace=homelab 8080:8080
+kubectl port-forward $(kubectl get pods --selector "app.kubernetes.io/name=traefik" --output=name --namespace=traefik) --namespace=traefik 8080:8080
 ```
