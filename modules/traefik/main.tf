@@ -106,3 +106,31 @@ resource "kubectl_manifest" "flowise-ingress-route" {
     }
   })
 }
+
+resource "kubectl_manifest" "calibre-ingress-route" {
+  depends_on = [helm_release.traefik]
+
+  yaml_body = yamlencode({
+    apiVersion = "traefik.io/v1alpha1"
+    kind       = "IngressRoute"
+    metadata = {
+      name      = "calibre"
+      namespace = "homelab"
+    }
+    spec = {
+      entryPoints = ["websecure"]
+      routes = [
+        {
+          match = "Host(`calibre.k8s.orb.local`)"
+          kind  = "Rule"
+          services = [
+            {
+              name = "calibre"
+              port = 8083
+            }
+          ]
+        }
+      ]
+    }
+  })
+}
