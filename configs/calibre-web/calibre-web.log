@@ -1,0 +1,39 @@
+[2025-01-28 13:25:13,897]  WARN {cps.config_sql:364} Log path /config/calibre-web.log not valid, falling back to default
+[2025-01-28 13:25:13,903]  WARN {cps.config_sql:364} Log path  not valid, falling back to default
+[2025-01-28 13:25:13,905]  WARN {cps.config_sql:400} invalidating configuration
+[2025-01-28 13:25:13,905]  WARN {cps.config_sql:364} Log path  not valid, falling back to default
+[2025-01-28 13:25:14,435]  WARN {cps.config_sql:364} Log path  not valid, falling back to default
+[2025-01-28 13:25:14,436]  WARN {cps.config_sql:400} invalidating configuration
+[2025-01-28 13:25:14,436]  WARN {cps.config_sql:364} Log path  not valid, falling back to default
+[2025-01-28 13:25:14,448]  INFO {cps:178} Starting Calibre Web...
+[2025-01-28 13:25:14,639]  WARN {py.warnings:110} /lsiopy/lib/python3.12/site-packages/flask_limiter/extension.py:333: UserWarning: Using the in-memory storage for tracking rate limits as no storage was explicitly specified. This is not recommended for production use. See: https://flask-limiter.readthedocs.io#configuring-a-storage-backend for documentation about configuring the storage backend.
+  warnings.warn(
+
+[2025-01-28 13:25:14,719]  INFO {apscheduler.scheduler:181} Scheduler started
+[2025-01-28 13:25:14,720]  INFO {apscheduler.scheduler:895} Added job "delete temp" to job store "default"
+[2025-01-28 13:25:14,720]  INFO {apscheduler.scheduler:895} Added job "end scheduled task" to job store "default"
+[2025-01-28 13:25:14,720]  INFO {apscheduler.scheduler:895} Added job "immediately delete temp" to job store "default"
+[2025-01-28 13:25:14,720]  INFO {apscheduler.executors.default:123} Running job "immediately delete temp (trigger: date[2025-01-28 13:25:14 CST], next run at: 2025-01-28 13:25:14 CST)" (scheduled at 2025-01-28 13:25:14.720447+08:00)
+[2025-01-28 13:25:14,720]  INFO {apscheduler.scheduler:641} Removed job 82d7f441333041a09f81d362be79eb2b
+[2025-01-28 13:25:14,731]  INFO {apscheduler.executors.default:144} Job "immediately delete temp (trigger: date[2025-01-28 13:25:14 CST], next run at: 2025-01-28 13:25:14 CST)" executed successfully
+[2025-01-28 13:25:14,796]  INFO {cps.ub:764} github Blueprint Created
+[2025-01-28 13:25:14,799]  INFO {cps.ub:764} google Blueprint Created
+[2025-01-28 13:25:15,458]  INFO {cps.server:218} Starting Gevent server on [::]:8083
+[2025-01-28 13:26:09,681]  WARN {cps.config_sql:364} Log path  not valid, falling back to default
+[2025-01-28 13:26:09,686]  WARN {cps.config_sql:364} Log path  not valid, falling back to default
+[2025-01-28 13:26:15,433] ERROR {cps.db:883} Author Farkas, Brad Nunnally and David not found to display name in right order
+[2025-01-28 13:26:15,435] ERROR {cps.db:883} Author Ford, Mark Richards and Neal not found to display name in right order
+[2025-01-28 13:26:20,554] ERROR {cps.db:883} Author 唐納・諾曼（Donald A. Norman） not found to display name in right order
+[2025-01-28 13:26:20,574] ERROR {cps.db:883} Author Tony Parisi not found to display name in right order
+[2025-01-28 13:26:20,578] ERROR {cps.db:883} Author Titus Winters, Tom Manshreck, and Hyrum Wright not found to display name in right order
+[2025-01-28 13:26:26,930] ERROR {cps.db:883} Author James Padolsey not found to display name in right order
+[2025-01-28 13:26:46,315] ERROR {cps.db:883} Author Farkas, Brad Nunnally and David not found to display name in right order
+[2025-01-28 13:26:46,317] ERROR {cps.db:883} Author Ford, Mark Richards and Neal not found to display name in right order
+[2025-01-28 13:27:19,271] ERROR {cps.db:883} Author Farkas, Brad Nunnally and David not found to display name in right order
+[2025-01-28 13:27:19,273] ERROR {cps.db:883} Author Ford, Mark Richards and Neal not found to display name in right order
+[2025-01-28 13:31:11,282] ERROR {cps.db:883} Author Farkas, Brad Nunnally and David not found to display name in right order
+[2025-01-28 13:31:11,289] ERROR {cps.db:883} Author Ford, Mark Richards and Neal not found to display name in right order
+[2025-01-28 13:31:18,982] ERROR {cps.db:883} Author 唐納・諾曼（Donald A. Norman） not found to display name in right order
+[2025-01-28 13:31:19,006] ERROR {cps.db:883} Author Tony Parisi not found to display name in right order
+[2025-01-28 13:31:19,010] ERROR {cps.db:883} Author Titus Winters, Tom Manshreck, and Hyrum Wright not found to display name in right order
+[2025-01-28 13:31:21,498] ERROR {cps.db:883} Author James Padolsey not found to display name in right order

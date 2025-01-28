@@ -1,8 +1,3 @@
-provider "kubernetes" {
-  config_path    = "~/.kube/config"
-  config_context = "orbstack"
-}
-
 resource "kubernetes_namespace" "homelab" {
   metadata {
     name = "homelab"
@@ -40,4 +35,8 @@ module "postgresql" {
 
 module "openspeedtest" {
   source = "./modules/openspeedtest"
+}
+
+module "calibre-web" {
+  source = "./modules/calibre-web"
 }
