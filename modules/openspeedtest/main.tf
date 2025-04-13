@@ -16,6 +16,6 @@ resource "docker_container" "openspeedtest" {
   name  = "openspeedtest"
   ports {
     internal = 3000
-    external = 3000
+    external = 3333
   }
 }
