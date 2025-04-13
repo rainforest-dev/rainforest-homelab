@@ -40,3 +40,7 @@ module "openspeedtest" {
 module "calibre-web" {
   source = "./modules/calibre-web"
 }
+
+module "n8n" {
+  source = "./modules/n8n"
+}
