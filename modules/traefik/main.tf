@@ -134,3 +134,31 @@ resource "kubectl_manifest" "calibre-ingress-route" {
     }
   })
 }
+
+resource "kubectl_manifest" "n8n-ingress-route" {
+  depends_on = [helm_release.traefik]
+
+  yaml_body = yamlencode({
+    apiVersion = "traefik.io/v1alpha1"
+    kind       = "IngressRoute"
+    metadata = {
+      name      = "n8n"
+      namespace = "homelab"
+    }
+    spec = {
+      entryPoints = ["websecure"]
+      routes = [
+        {
+          match = "Host(`n8n.k8s.orb.local`)"
+          kind  = "Rule"
+          services = [
+            {
+              name = "n8n"
+              port = 80
+            }
+          ]
+        }
+      ]
+    }
+  })
+}

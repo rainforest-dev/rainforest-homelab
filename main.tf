@@ -41,6 +41,10 @@ module "calibre-web" {
   source = "./modules/calibre-web"
 }
 
+module "n8n" {
+  source = "./modules/n8n"
+}
+
 resource "docker_container" "dockerproxy" {
   image   = "ghcr.io/tecnativa/docker-socket-proxy:latest"
   name    = "dockerproxy"
