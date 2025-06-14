@@ -21,6 +21,10 @@ module "traefik" {
   cloudflare_email   = var.cloudflare_email
 }
 
+module "teleport" {
+  source = "./modules/teleport"
+}
+
 module "open-webui" {
   source = "./modules/open-webui"
 }
