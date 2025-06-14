@@ -44,3 +44,19 @@ module "calibre-web" {
 module "n8n" {
   source = "./modules/n8n"
 }
+
+resource "docker_container" "dockerproxy" {
+  image   = "ghcr.io/tecnativa/docker-socket-proxy:latest"
+  name    = "dockerproxy"
+  restart = "unless-stopped"
+  env     = ["CONTAINERS=1", "SERVICES=1", "TASKS=1", "POST=0"]
+  ports {
+    internal = 2375
+    external = 2375
+  }
+  volumes {
+    host_path      = "/var/run/docker.sock"
+    container_path = "/var/run/docker.sock"
+    read_only      = true
+  }
+}
