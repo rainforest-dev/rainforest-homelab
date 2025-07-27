@@ -16,4 +16,4 @@ output "postgresql_database" {
 output "postgresql_username" {
   description = "PostgreSQL admin username"
   value       = "postgres"
-} 
+}

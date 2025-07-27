@@ -1,0 +1,25 @@
+# Environment Configuration
+environment  = "dev"
+project_name = "homelab"
+
+# Infrastructure Configuration
+kubernetes_context = "docker-desktop"  # or "orbstack", "minikube", etc.
+domain_suffix      = "localhost"       # or your custom domain
+
+# Cloudflare Configuration (optional)
+enable_cloudflare  = false
+cloudflare_api_key = ""  # Your Cloudflare API key
+cloudflare_email   = ""  # Your Cloudflare email
+
+# Feature Flags
+enable_traefik    = true
+enable_postgresql = true
+enable_monitoring = false
+
+# Resource Sizing (adjust based on your system)
+default_cpu_limit    = "500m"
+default_memory_limit = "512Mi"
+default_storage_size = "10Gi"
+
+# Storage Configuration
+enable_persistence = true

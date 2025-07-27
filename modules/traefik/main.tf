@@ -1,16 +1,9 @@
 terraform {
   required_providers {
     kubectl = {
-      source = "gavinbunney/kubectl"
+      source  = "gavinbunney/kubectl"
+      version = "~> 1.14"
     }
-  }
-}
-
-# configure the helm provider to use the orbstack cluster
-provider "helm" {
-  kubernetes {
-    config_path    = "~/.kube/config"
-    config_context = "orbstack"
   }
 }
 
@@ -27,13 +20,13 @@ provider "helm" {
 # }
 
 resource "helm_release" "traefik" {
-  name             = var.traefik_name
-  repository       = "https://traefik.github.io/charts"
+  name             = "${var.project_name}-${var.traefik_name}"
+  repository       = var.chart_repository
   chart            = "traefik"
   create_namespace = true
   namespace        = var.traefik_namespace
 
-  values = [file("modules/traefik/values.yml")]
+  values = [file("${path.module}/values.yml")]
 }
 
 resource "kubectl_manifest" "openspeedtest-ingress-route" {
@@ -49,7 +42,7 @@ resource "kubectl_manifest" "openspeedtest-ingress-route" {
       entryPoints:
         - websecure
       routes:
-        - match: Host(`openspeedtest.k8s.orb.local`)
+        - match: Host(`openspeedtest.${var.domain_suffix}`)
           kind: Rule
           services:
           - name: openspeedtest
@@ -70,7 +63,7 @@ resource "kubectl_manifest" "openwebui-ingress-route" {
       entryPoints:
         - websecure
       routes:
-        - match: Host(`open-webui.k8s.orb.local`)
+        - match: Host(`open-webui.${var.domain_suffix}`)
           kind: Rule
           services:
           - name: open-webui
@@ -93,7 +86,7 @@ resource "kubectl_manifest" "flowise-ingress-route" {
       entryPoints = ["websecure"]
       routes = [
         {
-          match = "Host(`flowise.k8s.orb.local`)"
+          match = "Host(`flowise.${var.domain_suffix}`)"
           kind  = "Rule"
           services = [
             {
@@ -121,7 +114,7 @@ resource "kubectl_manifest" "calibre-ingress-route" {
       entryPoints = ["websecure"]
       routes = [
         {
-          match = "Host(`calibre.k8s.orb.local`)"
+          match = "Host(`calibre.${var.domain_suffix}`)"
           kind  = "Rule"
           services = [
             {
@@ -149,7 +142,7 @@ resource "kubectl_manifest" "n8n-ingress-route" {
       entryPoints = ["websecure"]
       routes = [
         {
-          match = "Host(`n8n.k8s.orb.local`)"
+          match = "Host(`n8n.${var.domain_suffix}`)"
           kind  = "Rule"
           services = [
             {
