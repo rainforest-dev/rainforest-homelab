@@ -9,44 +9,114 @@ resource "kubernetes_namespace" "traefik" {
   }
 }
 
-module "nfs-persistence" {
-  source = "./modules/nfs-persistence"
-  name   = "test"
-}
 
 module "traefik" {
   source = "./modules/traefik"
+  count  = var.enable_traefik ? 1 : 0
 
+  project_name       = var.project_name
+  environment        = var.environment
+  domain_suffix      = var.domain_suffix
+  enable_cloudflare  = var.enable_cloudflare
   cloudflare_api_key = var.cloudflare_api_key
   cloudflare_email   = var.cloudflare_email
+  cpu_limit          = var.default_cpu_limit
+  memory_limit       = var.default_memory_limit
+  chart_repository   = "https://traefik.github.io/charts"
 }
 
-module "teleport" {
-  source = "./modules/teleport"
-}
 
 module "open-webui" {
   source = "./modules/open-webui"
+
+  project_name       = var.project_name
+  environment        = var.environment
+  cpu_limit          = var.default_cpu_limit
+  memory_limit       = var.default_memory_limit
+  enable_persistence = var.enable_persistence
+  storage_size       = var.default_storage_size
+  ollama_enabled     = false
+  chart_repository   = "https://helm.openwebui.com/"
 }
 
 module "flowise" {
   source = "./modules/flowise"
+
+  project_name       = var.project_name
+  environment        = var.environment
+  cpu_limit          = var.default_cpu_limit
+  memory_limit       = var.default_memory_limit
+  enable_persistence = var.enable_persistence
+  storage_size       = var.default_storage_size
+  chart_repository   = "https://cowboysysop.github.io/charts"
 }
 
 module "postgresql" {
   source = "./modules/postgresql"
+  count  = var.enable_postgresql ? 1 : 0
+
+  project_name       = var.project_name
+  environment        = var.environment
+  enable_persistence = var.enable_persistence
+  storage_size       = var.default_storage_size
+  cpu_limit          = var.default_cpu_limit
+  memory_limit       = var.default_memory_limit
 }
 
 module "openspeedtest" {
   source = "./modules/openspeedtest"
+
+  project_name       = var.project_name
+  environment        = var.environment
+  cpu_limit          = var.default_cpu_limit
+  memory_limit       = var.default_memory_limit
+  enable_persistence = var.enable_persistence
+  storage_size       = var.default_storage_size
 }
 
 module "calibre-web" {
   source = "./modules/calibre-web"
+
+  project_name       = var.project_name
+  environment        = var.environment
+  enable_persistence = var.enable_persistence
+  storage_size       = var.default_storage_size
+  cpu_limit          = var.default_cpu_limit
+  memory_limit       = var.default_memory_limit
 }
 
 module "n8n" {
   source = "./modules/n8n"
+
+  project_name       = var.project_name
+  environment        = var.environment
+  cpu_limit          = var.default_cpu_limit
+  memory_limit       = var.default_memory_limit
+  enable_persistence = var.enable_persistence
+  storage_size       = var.default_storage_size
+  chart_repository   = "oci://8gears.container-registry.com/library/"
+}
+
+module "homepage" {
+  source = "./modules/homepage"
+
+  project_name       = var.project_name
+  environment        = var.environment
+  cpu_limit          = var.default_cpu_limit
+  memory_limit       = var.default_memory_limit
+  enable_persistence = var.enable_persistence
+  storage_size       = var.default_storage_size
+  chart_repository   = "https://jameswynn.github.io/helm-charts"
+  domain_suffix      = var.domain_suffix
+}
+
+module "metrics_server" {
+  source = "./modules/metrics-server"
+
+  project_name = var.project_name
+  environment  = var.environment
+  cpu_limit    = var.default_cpu_limit
+  memory_limit = var.default_memory_limit
 }
 
 resource "docker_container" "dockerproxy" {

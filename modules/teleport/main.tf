@@ -1,17 +1,10 @@
-provider "helm" {
-  kubernetes {
-    config_path    = "~/.kube/config"
-    config_context = "orbstack"
-  }
-}
-
 resource "helm_release" "teleport" {
-  name             = "teleport-agent"
-  repository       = "https://charts.releases.teleport.dev"
-  chart            = "teleport-kube-agent"
-  version = "17.5.2"
-  create_namespace = true
-  namespace        = "homelab"
+  name             = var.release_name
+  repository       = var.chart_repository
+  chart            = var.chart_name
+  version          = var.chart_version
+  create_namespace = var.create_namespace
+  namespace        = var.namespace
 
-  values = [file("modules/teleport/prod-cluster-values.yaml")]
+  values = [file("${path.module}/${var.values_file_path}")]
 }

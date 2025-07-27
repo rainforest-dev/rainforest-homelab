@@ -1,19 +1,34 @@
-provider "helm" {
-  kubernetes {
-    config_path    = "~/.kube/config"
-    config_context = "orbstack"
-  }
-}
-
 resource "helm_release" "open-webui" {
-  name             = "open-webui"
-  repository       = "https://helm.openwebui.com/"
-  chart            = "open-webui"
-  create_namespace = true
-  namespace        = "homelab"
+  name             = "${var.project_name}-open-webui"
+  repository       = var.chart_repository
+  chart            = var.chart_name
+  version          = var.chart_version
+  create_namespace = var.create_namespace
+  namespace        = var.namespace
 
-  set {
-    name  = "ollama.enabled"
-    value = "false"
-  }
+  values = [
+    yamlencode({
+      fullnameOverride = "${var.project_name}-open-webui"
+      
+      ollama = {
+        enabled = var.ollama_enabled
+      }
+      
+      resources = {
+        limits = {
+          cpu    = var.cpu_limit
+          memory = var.memory_limit
+        }
+        requests = {
+          cpu    = "100m"
+          memory = "128Mi"
+        }
+      }
+      
+      persistence = {
+        enabled = var.enable_persistence
+        size    = var.storage_size
+      }
+    })
+  ]
 }
