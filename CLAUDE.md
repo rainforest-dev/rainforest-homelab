@@ -32,7 +32,7 @@ All modules follow a consistent structure:
 
 ### Service Architecture
 - All services run in the `homelab` namespace (except Traefik in `traefik` namespace)
-- Services use configurable domain suffix (default: `localhost`)
+- Services use configurable domain suffix (configured: `rainforest.tools`)
 - Traefik handles SSL termination and routing via IngressRoute CRDs
 - Docker proxy container provides secure Docker socket access
 - Docker volumes provide managed persistent storage
@@ -88,14 +88,17 @@ docker run --rm -v homelab-calibre-web-config:/data -v $(pwd):/backup alpine tar
 ```
 
 ### Service Access
-Services are available at (using configurable domain suffix):
-- `openspeedtest.localhost` - Network speed testing
-- `open-webui.localhost` - Open WebUI interface  
-- `flowise.localhost` - Flowise low-code AI workflows
-- `calibre.localhost` - Calibre Web ebook server
-- `n8n.localhost` - n8n automation platform
-- `homepage.localhost` - Homepage dashboard
-- `teleport.localhost` - Teleport access proxy
+Services are available at (using `rainforest.tools` domain):
+
+**Kubernetes Services (via Traefik HTTPS):**
+- `https://homepage.rainforest.tools` - Homepage dashboard with all services
+- `https://open-webui.rainforest.tools` - Open WebUI AI interface  
+- `https://flowise.rainforest.tools` - Flowise AI workflows
+- `https://n8n.rainforest.tools` - n8n automation platform
+
+**Docker Containers (direct access):**
+- `http://localhost:8083` - Calibre Web ebook server
+- `http://localhost:3333` - OpenSpeedTest network testing
 
 Note: Domain suffix is configurable via `domain_suffix` variable in `terraform.tfvars`
 

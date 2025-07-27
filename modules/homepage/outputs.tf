@@ -6,7 +6,7 @@ output "resource_id" {
 
 output "service_url" {
   description = "Service URL for Homepage"
-  value       = "https://homepage.k8s.orb.local"
+  value       = "https://homepage.${var.domain_suffix}"
 }
 
 output "service_name" {

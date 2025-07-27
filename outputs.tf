@@ -22,3 +22,13 @@ output "postgresql_connection_info" {
     username     = module.postgresql[0].postgresql_username
   } : null
 }
+
+output "homepage_id" {
+  description = "The ID of the homepage resource."
+  value       = module.homepage.resource_id
+}
+
+output "homepage_url" {
+  description = "URL to access homepage dashboard"
+  value       = module.homepage.service_url
+}
