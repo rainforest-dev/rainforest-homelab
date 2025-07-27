@@ -29,26 +29,6 @@ resource "helm_release" "traefik" {
   values = [file("${path.module}/values.yml")]
 }
 
-resource "kubectl_manifest" "openspeedtest-ingress-route" {
-  depends_on = [helm_release.traefik]
-
-  yaml_body = <<YAML
-    apiVersion: traefik.io/v1alpha1
-    kind: IngressRoute
-    metadata:
-      name: openspeedtest
-      namespace: homelab
-    spec:
-      entryPoints:
-        - websecure
-      routes:
-        - match: Host(`openspeedtest.${var.domain_suffix}`)
-          kind: Rule
-          services:
-          - name: openspeedtest
-            port: 3000
-  YAML
-}
 
 resource "kubectl_manifest" "openwebui-ingress-route" {
   depends_on = [helm_release.traefik]
@@ -90,7 +70,7 @@ resource "kubectl_manifest" "flowise-ingress-route" {
           kind  = "Rule"
           services = [
             {
-              name = "flowise"
+              name = "homelab-flowise"
               port = 3000
             }
           ]
@@ -100,33 +80,6 @@ resource "kubectl_manifest" "flowise-ingress-route" {
   })
 }
 
-resource "kubectl_manifest" "calibre-ingress-route" {
-  depends_on = [helm_release.traefik]
-
-  yaml_body = yamlencode({
-    apiVersion = "traefik.io/v1alpha1"
-    kind       = "IngressRoute"
-    metadata = {
-      name      = "calibre"
-      namespace = "homelab"
-    }
-    spec = {
-      entryPoints = ["websecure"]
-      routes = [
-        {
-          match = "Host(`calibre.${var.domain_suffix}`)"
-          kind  = "Rule"
-          services = [
-            {
-              name = "calibre"
-              port = 8083
-            }
-          ]
-        }
-      ]
-    }
-  })
-}
 
 resource "kubectl_manifest" "n8n-ingress-route" {
   depends_on = [helm_release.traefik]
@@ -146,8 +99,36 @@ resource "kubectl_manifest" "n8n-ingress-route" {
           kind  = "Rule"
           services = [
             {
-              name = "n8n"
+              name = "homelab-n8n"
               port = 80
+            }
+          ]
+        }
+      ]
+    }
+  })
+}
+
+resource "kubectl_manifest" "homepage-ingress-route" {
+  depends_on = [helm_release.traefik]
+
+  yaml_body = yamlencode({
+    apiVersion = "traefik.io/v1alpha1"
+    kind       = "IngressRoute"
+    metadata = {
+      name      = "homepage"
+      namespace = "homelab"
+    }
+    spec = {
+      entryPoints = ["websecure"]
+      routes = [
+        {
+          match = "Host(`homepage.${var.domain_suffix}`)"
+          kind  = "Rule"
+          services = [
+            {
+              name = "homelab-homepage"
+              port = 3000
             }
           ]
         }

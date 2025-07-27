@@ -9,11 +9,6 @@ resource "kubernetes_namespace" "traefik" {
   }
 }
 
-# Disabled due to connection issues - use local storage for now
-# module "nfs-persistence" {
-#   source = "./modules/nfs-persistence"
-#   name   = "${var.project_name}-nfs"
-# }
 
 module "traefik" {
   source = "./modules/traefik"
@@ -30,18 +25,6 @@ module "traefik" {
   chart_repository   = "https://traefik.github.io/charts"
 }
 
-# Teleport removed as requested
-# module "teleport" {
-#   source = "./modules/teleport"
-#
-#   project_name       = var.project_name
-#   environment        = var.environment
-#   cpu_limit          = var.default_cpu_limit
-#   memory_limit       = var.default_memory_limit
-#   enable_persistence = var.enable_persistence
-#   storage_size       = var.default_storage_size
-#   chart_repository   = "https://charts.releases.teleport.dev"
-# }
 
 module "open-webui" {
   source = "./modules/open-webui"
@@ -112,6 +95,28 @@ module "n8n" {
   enable_persistence = var.enable_persistence
   storage_size       = var.default_storage_size
   chart_repository   = "oci://8gears.container-registry.com/library/"
+}
+
+module "homepage" {
+  source = "./modules/homepage"
+
+  project_name       = var.project_name
+  environment        = var.environment
+  cpu_limit          = var.default_cpu_limit
+  memory_limit       = var.default_memory_limit
+  enable_persistence = var.enable_persistence
+  storage_size       = var.default_storage_size
+  chart_repository   = "https://jameswynn.github.io/helm-charts"
+  domain_suffix      = var.domain_suffix
+}
+
+module "metrics_server" {
+  source = "./modules/metrics-server"
+
+  project_name = var.project_name
+  environment  = var.environment
+  cpu_limit    = var.default_cpu_limit
+  memory_limit = var.default_memory_limit
 }
 
 resource "docker_container" "dockerproxy" {

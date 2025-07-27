@@ -69,3 +69,9 @@ variable "values_file_path" {
   type        = string
   default     = "modules/homepage/values.yml"
 }
+
+variable "domain_suffix" {
+  description = "Domain suffix for service URLs"
+  type        = string
+  default     = "localhost"
+}
