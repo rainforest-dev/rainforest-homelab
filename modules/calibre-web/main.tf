@@ -1,18 +1,62 @@
+# Create Docker volumes for Calibre Web
+module "calibre_config_volume" {
+  source = "../volume-management"
+
+  project_name = var.project_name
+  service_name = "calibre-web"
+  volume_name  = "config"
+  environment  = var.environment
+  volume_type  = "config"
+}
+
+module "calibre_books_volume" {
+  source = "../volume-management"
+
+  project_name = var.project_name
+  service_name = "calibre-web"
+  volume_name  = "books"
+  environment  = var.environment
+  volume_type  = "data"
+}
+
 resource "docker_container" "calibre-web" {
-  image   = "lscr.io/linuxserver/calibre-web:latest"
-  name    = "calibre-web"
+  image   = "${var.image_name}:${var.image_tag}"
+  name    = "${var.project_name}-calibre-web"
   restart = "unless-stopped"
+
   ports {
-    internal = 8083
-    external = 8083
+    internal = var.internal_port
+    external = var.external_port
   }
-  env = ["PUID=1000", "PGID=1000", "TZ=Asia/Taipei"]
+
+  env = [
+    "PUID=${var.puid}",
+    "PGID=${var.pgid}",
+    "TZ=${var.timezone}"
+  ]
+
   volumes {
     container_path = "/config"
-    host_path      = "${abspath(path.root)}/configs/calibre-web"
+    volume_name    = module.calibre_config_volume.volume_name
   }
+
   volumes {
     container_path = "/books"
-    host_path      = "/Users/rainforest/Library/CloudStorage/SynologyDrive-CalibreLibrary"
+    volume_name    = module.calibre_books_volume.volume_name
+  }
+
+  labels {
+    label = "project"
+    value = var.project_name
+  }
+
+  labels {
+    label = "environment"
+    value = var.environment
+  }
+
+  labels {
+    label = "service"
+    value = "calibre-web"
   }
 }
