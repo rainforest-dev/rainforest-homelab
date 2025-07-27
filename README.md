@@ -12,15 +12,18 @@ A Terraform-based homelab infrastructure repository that deploys various self-ho
 - **Docker Volumes**: Managed persistent storage for applications
 
 ### Services Deployed
-- **Traefik**: Reverse proxy and load balancer
+
+#### Kubernetes Services (via Traefik Ingress)
+- **Traefik**: Reverse proxy and load balancer with HTTPS
 - **PostgreSQL**: Database service for applications
-- **Calibre Web**: Ebook server and manager
 - **Open WebUI**: AI chat interface
-- **Flowise**: Low-code AI workflow builder
+- **Flowise**: Low-code AI workflow builder  
 - **n8n**: Workflow automation platform
+
+#### Docker Containers (Direct Access)
+- **Calibre Web**: Ebook server and manager
 - **OpenSpeedTest**: Network speed testing tool
-- **Homepage**: Dashboard for homelab services
-- **Teleport**: Access management platform
+- **Docker Proxy**: Secure Docker socket access
 
 ## 🚀 Quick Start
 
@@ -62,7 +65,7 @@ project_name = "homelab"
 
 # Infrastructure Configuration
 kubernetes_context = "docker-desktop"
-domain_suffix      = "localhost"
+domain_suffix      = "rainforest.tools"
 
 # Feature Flags
 enable_traefik    = true
@@ -84,15 +87,26 @@ Control which services are deployed:
 
 ## 🌐 Service Access
 
-Services are available at (using configurable domain suffix):
-- `traefik.localhost:8080` - Traefik dashboard
-- `openspeedtest.localhost` - Network speed testing
-- `open-webui.localhost` - Open WebUI interface  
-- `flowise.localhost` - Flowise AI workflows
-- `calibre.localhost` - Calibre Web ebook server
-- `n8n.localhost` - n8n automation platform
-- `homepage.localhost` - Homepage dashboard
-- `teleport.localhost` - Teleport access proxy
+### Kubernetes Services (via Traefik HTTPS)
+These services are accessible through Traefik with automatic HTTPS redirection:
+
+- **🏠 https://homepage.rainforest.tools** - Homepage dashboard with all services
+- **🌐 https://open-webui.rainforest.tools** - Open WebUI AI chat interface
+- **🔄 https://flowise.rainforest.tools** - Flowise AI workflow builder  
+- **⚡ https://n8n.rainforest.tools** - n8n automation platform
+
+### Docker Containers (Direct HTTP)
+These services run as Docker containers with direct port access:
+
+- **📚 http://localhost:8083** - Calibre Web ebook server
+- **🚀 http://localhost:3333** - OpenSpeedTest network testing
+- **🔧 http://localhost:2375** - Docker Proxy (internal use)
+
+### Management Interfaces
+Access administrative interfaces:
+
+- **🎛️ Traefik Dashboard**: Port-forward with `kubectl port-forward -n traefik svc/homelab-traefik 8080:8080` then visit http://localhost:8080
+- **🗄️ PostgreSQL**: Access via kubectl (see management section below)
 
 ## 🔧 Management
 
@@ -169,9 +183,7 @@ kubectl run postgresql-client --rm --tty -i --restart='Never' --namespace homela
     ├── flowise/              # Flowise AI workflows
     ├── n8n/                  # n8n automation
     ├── openspeedtest/        # Network speed testing
-    ├── homepage/             # Homepage dashboard
-    ├── teleport/             # Teleport access proxy
-    └── nfs-persistence/      # NFS storage (legacy)
+    └── nfs-persistence/      # NFS storage (disabled)
 ```
 
 ### Module Structure
