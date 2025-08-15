@@ -1,0 +1,33 @@
+{
+  "mcpServers": {
+    "terraform": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-v",
+        "${PWD}:/workspace",
+        "-w",
+        "/workspace",
+        "hashicorp/terraform-mcp-server"
+      ]
+    },
+    "cloudflare-dns": {
+      "type": "sse",
+      "url": "https://dns-analytics.mcp.cloudflare.com/sse"
+    },
+    "cloudflare-observability": {
+      "type": "sse",
+      "url": "https://observability.mcp.cloudflare.com/sse"
+    },
+    "cloudflare-casb": {
+      "type": "sse",
+      "url": "https://casb.mcp.cloudflare.com/sse"
+    },
+    "cloudflare-docs": {
+      "type": "sse",
+      "url": "https://docs.mcp.cloudflare.com/sse"
+    }
+  }
+}
