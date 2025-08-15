@@ -28,25 +28,7 @@ variable "domain_suffix" {
   default     = "localhost"
 }
 
-variable "enable_cloudflare" {
-  description = "Enable Cloudflare DNS integration"
-  type        = bool
-  default     = false
-}
-
-variable "cloudflare_api_key" {
-  description = "The API key for Cloudflare integration."
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "cloudflare_email" {
-  description = "The email address associated with the Cloudflare account."
-  type        = string
-  sensitive   = true
-  default     = ""
-}
+# Cloudflare integration removed - using Tailscale + CoreDNS instead
 
 variable "cpu_limit" {
   description = "CPU limit for Traefik"

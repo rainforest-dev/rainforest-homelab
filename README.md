@@ -8,6 +8,7 @@ A Terraform-based homelab infrastructure repository that deploys various self-ho
 - **Terraform**: Infrastructure as Code for managing Kubernetes resources
 - **Helm**: Package manager for Kubernetes applications  
 - **Traefik**: Ingress controller with automatic HTTPS redirection
+- **CoreDNS**: Custom DNS server for automatic domain resolution in Tailscale network
 - **Docker Desktop**: Local Kubernetes cluster (context: `docker-desktop`)
 - **Docker Volumes**: Managed persistent storage for applications
 
@@ -15,10 +16,12 @@ A Terraform-based homelab infrastructure repository that deploys various self-ho
 
 #### Kubernetes Services (via Traefik Ingress)
 - **Traefik**: Reverse proxy and load balancer with HTTPS
+- **CoreDNS**: Custom DNS server for Tailscale integration
 - **PostgreSQL**: Database service for applications
 - **Open WebUI**: AI chat interface
 - **Flowise**: Low-code AI workflow builder  
 - **n8n**: Workflow automation platform
+- **Homepage**: Service dashboard and portal
 
 #### Docker Containers (Direct Access)
 - **Calibre Web**: Ebook server and manager
@@ -70,7 +73,11 @@ domain_suffix      = "rainforest.tools"
 # Feature Flags
 enable_traefik    = true
 enable_postgresql = true
+enable_coredns    = true
 enable_monitoring = false
+
+# Network Configuration (for Tailscale integration)
+tailscale_ip = "100.x.x.x"  # Replace with your actual Tailscale IP
 
 # Resource Sizing
 default_cpu_limit    = "500m"
@@ -82,8 +89,8 @@ default_storage_size = "10Gi"
 Control which services are deployed:
 - `enable_traefik`: Deploy Traefik ingress controller
 - `enable_postgresql`: Deploy PostgreSQL database
+- `enable_coredns`: Deploy CoreDNS for Tailscale integration
 - `enable_monitoring`: Deploy monitoring stack (future)
-- `enable_cloudflare`: Enable Cloudflare DNS integration
 
 ## 🌐 Service Access
 
@@ -94,6 +101,21 @@ These services are accessible through Traefik with automatic HTTPS redirection:
 - **🌐 https://open-webui.rainforest.tools** - Open WebUI AI chat interface
 - **🔄 https://flowise.rainforest.tools** - Flowise AI workflow builder  
 - **⚡ https://n8n.rainforest.tools** - n8n automation platform
+
+### 🔗 Tailscale Integration
+When CoreDNS is enabled, all `*.rainforest.tools` domains automatically resolve within your Tailscale network:
+
+1. **Automatic DNS Resolution**: CoreDNS resolves `*.rainforest.tools` domains to your Tailscale IP
+2. **Secure Remote Access**: Access services from any Tailscale device with HTTPS encryption
+3. **No Manual Configuration**: Once Tailscale MagicDNS is configured, all devices automatically resolve domains
+
+**Setup Instructions:**
+1. Find your Tailscale IP: `tailscale ip --4`
+2. Update `tailscale_ip` in `terraform.tfvars`
+3. Configure Tailscale MagicDNS at https://login.tailscale.com/admin/dns:
+   - Add nameserver: `[your-tailscale-ip]`
+   - Set restricted domains: `rainforest.tools`
+4. Access services from any Tailscale device using the HTTPS URLs above
 
 ### Docker Containers (Direct HTTP)
 These services run as Docker containers with direct port access:
@@ -139,6 +161,23 @@ kubectl get services -n homelab
 kubectl port-forward $(kubectl get pods --selector "app.kubernetes.io/name=traefik" --output=name --namespace=traefik) --namespace=traefik 8080:8080
 ```
 
+### CoreDNS Operations
+```bash
+# Check CoreDNS status
+kubectl get pods -n homelab -l app.kubernetes.io/name=coredns
+kubectl get services -n homelab | grep coredns
+
+# Test DNS resolution
+dig @localhost homepage.rainforest.tools
+dig @localhost google.com  # Test external forwarding
+
+# View CoreDNS logs
+kubectl logs -n homelab -l app.kubernetes.io/name=coredns
+
+# View CoreDNS configuration
+kubectl get configmap -n homelab homelab-coredns-coredns -o yaml
+```
+
 ### Docker Volume Operations
 ```bash
 # List all project volumes
@@ -177,11 +216,13 @@ kubectl run postgresql-client --rm --tty -i --restart='Never' --namespace homela
 └── modules/
     ├── volume-management/     # Docker volume management
     ├── traefik/              # Traefik ingress controller
+    ├── coredns/              # CoreDNS for Tailscale integration
     ├── postgresql/           # PostgreSQL database
     ├── calibre-web/          # Calibre Web ebook server
     ├── open-webui/           # Open WebUI interface
     ├── flowise/              # Flowise AI workflows
     ├── n8n/                  # n8n automation
+    ├── homepage/             # Homepage dashboard
     ├── openspeedtest/        # Network speed testing
     └── nfs-persistence/      # NFS storage (disabled)
 ```
@@ -195,11 +236,14 @@ Each module follows a standardized structure:
 
 ## 🔒 Security
 
+- **Tailscale Network Isolation**: Services only accessible through encrypted Tailscale network
+- **CoreDNS Security**: Minimal privileges, non-root execution, read-only filesystem
 - **Docker Socket Proxy**: Secure Docker socket access for containers
-- **Cloudflare Integration**: Optional DNS management and SSL certificates
+- **HTTPS Everywhere**: End-to-end encryption via Tailscale tunnels and Traefik SSL
 - **Resource Limits**: CPU and memory limits for all services
 - **Volume Management**: Isolated persistent storage with labels
 - **Network Policies**: Kubernetes namespace isolation
+- **Sensitive Variables**: Tailscale IP marked as sensitive in Terraform
 
 ## 🔄 Development
 
@@ -212,8 +256,11 @@ Each module follows a standardized structure:
    - `versions.tf`: Provider constraints (if needed)
 3. Add service to main `main.tf` as a module with standard variables
 4. Add IngressRoute in `modules/traefik/main.tf` following existing patterns
-5. For persistent storage, use the `volume-management` module
-6. Run `terraform plan` and `terraform apply`
+5. **Add DNS entry in `modules/coredns/main.tf`** to the hosts plugin configuration
+6. For persistent storage, use the `volume-management` module
+7. Run `terraform plan` and `terraform apply`
+
+Note: New services automatically get DNS resolution in Tailscale network after step 5
 
 ### Variable Conventions
 All modules use standardized variables:
@@ -236,9 +283,17 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 4. Test with `terraform plan`
 5. Submit a pull request
 
+## 🔒 Security
+
+This repository follows security best practices for infrastructure code. Please review:
+- [`SECURITY.md`](SECURITY.md) - Comprehensive security guidelines
+- Never commit sensitive data (API keys, passwords, tokens)
+- Use `terraform.tfvars.example` as a template for your local configuration
+
 ## 📞 Support
 
 For issues and questions:
 - Check the `CLAUDE.md` file for AI assistant guidance
 - Review Terraform documentation
 - Check service-specific documentation in module directories
+- For security concerns, see [`SECURITY.md`](SECURITY.md)

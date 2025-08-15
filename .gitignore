@@ -20,6 +20,19 @@ crash.*.log
 *.tfvars
 *.tfvars.json
 
+# Additional security exclusions
+*.tfvars.local*
+*.tfvars.backup*
+*-values.yaml
+*-secrets.yaml
+*.env
+*.env.local
+.secrets/
+secrets/
+*.pem
+*.key
+*.crt
+
 # Ignore override files as they are usually used to override resources locally and so
 # are not checked in
 override.tf
