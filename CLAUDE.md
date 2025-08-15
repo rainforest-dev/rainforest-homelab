@@ -4,26 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a Terraform-based homelab infrastructure repository that deploys various self-hosted applications to a Kubernetes cluster using Helm charts and custom manifests. The setup uses Docker Desktop as the local Kubernetes environment with Traefik as the ingress controller and Docker volumes for persistent storage.
+This is a Terraform-based homelab infrastructure repository that deploys various self-hosted applications to a Kubernetes cluster using Helm charts and custom manifests. The setup uses Docker Desktop as the local Kubernetes environment with **Cloudflare Tunnel** for secure external access with automatic SSL certificates and optional Zero Trust authentication.
 
 ## Architecture
 
 ### Core Components
 - **Terraform**: Infrastructure as Code for managing Kubernetes resources
 - **Helm**: Package manager for Kubernetes applications
-- **Traefik**: Ingress controller with automatic HTTPS redirection
-- **CoreDNS**: Custom DNS server for automatic domain resolution in Tailscale network
+- **Cloudflare Tunnel**: Secure external access with automatic SSL certificates
+- **cloudflared**: Tunnel client running in Kubernetes for secure connectivity
 - **Docker Desktop**: Local Kubernetes cluster (context: `docker-desktop`)
 - **Docker Volumes**: Managed persistent storage for applications
 
 ### Module Structure
 Each service is organized as a Terraform module in `modules/`:
-- `traefik/`: Ingress controller with IngressRoute definitions for all services
-- `coredns/`: Custom DNS server for automated domain resolution in Tailscale network
+- `cloudflare-tunnel/`: Cloudflare Tunnel for secure external access with SSL certificates
 - `postgresql/`: Database service for applications that need persistent storage  
 - `volume-management/`: Docker volume management for persistent storage
-- `nfs-persistence/`: Network storage for persistent volumes (legacy)
 - Application modules: `calibre-web/`, `flowise/`, `n8n/`, `open-webui/`, `openspeedtest/`, `homepage/`
+- Legacy modules: `traefik/` (ingress), `coredns/` (DNS), `nfs-persistence/` (storage)
 
 ### Standardized Module Structure
 All modules follow a consistent structure:
@@ -33,19 +32,19 @@ All modules follow a consistent structure:
 - `versions.tf`: Provider version constraints (where needed)
 
 ### Service Architecture
-- All services run in the `homelab` namespace (except Traefik in `traefik` namespace)
-- Services use configurable domain suffix (configured: `rainforest.tools`)
-- Traefik handles SSL termination and routing via IngressRoute CRDs
-- CoreDNS provides custom DNS resolution for `*.rainforest.tools` domains to Tailscale network
+- All services run in the `homelab` namespace 
+- Services use configurable domain suffix (example: `rainforest.tools`)
+- Cloudflare Tunnel handles SSL termination and routing via tunnel configuration
+- cloudflared pods provide secure connectivity between Cloudflare Edge and Kubernetes services
 - Docker proxy container provides secure Docker socket access
 - Docker volumes provide managed persistent storage
 
-### DNS Resolution Flow
-1. **Client Query**: Device queries `homepage.rainforest.tools`
-2. **Tailscale MagicDNS**: Routes to CoreDNS server ([your-tailscale-ip]:53)
-3. **CoreDNS**: Resolves `*.rainforest.tools` → Tailscale IP ([your-tailscale-ip])
-4. **Traefik**: Routes HTTPS traffic based on Host header to appropriate service
-5. **Service**: Returns response through encrypted Tailscale tunnel
+### Cloudflare Tunnel Flow
+1. **Client Request**: Device queries `homepage.yourdomain.com`
+2. **Cloudflare DNS**: Resolves to Cloudflare Edge servers
+3. **Cloudflare Edge**: Routes to your Cloudflare Tunnel
+4. **cloudflared pods**: Receive tunnel traffic and route to Kubernetes services
+5. **Service Response**: Returns through encrypted tunnel with automatic SSL
 
 ## Common Commands
 
@@ -75,38 +74,35 @@ kubectl config current-context
 kubectl get pods -n homelab
 kubectl get services -n homelab
 
-# View Traefik dashboard port-forward
-kubectl port-forward $(kubectl get pods --selector "app.kubernetes.io/name=traefik" --output=name --namespace=traefik) --namespace=traefik 8080:8080
+# Check cloudflared tunnel status  
+kubectl get pods -n homelab -l app=cloudflared
+kubectl logs -n homelab -l app=cloudflared
 
 # Get PostgreSQL password
 echo $(kubectl get secret --namespace homelab homelab-postgresql -o jsonpath="{.data.postgres-password}" | base64 --decode)
 ```
 
-### CoreDNS Operations
+### Cloudflare Tunnel Operations
 ```bash
-# Check CoreDNS pod status
-kubectl get pods -n homelab -l app.kubernetes.io/name=coredns
+# Check tunnel connectivity
+kubectl logs -n homelab -l app=cloudflared --tail=20
 
-# Check CoreDNS service (should be LoadBalancer)
-kubectl get services -n homelab | grep coredns
+# View tunnel configuration
+kubectl get configmap -n homelab cloudflared-config -o yaml
 
-# Test DNS resolution locally
-dig @localhost homepage.rainforest.tools
-dig @localhost google.com  # Test external forwarding
+# Test internal service connectivity
+kubectl run test-pod --rm -it --restart=Never --image=curlimages/curl -- curl -I http://homelab-homepage.homelab.svc.cluster.local:3000
 
-# View CoreDNS configuration
-kubectl get configmap -n homelab homelab-coredns-coredns -o yaml
+# Check tunnel credentials
+kubectl get secret -n homelab cloudflare-tunnel-credentials
 
-# View CoreDNS logs
-kubectl logs -n homelab -l app.kubernetes.io/name=coredns
+# View tunnel metrics (if enabled)
+kubectl port-forward -n homelab -l app=cloudflared 2000:2000
+# Then visit http://localhost:2000/metrics
 
-# Test DNS from within cluster
-kubectl run -it --rm --restart=Never --image=infoblox/dnstools:latest dnstools
-# Inside the pod: host homepage.rainforest.tools
-
-# Check CoreDNS metrics (if monitoring enabled)
-kubectl port-forward -n homelab svc/homelab-coredns-coredns-metrics 9153:9153
-# Then visit http://localhost:9153/metrics
+# Test external DNS resolution
+dig homepage.yourdomain.com
+nslookup homepage.yourdomain.com 8.8.8.8
 ```
 
 ### Docker Volume Operations
@@ -127,21 +123,23 @@ docker run --rm -v homelab-calibre-web-config:/data -v $(pwd):/backup alpine tar
 ### Service Access
 Services are available at (using `rainforest.tools` domain):
 
-**Kubernetes Services (via Traefik HTTPS):**
-- `https://homepage.rainforest.tools` - Homepage dashboard with all services
-- `https://open-webui.rainforest.tools` - Open WebUI AI interface  
-- `https://flowise.rainforest.tools` - Flowise AI workflows
-- `https://n8n.rainforest.tools` - n8n automation platform
+**Kubernetes Services (via Cloudflare Tunnel):**
+- `https://homepage.yourdomain.com` - Homepage dashboard with all services
+- `https://open-webui.yourdomain.com` - Open WebUI AI interface  
+- `https://flowise.yourdomain.com` - Flowise AI workflows
+- `https://n8n.yourdomain.com` - n8n automation platform
 
 **Docker Containers (direct access):**
 - `http://localhost:8083` - Calibre Web ebook server
 - `http://localhost:3333` - OpenSpeedTest network testing
 
-**Tailscale Integration:**
-- All `*.rainforest.tools` domains automatically resolve in Tailscale network
-- CoreDNS server accessible at Tailscale IP ([your-tailscale-ip]:53)
-- Requires Tailscale MagicDNS configuration: Add nameserver `[your-tailscale-ip]` for domain `rainforest.tools`
-- Access services from any Tailscale device without manual DNS configuration
+**Cloudflare Tunnel Benefits:**
+- Real SSL certificates from Cloudflare (trusted by all browsers)
+- Global CDN access via Cloudflare's network
+- Hidden home IP address (enhanced security)
+- DDoS protection and enterprise-grade security
+- Optional Zero Trust authentication
+- Works from any internet connection worldwide
 
 Note: Domain suffix is configurable via `domain_suffix` variable in `terraform.tfvars`
 
@@ -155,56 +153,54 @@ Note: Domain suffix is configurable via `domain_suffix` variable in `terraform.t
    - `outputs.tf`: Resource outputs including service_url
    - `versions.tf`: Provider constraints (if needed)
 3. Add service to main `main.tf` as a module with standard variables
-4. Add IngressRoute in `modules/traefik/main.tf` following existing patterns
-5. **Add DNS entry in `modules/coredns/main.tf`** to the hosts plugin configuration
-6. For persistent storage, use the `volume-management` module
-7. Run `terraform plan` and `terraform apply`
+4. **Add ingress rule in `modules/cloudflare-tunnel/main.tf`** to tunnel configuration
+5. **Add DNS record in `modules/cloudflare-tunnel/main.tf`** to services list
+6. **Add Zero Trust app in `modules/cloudflare-tunnel/main.tf`** for authentication (optional)
+7. For persistent storage, use the `volume-management` module
+8. Run `terraform plan` and `terraform apply`
 
-Note: New services automatically get DNS resolution in Tailscale network after step 5
+Note: New services automatically get SSL certificates and DNS records via Cloudflare
 
-### Traefik Ingress Configuration
-IngressRoutes use `websecure` entrypoint and follow this pattern:
-```yaml
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: [service-name]
-  namespace: homelab
-spec:
-  entryPoints: ["websecure"]
-  routes:
-    - match: Host(`[service-name].rainforest.tools`)
-      kind: Rule
-      services:
-        - name: [service-name]
-          port: [port-number]
+### Cloudflare Tunnel Configuration
+When adding new services, update three sections in `modules/cloudflare-tunnel/main.tf`:
+
+1. **Tunnel Ingress Rules** in `cloudflare_tunnel_config`:
+```hcl
+ingress_rule {
+  hostname = "[service-name].${var.domain_suffix}"
+  service  = "http://[service-name].homelab.svc.cluster.local:[port]"
+}
 ```
 
-### CoreDNS Configuration
-When adding new services, update the hosts plugin in `modules/coredns/main.tf`:
+2. **DNS Records** in `cloudflare_record.services`:
 ```hcl
-configBlock = join("\n", [
-  "${var.tailscale_ip} homepage.rainforest.tools",
-  "${var.tailscale_ip} open-webui.rainforest.tools", 
-  "${var.tailscale_ip} flowise.rainforest.tools",
-  "${var.tailscale_ip} n8n.rainforest.tools",
-  "${var.tailscale_ip} [new-service].rainforest.tools",  # Add new service here
-  "fallthrough"
+for_each = toset([
+  "homepage",
+  "open-webui", 
+  "flowise",
+  "n8n",
+  "[new-service]"  # Add new service here
 ])
 ```
 
-**CoreDNS Features:**
-- **Security**: Non-root execution, minimal capabilities, read-only filesystem
-- **Performance**: 30s DNS caching, load balancing, up to 1000 concurrent queries
-- **Monitoring**: Prometheus metrics on port 9153
-- **Reliability**: Health checks, automatic config reload, loop detection
-- **Split DNS**: Local domains (*.rainforest.tools) + external forwarding (8.8.8.8)
+3. **Zero Trust Applications** (optional) in `cloudflare_access_application.services`:
+```hcl
+for_each = length(var.allowed_email_domains) > 0 ? toset([
+  "homepage",
+  "open-webui",
+  "flowise", 
+  "n8n",
+  "[new-service]"  # Add new service here
+]) : toset([])
+```
 
-**Tailscale MagicDNS Setup:**
-1. Go to https://login.tailscale.com/admin/dns
-2. Add nameserver: `[your-tailscale-ip]`
-3. Set restricted domains: `rainforest.tools`
-4. All Tailscale devices now automatically resolve `*.rainforest.tools` domains
+**Cloudflare Tunnel Features:**
+- **Automatic SSL**: Real certificates from Cloudflare for all services
+- **Zero Trust Ready**: Email authentication for sensitive services  
+- **Global CDN**: Fast access via Cloudflare's global network
+- **DDoS Protection**: Enterprise-grade security included
+- **Hidden Infrastructure**: Home IP never exposed
+- **High Availability**: Multiple tunnel connections for redundancy
 
 ### Configuration Management
 - **Centralized Variables**: Common settings defined in root `variables.tf`
@@ -217,9 +213,9 @@ configBlock = join("\n", [
 ## Important Notes
 
 - The repository uses Docker Desktop's local Kubernetes cluster
-- All HTTP traffic is automatically redirected to HTTPS
-- CoreDNS provides automated DNS resolution for `*.rainforest.tools` domains in Tailscale network
-- Tailscale integration enables secure remote access to all services with SSL encryption
+- All HTTP traffic is automatically redirected to HTTPS via Cloudflare
+- Cloudflare Tunnel provides secure external access with real SSL certificates
+- Global CDN access enables fast connectivity from anywhere
 - Docker socket access is secured through a proxy container
 - PostgreSQL service provides shared database functionality
 - Docker volumes provide persistent storage with backup/restore capabilities
@@ -228,7 +224,9 @@ configBlock = join("\n", [
 
 ## Security Considerations
 
-- **Tailscale IP in Configuration**: The `tailscale_ip` variable is marked as sensitive in Terraform to prevent accidental exposure in logs
-- **CoreDNS Security**: Runs with minimal privileges, non-root user, and read-only filesystem
-- **Network Isolation**: Services only accessible through Tailscale network, not exposed to public internet
-- **HTTPS Everywhere**: All traffic encrypted end-to-end through Tailscale tunnels and Traefik SSL termination
+- **Cloudflare API Credentials**: The `cloudflare_api_token` and `cloudflare_account_id` variables are marked as sensitive in Terraform
+- **Tunnel Security**: Runs with minimal privileges, non-root user, and read-only filesystem
+- **Network Isolation**: Home IP address is completely hidden from the internet
+- **HTTPS Everywhere**: All traffic encrypted end-to-end through Cloudflare tunnels with automatic SSL termination
+- **Zero Trust Ready**: Optional email authentication for additional security layers
+- **DDoS Protection**: Enterprise-grade protection via Cloudflare's global network

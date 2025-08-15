@@ -119,7 +119,7 @@ module "metrics_server" {
 
 module "coredns" {
   source = "./modules/coredns"
-  count  = var.enable_coredns ? 1 : 0
+  count  = var.enable_coredns && !var.enable_cloudflare_tunnel ? 1 : 0
 
   project_name  = var.project_name
   environment   = var.environment
@@ -127,6 +127,21 @@ module "coredns" {
   tailscale_ip  = var.tailscale_ip
   cpu_limit     = var.default_cpu_limit
   memory_limit  = var.default_memory_limit
+}
+
+module "cloudflare_tunnel" {
+  source = "./modules/cloudflare-tunnel"
+  count  = var.enable_cloudflare_tunnel ? 1 : 0
+
+  project_name           = var.project_name
+  domain_suffix          = var.domain_suffix
+  cloudflare_account_id  = var.cloudflare_account_id
+  cloudflare_api_token   = var.cloudflare_api_token
+  kubernetes_namespace   = "homelab"
+  allowed_email_domains  = var.allowed_email_domains
+  allowed_emails         = var.allowed_emails
+
+  depends_on = [kubernetes_namespace.homelab]
 }
 
 resource "docker_container" "dockerproxy" {
