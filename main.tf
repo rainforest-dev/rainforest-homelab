@@ -17,9 +17,7 @@ module "traefik" {
   project_name       = var.project_name
   environment        = var.environment
   domain_suffix      = var.domain_suffix
-  enable_cloudflare  = var.enable_cloudflare
-  cloudflare_api_key = var.cloudflare_api_key
-  cloudflare_email   = var.cloudflare_email
+# Cloudflare integration removed - using Tailscale + CoreDNS instead
   cpu_limit          = var.default_cpu_limit
   memory_limit       = var.default_memory_limit
   chart_repository   = "https://traefik.github.io/charts"
@@ -117,6 +115,18 @@ module "metrics_server" {
   environment  = var.environment
   cpu_limit    = var.default_cpu_limit
   memory_limit = var.default_memory_limit
+}
+
+module "coredns" {
+  source = "./modules/coredns"
+  count  = var.enable_coredns ? 1 : 0
+
+  project_name  = var.project_name
+  environment   = var.environment
+  namespace     = "homelab"
+  tailscale_ip  = var.tailscale_ip
+  cpu_limit     = var.default_cpu_limit
+  memory_limit  = var.default_memory_limit
 }
 
 resource "docker_container" "dockerproxy" {

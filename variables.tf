@@ -53,26 +53,8 @@ variable "enable_persistence" {
   default     = true
 }
 
-# Cloudflare Configuration
-variable "cloudflare_api_key" {
-  description = "Cloudflare API key for DNS management"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "cloudflare_email" {
-  description = "Cloudflare email for DNS management"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "enable_cloudflare" {
-  description = "Enable Cloudflare DNS integration"
-  type        = bool
-  default     = false
-}
+# Cloudflare Configuration - REMOVED
+# Using Tailscale + CoreDNS for DNS resolution instead of Cloudflare
 
 # Feature Flags
 variable "enable_traefik" {
@@ -91,6 +73,19 @@ variable "enable_monitoring" {
   description = "Enable monitoring stack"
   type        = bool
   default     = false
+}
+
+variable "enable_coredns" {
+  description = "Enable CoreDNS server for custom domains"
+  type        = bool
+  default     = false
+}
+
+variable "tailscale_ip" {
+  description = "Tailscale IP address of this machine"
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 
 # Resource Sizing

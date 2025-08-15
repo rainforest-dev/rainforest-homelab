@@ -7,17 +7,7 @@ terraform {
   }
 }
 
-# resource "kubernetes_secret" "cloudflare" {
-#   metadata {
-#     name      = "cloudflare-api-credentials"
-#     namespace = "traefik"
-#   }
-#   type = "Opaque"
-#   data = {
-#     "email"  = base64encode(var.cloudflare_email)
-#     "apiKey" = base64encode(var.cloudflare_api_key)
-#   }
-# }
+# Cloudflare integration removed - using Tailscale + CoreDNS for DNS resolution
 
 resource "helm_release" "traefik" {
   name             = "${var.project_name}-${var.traefik_name}"
