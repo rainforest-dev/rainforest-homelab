@@ -72,16 +72,32 @@ Internet → Cloudflare Edge → Cloudflare Tunnel → cloudflared pods → Kube
    # Edit terraform.tfvars with your Cloudflare credentials and domain
    ```
 
-4. **Deploy infrastructure**
+4. **Deploy infrastructure (2-step process)**
+   
+   **Step 1: Basic tunnel setup**
    ```bash
    terraform init
    terraform plan
    terraform apply
    ```
+   
+   **Step 2: Enable Zero Trust authentication (optional)**
+   - Go to https://dash.cloudflare.com/ → Zero Trust → Settings
+   - Enable "Access" (requires billing info, but Zero Trust is free for up to 50 users)
+   - Update `terraform.tfvars` with your allowed email domains:
+     ```hcl
+     allowed_email_domains = ["gmail.com"]  # or your company domain
+     ```
+   - Deploy authentication:
+     ```bash
+     terraform plan
+     terraform apply
+     ```
 
 5. **Access your services**
    - Services will be available at `https://service-name.yourdomain.com`
    - DNS records and SSL certificates are automatically created
+   - With Zero Trust: Services require email verification before access
 
 ## ⚙️ Configuration
 
@@ -124,11 +140,21 @@ Control which services are deployed:
 - `enable_coredns`: Legacy Tailscale integration (disabled when using tunnel)
 - `enable_traefik`: Legacy ingress controller (disabled when using tunnel)
 
-### Zero Trust Authentication (Optional)
-Enable email-based authentication by:
-1. **Enable Access** at https://dash.cloudflare.com/
-2. **Configure email domains** in `allowed_email_domains`
-3. **Redeploy**: `terraform apply`
+### Zero Trust Authentication (2-Step Deployment)
+
+**Step 1: Basic deployment** (no authentication)
+- Deploy with empty `allowed_email_domains = []`
+- Services are publicly accessible via HTTPS
+
+**Step 2: Enable authentication** (optional but recommended)
+1. **Enable Cloudflare Access** at https://dash.cloudflare.com/ → Zero Trust → Settings
+   - Requires adding billing info (Zero Trust is free for up to 50 users)
+2. **Configure email domains** in `terraform.tfvars`:
+   ```hcl
+   allowed_email_domains = ["gmail.com"]  # Allow any Gmail addresses
+   allowed_emails        = []             # Or specific emails: ["user@company.com"]
+   ```
+3. **Redeploy authentication**: `terraform apply`
 
 ## 🌐 Service Access
 

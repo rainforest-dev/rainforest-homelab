@@ -48,15 +48,25 @@ All modules follow a consistent structure:
 
 ## Common Commands
 
-### Terraform Operations
+### Terraform Operations (2-Step Deployment)
+
+**Step 1: Basic Cloudflare Tunnel setup**
 ```bash
-# Initialize and plan infrastructure changes
+# Initialize and deploy basic tunnel (no authentication)
 terraform init
 terraform plan
-
-# Apply changes
 terraform apply
+```
 
+**Step 2: Enable Zero Trust authentication (optional)**
+```bash
+# After enabling Access in Cloudflare dashboard and configuring allowed_email_domains
+terraform plan
+terraform apply
+```
+
+**General operations**
+```bash
 # Destroy infrastructure
 terraform destroy
 
@@ -221,6 +231,31 @@ for_each = length(var.allowed_email_domains) > 0 ? toset([
 - Docker volumes provide persistent storage with backup/restore capabilities
 - All modules follow standardized variable and output patterns
 - Feature flags allow selective service deployment
+
+## Zero Trust Authentication (2-Step Deployment)
+
+**Step 1: Basic deployment** (no authentication required)
+- Deploy with empty `allowed_email_domains = []` in `terraform.tfvars`
+- Services are publicly accessible via HTTPS with real SSL certificates
+- Perfect for testing and initial setup
+
+**Step 2: Enable authentication** (optional but recommended)
+1. **Enable Cloudflare Access**:
+   - Go to https://dash.cloudflare.com/ → Zero Trust → Settings
+   - Enable "Access" (requires billing info, but Zero Trust is free for up to 50 users)
+2. **Configure authentication** in `terraform.tfvars`:
+   ```hcl
+   allowed_email_domains = ["gmail.com"]  # Allow any Gmail addresses
+   allowed_emails        = []             # Or specific emails: ["user@company.com"]
+   ```
+3. **Deploy authentication**: `terraform apply`
+
+**Zero Trust Features:**
+- **Email Verification**: Users must verify their email before accessing services
+- **Session Management**: 24-hour sessions (configurable)
+- **CORS Support**: Modern web applications work properly
+- **Domain Restrictions**: Limit access by email domain or specific addresses
+- **Access Policies**: Granular control per service
 
 ## Security Considerations
 
