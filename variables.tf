@@ -53,8 +53,20 @@ variable "enable_persistence" {
   default     = true
 }
 
-# Cloudflare Configuration - REMOVED
-# Using Tailscale + CoreDNS for DNS resolution instead of Cloudflare
+# Cloudflare Configuration
+variable "cloudflare_account_id" {
+  description = "Cloudflare account ID"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token with Zone:Read, Zone:Edit, Account:Read permissions"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
 
 # Feature Flags
 variable "enable_traefik" {
@@ -77,6 +89,12 @@ variable "enable_monitoring" {
 
 variable "enable_coredns" {
   description = "Enable CoreDNS server for custom domains"
+  type        = bool
+  default     = false
+}
+
+variable "enable_cloudflare_tunnel" {
+  description = "Enable Cloudflare Tunnel for secure external access"
   type        = bool
   default     = false
 }
@@ -105,4 +123,17 @@ variable "default_storage_size" {
   description = "Default storage size for persistent volumes"
   type        = string
   default     = "10Gi"
+}
+
+# Zero Trust Configuration
+variable "allowed_email_domains" {
+  description = "List of email domains allowed to access services via Zero Trust"
+  type        = list(string)
+  default     = []
+}
+
+variable "allowed_emails" {
+  description = "List of specific email addresses allowed to access services"
+  type        = list(string)
+  default     = []
 }
