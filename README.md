@@ -120,7 +120,6 @@ cloudflare_api_token  = "your-api-token"      # From API tokens page
 # Feature Flags
 enable_cloudflare_tunnel = true   # Enable Cloudflare Tunnel
 enable_postgresql        = true   # Deploy PostgreSQL database
-enable_monitoring        = false  # Deploy monitoring stack (future)
 
 # Zero Trust Authentication (OPTIONAL)
 allowed_email_domains = ["gmail.com"]           # Email domains for access
@@ -136,7 +135,6 @@ default_storage_size = "10Gi"
 Control which services are deployed:
 - `enable_cloudflare_tunnel`: Enable Cloudflare Tunnel for external access
 - `enable_postgresql`: Deploy PostgreSQL database
-- `enable_monitoring`: Deploy monitoring stack (future)
 - `enable_coredns`: Legacy Tailscale integration (disabled when using tunnel)
 - `enable_traefik`: Legacy ingress controller (disabled when using tunnel)
 
