@@ -81,11 +81,6 @@ variable "enable_postgresql" {
   default     = true
 }
 
-variable "enable_monitoring" {
-  description = "Enable monitoring stack"
-  type        = bool
-  default     = false
-}
 
 variable "enable_coredns" {
   description = "Enable CoreDNS server for custom domains"

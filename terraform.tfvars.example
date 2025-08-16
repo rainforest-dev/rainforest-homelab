@@ -13,7 +13,6 @@ cloudflare_api_token  = ""  # Add your Cloudflare API Token here
 # Feature Flags
 enable_traefik           = false  # Disable Traefik when using Cloudflare Tunnel
 enable_postgresql        = true
-enable_monitoring        = false
 enable_persistence       = false
 enable_coredns           = false  # Disable CoreDNS when using Cloudflare Tunnel
 enable_cloudflare_tunnel = true   # Enable Cloudflare Tunnel
