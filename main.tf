@@ -3,25 +3,8 @@ resource "kubernetes_namespace" "homelab" {
     name = "homelab"
   }
 }
-resource "kubernetes_namespace" "traefik" {
-  metadata {
-    name = "traefik"
-  }
-}
-
-
-module "traefik" {
-  source = "./modules/traefik"
-  count  = var.enable_traefik ? 1 : 0
-
-  project_name       = var.project_name
-  environment        = var.environment
-  domain_suffix      = var.domain_suffix
-# Cloudflare integration removed - using Tailscale + CoreDNS instead
-  cpu_limit          = var.default_cpu_limit
-  memory_limit       = var.default_memory_limit
-  chart_repository   = "https://traefik.github.io/charts"
-}
+# Traefik removed - using Cloudflare Tunnel for ingress
+# Legacy namespace and module removed
 
 
 module "open-webui" {
@@ -61,16 +44,8 @@ module "postgresql" {
   memory_limit       = var.default_memory_limit
 }
 
-module "openspeedtest" {
-  source = "./modules/openspeedtest"
-
-  project_name       = var.project_name
-  environment        = var.environment
-  cpu_limit          = var.default_cpu_limit
-  memory_limit       = var.default_memory_limit
-  enable_persistence = var.enable_persistence
-  storage_size       = var.default_storage_size
-}
+# OpenSpeedTest moved to Raspberry Pi (external hosting)
+# Module kept in /modules for reference if needed
 
 module "calibre-web" {
   source = "./modules/calibre-web"
@@ -117,17 +92,8 @@ module "metrics_server" {
   memory_limit = var.default_memory_limit
 }
 
-module "coredns" {
-  source = "./modules/coredns"
-  count  = var.enable_coredns && !var.enable_cloudflare_tunnel ? 1 : 0
-
-  project_name  = var.project_name
-  environment   = var.environment
-  namespace     = "homelab"
-  tailscale_ip  = var.tailscale_ip
-  cpu_limit     = var.default_cpu_limit
-  memory_limit  = var.default_memory_limit
-}
+# CoreDNS removed - using Cloudflare Tunnel for external DNS
+# Legacy module kept in /modules for reference
 
 module "cloudflare_tunnel" {
   source = "./modules/cloudflare-tunnel"
