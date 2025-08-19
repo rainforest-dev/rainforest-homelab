@@ -21,8 +21,9 @@ Each service is organized as a Terraform module in `modules/`:
 - `cloudflare-tunnel/`: Cloudflare Tunnel for secure external access with SSL certificates
 - `postgresql/`: Database service for applications that need persistent storage  
 - `volume-management/`: Docker volume management for persistent storage
-- Application modules: `calibre-web/`, `flowise/`, `n8n/`, `open-webui/`, `openspeedtest/`, `homepage/`
-- Legacy modules: `traefik/` (ingress), `coredns/` (DNS), `nfs-persistence/` (storage)
+- Application modules: `calibre-web/`, `flowise/`, `n8n/`, `open-webui/`, `homepage/`
+- External services: `openspeedtest/` (moved to Raspberry Pi)
+- Legacy modules: `traefik/` (ingress), `coredns/` (DNS - replaced by Cloudflare), `nfs-persistence/` (storage)
 
 ### Standardized Module Structure
 All modules follow a consistent structure:
@@ -245,8 +246,13 @@ for_each = length(var.allowed_email_domains) > 0 ? toset([
    - Enable "Access" (requires billing info, but Zero Trust is free for up to 50 users)
 2. **Configure authentication** in `terraform.tfvars`:
    ```hcl
-   allowed_email_domains = ["gmail.com"]  # Allow any Gmail addresses
-   allowed_emails        = []             # Or specific emails: ["user@company.com"]
+   # Option A: Domain-specific (recommended for security)
+   allowed_email_domains = ["yourdomain.com"]  # Only allow emails from your domain
+   allowed_emails        = []                  # Or specific emails if needed
+   
+   # Option B: Public email providers (less secure)
+   allowed_email_domains = ["gmail.com"]       # Allow any Gmail addresses
+   allowed_emails        = ["user@domain.com"] # Specific emails
    ```
 3. **Deploy authentication**: `terraform apply`
 

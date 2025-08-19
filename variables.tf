@@ -69,36 +69,16 @@ variable "cloudflare_api_token" {
 }
 
 # Feature Flags
-variable "enable_traefik" {
-  description = "Enable Traefik ingress controller"
-  type        = bool
-  default     = true
-}
-
 variable "enable_postgresql" {
   description = "Enable PostgreSQL database"
   type        = bool
   default     = true
 }
 
-
-variable "enable_coredns" {
-  description = "Enable CoreDNS server for custom domains"
-  type        = bool
-  default     = false
-}
-
 variable "enable_cloudflare_tunnel" {
   description = "Enable Cloudflare Tunnel for secure external access"
   type        = bool
-  default     = false
-}
-
-variable "tailscale_ip" {
-  description = "Tailscale IP address of this machine"
-  type        = string
-  sensitive   = true
-  default     = ""
+  default     = true
 }
 
 # Resource Sizing
@@ -131,4 +111,23 @@ variable "allowed_emails" {
   description = "List of specific email addresses allowed to access services"
   type        = list(string)
   default     = []
+}
+
+# Service Feature Flags (moved from terraform.tfvars)
+variable "enable_calibre_web" {
+  description = "Enable Calibre Web ebook server"
+  type        = bool
+  default     = true
+}
+
+variable "enable_openspeedtest" {
+  description = "Enable OpenSpeedTest network testing (moved to Pi)"
+  type        = bool
+  default     = false
+}
+
+variable "enable_homepage" {
+  description = "Enable Homepage dashboard"
+  type        = bool
+  default     = true
 }

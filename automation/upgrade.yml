@@ -1,0 +1,314 @@
+---
+# Pure Ansible Version Manager for Homelab
+# Usage:
+#   ansible-playbook upgrade.yml --tags check
+#   ansible-playbook upgrade.yml --tags upgrade -e service=open-webui
+#   ansible-playbook upgrade.yml --tags upgrade -e upgrade_all=true
+
+- name: Homelab Version Management
+  hosts: localhost
+  gather_facts: false
+  vars:
+    homelab_namespace: homelab
+    terraform_path: "{{ playbook_dir }}/.."
+    
+    # Service definitions
+    services:
+      open-webui:
+        type: helm
+        chart_repo: open-webui
+        chart_repo_url: https://helm.openwebui.com/
+        chart_name: open-webui/open-webui
+        release_name: homelab-open-webui
+        terraform_module: open-webui
+        
+      flowise:
+        type: helm
+        chart_repo: cowboysysop
+        chart_repo_url: https://cowboysysop.github.io/charts
+        chart_name: cowboysysop/flowise
+        release_name: homelab-flowise
+        terraform_module: flowise
+        
+      homepage:
+        type: helm
+        chart_repo: homepage
+        chart_repo_url: https://jameswynn.github.io/helm-charts
+        chart_name: homepage/homepage
+        release_name: homelab-homepage
+        terraform_module: homepage
+        
+      postgresql:
+        type: helm_oci
+        chart_name: oci://registry-1.docker.io/bitnamicharts/postgresql
+        release_name: homelab-postgresql
+        terraform_module: postgresql
+        
+      n8n:
+        type: helm_oci
+        chart_name: oci://8gears.container-registry.com/library/n8n
+        release_name: homelab-n8n
+        terraform_module: n8n
+        
+      calibre-web:
+        type: docker
+        image: lscr.io/linuxserver/calibre-web
+        terraform_module: calibre-web
+
+  tasks:
+    # ===================
+    # REPOSITORY SETUP
+    # ===================
+    - name: Add Helm repositories
+      kubernetes.core.helm_repository:
+        name: "{{ item.value.chart_repo }}"
+        repo_url: "{{ item.value.chart_repo_url }}"
+      loop: "{{ services | dict2items }}"
+      when: 
+        - item.value.type == "helm"
+        - item.value.chart_repo is defined
+      tags: [always]
+
+    - name: Update Helm repositories
+      shell: helm repo update
+      tags: [always]
+
+    # ===================
+    # VERSION DISCOVERY
+    # ===================
+    - name: Get current Helm releases
+      kubernetes.core.helm_info:
+        name: "{{ item.value.release_name }}"
+        namespace: "{{ homelab_namespace }}"
+      loop: "{{ services | dict2items }}"
+      when: item.value.type in ['helm', 'helm_oci']
+      register: current_releases
+      failed_when: false
+      tags: [check, upgrade]
+
+    - name: Search latest Helm chart versions
+      shell: |
+        helm search repo {{ item.value.chart_name }} --versions | head -2 | tail -1 | awk '{print $2 "," $3}'
+      loop: "{{ services | dict2items }}"
+      when: item.value.type == "helm"
+      register: latest_versions
+      changed_when: false
+      failed_when: false
+      check_mode: no
+      tags: [check, upgrade]
+
+    - name: Check Docker image updates
+      docker_image_info:
+        name: "{{ item.value.image }}"
+        tag: latest
+      loop: "{{ services | dict2items }}"
+      when: item.value.type == "docker"
+      register: docker_info
+      failed_when: false
+      tags: [check, upgrade]
+
+    # ===================
+    # VERSION COMPARISON
+    # ===================
+    - name: Build version comparison data
+      set_fact:
+        version_data: "{{ version_data | default([]) + [item] }}"
+      loop: "{{ services | dict2items }}"
+      loop_control:
+        loop_var: service_item
+      vars:
+        # Get current version from helm info
+        current_helm: "{{ current_releases.results | selectattr('item.key', 'equalto', service_item.key) | first | default({}) }}"
+        current_version: >-
+          {%- if service_item.value.type in ['helm', 'helm_oci'] -%}
+            {%- if current_helm.status is defined and current_helm.status.chart is defined -%}
+              {{ current_helm.status.chart.split('-')[-1] }}
+            {%- else -%}
+              NOT_DEPLOYED
+            {%- endif -%}
+          {%- elif service_item.value.type == 'docker' -%}
+            latest
+          {%- endif -%}
+        
+        current_app: >-
+          {%- if service_item.value.type in ['helm', 'helm_oci'] and current_helm.status is defined -%}
+            {{ current_helm.status.app_version | default('N/A') }}
+          {%- else -%}
+            N/A
+          {%- endif -%}
+        
+        # Get latest version from search
+        latest_helm: "{{ latest_versions.results | selectattr('item.key', 'equalto', service_item.key) | first | default({}) }}"
+        latest_version: >-
+          {%- if service_item.value.type == 'helm' and latest_helm.stdout is defined and latest_helm.stdout != '' -%}
+            {{ latest_helm.stdout.split(',')[0] }}
+          {%- elif service_item.value.type == 'helm_oci' -%}
+            OCI_REGISTRY
+          {%- elif service_item.value.type == 'docker' -%}
+            latest
+          {%- else -%}
+            N/A
+          {%- endif -%}
+        
+        latest_app: >-
+          {%- if service_item.value.type == 'helm' and latest_helm.stdout is defined and ',' in latest_helm.stdout -%}
+            {{ latest_helm.stdout.split(',')[1] }}
+          {%- elif service_item.value.type == 'helm_oci' -%}
+            CHECK_MANUAL
+          {%- else -%}
+            N/A
+          {%- endif -%}
+        
+        # Determine status
+        status: >-
+          {%- if service_item.value.type == 'helm' -%}
+            {%- if current_version == 'NOT_DEPLOYED' -%}
+              ❌ NOT_DEPLOYED
+            {%- elif current_version == latest_version -%}
+              ✅ UP_TO_DATE
+            {%- else -%}
+              ⬆️ UPGRADE_AVAILABLE
+            {%- endif -%}
+          {%- elif service_item.value.type == 'helm_oci' -%}
+            🔍 MANUAL_CHECK
+          {%- elif service_item.value.type == 'docker' -%}
+            ⬆️ PULL_LATEST
+          {%- endif -%}
+        
+        # Build final item
+        item:
+          service: "{{ service_item.key }}"
+          type: "{{ service_item.value.type }}"
+          current_version: "{{ current_version }}"
+          current_app: "{{ current_app }}"
+          latest_version: "{{ latest_version }}"
+          latest_app: "{{ latest_app }}"
+          status: "{{ status }}"
+          terraform_module: "{{ service_item.value.terraform_module }}"
+      tags: [check, upgrade]
+
+    # ===================
+    # DISPLAY TABLE
+    # ===================
+    - name: Display services table
+      debug:
+        msg: |
+          
+          🏠 HOMELAB VERSION STATUS
+          
+          SERVICE         TYPE      CURRENT    LATEST     STATUS
+          ----------------------------------------------------------------
+          {% for item in version_data -%}
+          {{ "%-15s %-9s %-10s %-10s %s" | format(item.service, item.type, item.current_version, item.latest_version, item.status) }}
+          {% endfor %}
+          
+          📋 COMMANDS: ./upgrade | ./upgrade SERVICE_NAME | ./upgrade all
+      tags: [check]
+
+    # ===================
+    # UPGRADE LOGIC
+    # ===================
+    - name: Identify services to upgrade
+      set_fact:
+        services_to_upgrade: >-
+          {%- if upgrade_all | default(false) | bool -%}
+            {{ version_data | selectattr('status', 'search', 'UPGRADE_AVAILABLE') | map(attribute='service') | list }}
+          {%- elif service is defined -%}
+            {%- set selected_service = version_data | selectattr('service', 'equalto', service) | first | default({}) -%}
+            {%- if selected_service and 'UPGRADE_AVAILABLE' in selected_service.status -%}
+              ["{{ service }}"]
+            {%- else -%}
+              []
+            {%- endif -%}
+          {%- else -%}
+            []
+          {%- endif -%}
+      tags: [upgrade]
+
+    - name: Display upgrade plan header
+      debug:
+        msg: |
+          🚀 UPGRADE PLAN
+          ================
+      when: services_to_upgrade | length > 0
+      tags: [upgrade]
+
+    - name: Show services to upgrade
+      debug:
+        msg: |
+          📦 {{ service_info.service }} ({{ service_info.type }})
+          Upgrading: {{ service_info.current_version }} → {{ service_info.latest_version }}
+      loop: "{{ services_to_upgrade }}"
+      loop_control:
+        loop_var: service_name
+      vars:
+        service_info: "{{ version_data | selectattr('service', 'equalto', service_name) | first }}"
+      when: services_to_upgrade | length > 0
+      tags: [upgrade]
+
+    - name: Show terraform actions
+      debug:
+        msg: |
+          
+          ⚡ This will run:
+          - terraform plan -target="module.{{ services_to_upgrade | join('" -target="module.') }}"
+          - terraform apply (after your confirmation)
+      when: services_to_upgrade | length > 0
+      tags: [upgrade]
+
+    - name: No upgrades available message
+      debug:
+        msg: |
+          ❌ No services need upgrading or invalid service specified.
+          
+          Currently available upgrades:{% for item in version_data %}{% if item.status == '⬆️ UPGRADE_AVAILABLE' %}
+          - {{ item.service }}: {{ item.current_version }} → {{ item.latest_version }}{% endif %}{% endfor %}
+      when: services_to_upgrade | length == 0
+      tags: [upgrade]
+
+    - name: Confirm upgrade
+      pause:
+        prompt: |
+          
+          ⚠️  CONFIRMATION REQUIRED
+          
+          Are you ready to upgrade {{ services_to_upgrade | length }} service(s)?
+          This will modify your Terraform state and redeploy services.
+          
+          Type 'yes' to continue, 'no' to cancel: 
+      register: upgrade_confirm
+      when: services_to_upgrade | length > 0
+      tags: [upgrade]
+
+    - name: Update Terraform modules and apply
+      block:
+        - name: Terraform plan for service upgrades
+          shell: |
+            cd {{ terraform_path }}
+            terraform plan -target="module.{{ item }}" -out="{{ item }}.tfplan"
+          loop: "{{ services_to_upgrade }}"
+          register: terraform_plans
+          
+        - name: Show terraform plans
+          debug:
+            var: terraform_plans
+            
+        - name: Apply terraform changes
+          shell: |
+            cd {{ terraform_path }}
+            terraform apply "{{ item }}.tfplan"
+            rm "{{ item }}.tfplan"
+          loop: "{{ services_to_upgrade }}"
+          register: terraform_applies
+          
+        - name: Upgrade results
+          debug:
+            msg: |
+              ✅ UPGRADE COMPLETED
+              {% for result in terraform_applies.results %}
+              {{ result.item }}: {{ 'SUCCESS' if result.rc == 0 else 'FAILED' }}
+              {% endfor %}
+      when: 
+        - services_to_upgrade | length > 0
+        - upgrade_confirm.user_input | default('') | lower in ['yes', 'y']
+      tags: [upgrade]

@@ -11,20 +11,29 @@ cloudflare_account_id = ""  # Add your Cloudflare Account ID here
 cloudflare_api_token  = ""  # Add your Cloudflare API Token here
 
 # Feature Flags
-enable_traefik           = false  # Disable Traefik when using Cloudflare Tunnel
-enable_postgresql        = true
-enable_persistence       = false
-enable_coredns           = false  # Disable CoreDNS when using Cloudflare Tunnel
-enable_cloudflare_tunnel = true   # Enable Cloudflare Tunnel
+enable_postgresql        = true   # Enable shared PostgreSQL database
+enable_persistence       = false  # Enable persistent volumes (optional)
+enable_cloudflare_tunnel = true   # Enable Cloudflare Tunnel for external access
 
-# Network Configuration (only needed if using CoreDNS instead of Cloudflare Tunnel)
-tailscale_ip = ""  # Your Tailscale IP address
+# Service Configuration
+enable_calibre_web       = true   # Enable Calibre Web ebook server
+enable_homepage          = true   # Enable Homepage dashboard
+enable_openspeedtest     = false  # Enable OpenSpeedTest (can run on separate machine)
 
 # Resource Sizing
 default_cpu_limit    = "500m"
 default_memory_limit = "1Gi"
 default_storage_size = "10Gi"
 
-# Zero Trust Access Control (optional - requires enabling Access in Cloudflare dashboard)
-allowed_email_domains = []  # Example: ["gmail.com", "company.com"] 
-allowed_emails        = []  # Example: ["user@example.com"]
+# Zero Trust Access Control (requires enabling Access in Cloudflare dashboard)
+# Option A: Domain-specific (recommended for security)
+allowed_email_domains = ["yourdomain.com"]  # Only allow emails from your domain
+allowed_emails        = []                  # Add specific emails if needed
+
+# Option B: Public email providers (less secure)
+# allowed_email_domains = ["gmail.com"]     # Allow any Gmail addresses
+# allowed_emails        = ["user@domain.com"] # Specific email addresses
+
+# Option C: Disable authentication (for testing only)
+# allowed_email_domains = []  # No authentication
+# allowed_emails        = []  # No authentication

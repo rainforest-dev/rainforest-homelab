@@ -1,7 +1,4 @@
-output "traefik_id" {
-  description = "The ID of the traefik resource."
-  value       = var.enable_traefik ? module.traefik[0].traefik_id : null
-}
+# Traefik output removed - using Cloudflare Tunnel
 
 output "open_webui_id" {
   description = "The ID of the Open Web UI resource."
