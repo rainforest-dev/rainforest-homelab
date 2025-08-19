@@ -152,7 +152,7 @@ resource "helm_release" "homepage" {
         # Kubernetes configuration for widgets
         kubernetes = {
           mode       = "cluster"
-          namespaces = ["default", "homelab", "traefik", "kube-system"]
+          namespaces = ["default", "homelab", "kube-system"]
           # Enable metrics now that metrics-server is installed
           metrics = true
         }

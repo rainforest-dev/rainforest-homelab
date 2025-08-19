@@ -1,0 +1,54 @@
+#!/bin/bash
+# Ansible Version Manager for Homelab
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+cd "$SCRIPT_DIR"
+
+# Check if Ansible collections are installed
+if [ ! -d ~/.ansible/collections/ansible_collections/kubernetes ]; then
+    echo "📦 Installing required Ansible collections..."
+    ansible-galaxy collection install -r requirements.yml
+fi
+
+case "${1:-check}" in
+    "check")
+        echo "🔍 Checking all service versions with Ansible..."
+        ansible-playbook upgrade.yml --tags check
+        ;;
+    "all")
+        echo "🚀 Upgrading all services with Ansible..."
+        ansible-playbook upgrade.yml --tags upgrade -e upgrade_all=true
+        ;;
+    "setup")
+        echo "📦 Setting up Ansible collections..."
+        ansible-galaxy collection install -r requirements.yml
+        echo "✅ Setup complete!"
+        ;;
+    "help"|"-h"|"--help")
+        echo "Ansible Homelab Version Manager"
+        echo ""
+        echo "Usage:"
+        echo "  ./upgrade setup         # Install Ansible collections"
+        echo "  ./upgrade               # Check versions"
+        echo "  ./upgrade check         # Check versions" 
+        echo "  ./upgrade SERVICE_NAME  # Upgrade specific service"
+        echo "  ./upgrade all           # Upgrade all services"
+        echo ""
+        echo "Available services:"
+        echo "  - open-webui"
+        echo "  - flowise"
+        echo "  - homepage"
+        echo "  - postgresql"
+        echo "  - n8n"
+        echo "  - calibre-web"
+        echo ""
+        echo "Examples:"
+        echo "  ./upgrade open-webui"
+        echo "  ./upgrade all"
+        ;;
+    *)
+        echo "🚀 Upgrading service: $1"
+        ansible-playbook upgrade.yml --tags upgrade -e "service=$1"
+        ;;
+esac

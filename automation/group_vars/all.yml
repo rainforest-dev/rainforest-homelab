@@ -1,0 +1,11 @@
+---
+# Global variables for homelab automation
+homelab_namespace: homelab
+terraform_path: ".."
+
+# Service repository URLs
+helm_repos:
+  open-webui: https://helm.openwebui.com/
+  cowboysysop: https://cowboysysop.github.io/charts
+  homepage: https://jameswynn.github.io/helm-charts
+  metrics-server: https://kubernetes-sigs.github.io/metrics-server/
