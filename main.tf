@@ -30,6 +30,7 @@ module "flowise" {
   enable_persistence = var.enable_persistence
   storage_size       = var.default_storage_size
   chart_repository   = "https://cowboysysop.github.io/charts"
+  chart_version      = "6.0.0"
 }
 
 module "postgresql" {
@@ -99,13 +100,13 @@ module "cloudflare_tunnel" {
   source = "./modules/cloudflare-tunnel"
   count  = var.enable_cloudflare_tunnel ? 1 : 0
 
-  project_name           = var.project_name
-  domain_suffix          = var.domain_suffix
-  cloudflare_account_id  = var.cloudflare_account_id
-  cloudflare_api_token   = var.cloudflare_api_token
-  kubernetes_namespace   = "homelab"
-  allowed_email_domains  = var.allowed_email_domains
-  allowed_emails         = var.allowed_emails
+  project_name          = var.project_name
+  domain_suffix         = var.domain_suffix
+  cloudflare_account_id = var.cloudflare_account_id
+  cloudflare_api_token  = var.cloudflare_api_token
+  kubernetes_namespace  = "homelab"
+  allowed_email_domains = var.allowed_email_domains
+  allowed_emails        = var.allowed_emails
 
   depends_on = [kubernetes_namespace.homelab]
 }
