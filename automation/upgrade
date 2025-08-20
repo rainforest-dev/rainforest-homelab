@@ -12,13 +12,13 @@ if [ ! -d ~/.ansible/collections/ansible_collections/kubernetes ]; then
 fi
 
 case "${1:-check}" in
-    "check")
+    "check"|"")
         echo "🔍 Checking all service versions with Ansible..."
         ansible-playbook upgrade.yml --tags check
         ;;
-    "all")
-        echo "🚀 Upgrading all services with Ansible..."
-        ansible-playbook upgrade.yml --tags upgrade -e upgrade_all=true
+    "manual")
+        echo "📋 Showing manual upgrade instructions..."
+        ansible-playbook upgrade.yml --tags check,upgrade
         ;;
     "setup")
         echo "📦 Setting up Ansible collections..."
@@ -26,16 +26,15 @@ case "${1:-check}" in
         echo "✅ Setup complete!"
         ;;
     "help"|"-h"|"--help")
-        echo "Ansible Homelab Version Manager"
+        echo "Homelab Version Manager (Check-Only Mode)"
         echo ""
         echo "Usage:"
         echo "  ./upgrade setup         # Install Ansible collections"
         echo "  ./upgrade               # Check versions"
         echo "  ./upgrade check         # Check versions" 
-        echo "  ./upgrade SERVICE_NAME  # Upgrade specific service"
-        echo "  ./upgrade all           # Upgrade all services"
+        echo "  ./upgrade manual        # Show manual upgrade commands"
         echo ""
-        echo "Available services:"
+        echo "Available services to monitor:"
         echo "  - open-webui"
         echo "  - flowise"
         echo "  - homepage"
@@ -44,11 +43,16 @@ case "${1:-check}" in
         echo "  - calibre-web"
         echo ""
         echo "Examples:"
-        echo "  ./upgrade open-webui"
-        echo "  ./upgrade all"
+        echo "  ./upgrade               # Check what needs upgrading"
+        echo "  ./upgrade manual        # Get upgrade commands"
+        echo ""
+        echo "Safety: This script only checks versions."
+        echo "Use 'manual' to get safe upgrade commands."
         ;;
     *)
-        echo "🚀 Upgrading service: $1"
-        ansible-playbook upgrade.yml --tags upgrade -e "service=$1"
+        echo "❌ Unknown option: $1"
+        echo "Use './upgrade help' for usage information."
+        echo "This script only checks versions for safety."
+        echo "Use './upgrade manual' to get upgrade commands."
         ;;
 esac
