@@ -1,11 +1,11 @@
 output "tunnel_id" {
   description = "Cloudflare Tunnel ID"
-  value       = cloudflare_tunnel.homelab.id
+  value       = cloudflare_zero_trust_tunnel_cloudflared.homelab.id
 }
 
 output "tunnel_cname" {
   description = "Cloudflare Tunnel CNAME"
-  value       = cloudflare_tunnel.homelab.cname
+  value       = cloudflare_zero_trust_tunnel_cloudflared.homelab.cname
 }
 
 output "service_urls" {
@@ -21,6 +21,6 @@ output "service_urls" {
 output "zero_trust_applications" {
   description = "Zero Trust application IDs"
   value = {
-    for k, v in cloudflare_access_application.services : k => v.id
+    for k, v in cloudflare_zero_trust_access_application.services : k => v.id
   }
 }
