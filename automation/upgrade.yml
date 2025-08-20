@@ -206,109 +206,39 @@
       tags: [check]
 
     # ===================
-    # UPGRADE LOGIC
+    # MANUAL UPGRADE INSTRUCTIONS  
     # ===================
-    - name: Identify services to upgrade
-      set_fact:
-        services_to_upgrade: >-
-          {%- if upgrade_all | default(false) | bool -%}
-            {{ version_data | selectattr('status', 'search', 'UPGRADE_AVAILABLE') | map(attribute='service') | list }}
-          {%- elif service is defined -%}
-            {%- set selected_service = version_data | selectattr('service', 'equalto', service) | first | default({}) -%}
-            {%- if selected_service and 'UPGRADE_AVAILABLE' in selected_service.status -%}
-              ["{{ service }}"]
-            {%- else -%}
-              []
-            {%- endif -%}
-          {%- else -%}
-            []
-          {%- endif -%}
-      tags: [upgrade]
-
-    - name: Display upgrade plan header
-      debug:
-        msg: |
-          🚀 UPGRADE PLAN
-          ================
-      when: services_to_upgrade | length > 0
-      tags: [upgrade]
-
-    - name: Show services to upgrade
-      debug:
-        msg: |
-          📦 {{ service_info.service }} ({{ service_info.type }})
-          Upgrading: {{ service_info.current_version }} → {{ service_info.latest_version }}
-      loop: "{{ services_to_upgrade }}"
-      loop_control:
-        loop_var: service_name
-      vars:
-        service_info: "{{ version_data | selectattr('service', 'equalto', service_name) | first }}"
-      when: services_to_upgrade | length > 0
-      tags: [upgrade]
-
-    - name: Show terraform actions
+    - name: Display manual upgrade instructions
       debug:
         msg: |
           
-          ⚡ This will run:
-          - terraform plan -target="module.{{ services_to_upgrade | join('" -target="module.') }}"
-          - terraform apply (after your confirmation)
-      when: services_to_upgrade | length > 0
-      tags: [upgrade]
-
-    - name: No upgrades available message
-      debug:
-        msg: |
-          ❌ No services need upgrading or invalid service specified.
+          📋 MANUAL UPGRADE INSTRUCTIONS
+          ===============================
           
-          Currently available upgrades:{% for item in version_data %}{% if item.status == '⬆️ UPGRADE_AVAILABLE' %}
-          - {{ item.service }}: {{ item.current_version }} → {{ item.latest_version }}{% endif %}{% endfor %}
-      when: services_to_upgrade | length == 0
-      tags: [upgrade]
-
-    - name: Confirm upgrade
-      pause:
-        prompt: |
+          To upgrade services manually, use these commands:
           
-          ⚠️  CONFIRMATION REQUIRED
+          {% for item in version_data %}{% if '⬆️ UPGRADE_AVAILABLE' in item.status %}
+          🔹 {{ item.service }} ({{ item.current_version }} → {{ item.latest_version }}):
+            # Update chart version in main.tf
+            sed -i '' '/module "{{ item.service }}" {/,/^}/{s/chart_version = "[^"]*"/chart_version = "{{ item.latest_version }}"/}' main.tf
+            # Or add if not present:
+            # Add 'chart_version = "{{ item.latest_version }}"' to module "{{ item.service }}" block in main.tf
+            terraform plan -target="module.{{ item.service }}"
+            terraform apply -target="module.{{ item.service }}"
+          {% endif %}{% if '⬆️ PULL_LATEST' in item.status %}
+          🔹 {{ item.service }} (Docker - pull latest):
+            terraform apply -replace="module.{{ item.service }}.docker_container.{{ item.service }}" -auto-approve
+          {% endif %}{% if '🔍 MANUAL_CHECK' in item.status %}
+          🔹 {{ item.service }} (OCI - check manually):
+            # Check latest version at registry, then:
+            terraform apply -replace="module.{{ item.service }}.helm_release.{{ item.service }}" -auto-approve
+          {% endif %}{% endfor %}
           
-          Are you ready to upgrade {{ services_to_upgrade | length }} service(s)?
-          This will modify your Terraform state and redeploy services.
+          ⚠️  SAFETY TIPS:
+          - Always run 'terraform plan' first to review changes
+          - Backup your data before major version upgrades  
+          - Test one service at a time
+          - Check service health after upgrades
           
-          Type 'yes' to continue, 'no' to cancel: 
-      register: upgrade_confirm
-      when: services_to_upgrade | length > 0
-      tags: [upgrade]
-
-    - name: Update Terraform modules and apply
-      block:
-        - name: Terraform plan for service upgrades
-          shell: |
-            cd {{ terraform_path }}
-            terraform plan -target="module.{{ item }}" -out="{{ item }}.tfplan"
-          loop: "{{ services_to_upgrade }}"
-          register: terraform_plans
-          
-        - name: Show terraform plans
-          debug:
-            var: terraform_plans
-            
-        - name: Apply terraform changes
-          shell: |
-            cd {{ terraform_path }}
-            terraform apply "{{ item }}.tfplan"
-            rm "{{ item }}.tfplan"
-          loop: "{{ services_to_upgrade }}"
-          register: terraform_applies
-          
-        - name: Upgrade results
-          debug:
-            msg: |
-              ✅ UPGRADE COMPLETED
-              {% for result in terraform_applies.results %}
-              {{ result.item }}: {{ 'SUCCESS' if result.rc == 0 else 'FAILED' }}
-              {% endfor %}
-      when: 
-        - services_to_upgrade | length > 0
-        - upgrade_confirm.user_input | default('') | lower in ['yes', 'y']
+          📖 For detailed SOP, see: automation/UPGRADE_SOP.md
       tags: [upgrade]
