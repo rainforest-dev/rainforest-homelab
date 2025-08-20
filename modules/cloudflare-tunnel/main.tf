@@ -11,8 +11,8 @@ locals {
   zone_id = data.cloudflare_zones.domain.zones[0].id
 }
 
-# Create Cloudflare Tunnel
-resource "cloudflare_tunnel" "homelab" {
+# Create Cloudflare Zero Trust Tunnel
+resource "cloudflare_zero_trust_tunnel_cloudflared" "homelab" {
   account_id = var.cloudflare_account_id
   name       = "${var.project_name}-tunnel"
   secret     = base64encode(random_password.tunnel_secret.result)
@@ -23,10 +23,10 @@ resource "random_password" "tunnel_secret" {
   special = true
 }
 
-# Create tunnel token for cloudflared
-resource "cloudflare_tunnel_config" "homelab" {
+# Create tunnel configuration for cloudflared
+resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
   account_id = var.cloudflare_account_id
-  tunnel_id  = cloudflare_tunnel.homelab.id
+  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.homelab.id
 
   config {
     warp_routing {
@@ -85,14 +85,14 @@ resource "cloudflare_record" "services" {
 
   zone_id = local.zone_id
   name    = each.value
-  content = cloudflare_tunnel.homelab.cname
+  content = cloudflare_zero_trust_tunnel_cloudflared.homelab.cname
   type    = "CNAME"
   proxied = true
   comment = "Managed by Terraform - Cloudflare Tunnel"
 }
 
 # Create Zero Trust Application for each service (only if email domains are configured)
-resource "cloudflare_access_application" "services" {
+resource "cloudflare_zero_trust_access_application" "services" {
   for_each = length(var.allowed_email_domains) > 0 ? toset([
     "homepage",
     "open-webui",
@@ -119,10 +119,15 @@ resource "cloudflare_access_application" "services" {
 }
 
 # Create Zero Trust Access Policy - Email verification (only if applications exist)
-resource "cloudflare_access_policy" "email_policy" {
-  for_each = cloudflare_access_application.services
+resource "cloudflare_zero_trust_access_policy" "email_policy" {
+  for_each = length(var.allowed_email_domains) > 0 ? toset([
+    "homepage",
+    "open-webui",
+    "flowise", 
+    "n8n"
+  ]) : toset([])
 
-  application_id = each.value.id
+  application_id = cloudflare_zero_trust_access_application.services[each.key].id
   zone_id        = local.zone_id
   name           = "Allow ${each.key} access"
   precedence     = 1
@@ -155,7 +160,7 @@ stringData:
     {
       "AccountTag": "${var.cloudflare_account_id}",
       "TunnelSecret": "${base64encode(random_password.tunnel_secret.result)}",
-      "TunnelID": "${cloudflare_tunnel.homelab.id}"
+      "TunnelID": "${cloudflare_zero_trust_tunnel_cloudflared.homelab.id}"
     }
 YAML
 }
@@ -234,9 +239,20 @@ metadata:
   namespace: ${var.kubernetes_namespace}
 data:
   config.yaml: |
-    tunnel: ${cloudflare_tunnel.homelab.id}
+    tunnel: ${cloudflare_zero_trust_tunnel_cloudflared.homelab.id}
     credentials-file: /etc/cloudflared/creds/credentials.json
     metrics: 0.0.0.0:2000
     no-autoupdate: true
+    
+    ingress:
+      - hostname: homepage.${var.domain_suffix}
+        service: http://homelab-homepage.homelab.svc.cluster.local:3000
+      - hostname: open-webui.${var.domain_suffix}
+        service: http://open-webui.homelab.svc.cluster.local:80
+      - hostname: flowise.${var.domain_suffix}
+        service: http://homelab-flowise.homelab.svc.cluster.local:3000
+      - hostname: n8n.${var.domain_suffix}
+        service: http://homelab-n8n.homelab.svc.cluster.local:80
+      - service: http_status:404
 YAML
 }
