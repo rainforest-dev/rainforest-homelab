@@ -1,3 +1,9 @@
+# Open WebUI Configuration
+variable "ollama_base_url" {
+  description = "Base URL for external Ollama instance (e.g., http://host.docker.internal:11434 for local Docker Desktop)"
+  type        = string
+  default     = "http://host.docker.internal:11434"
+}
 # Environment Configuration
 variable "environment" {
   description = "Environment name (dev, staging, prod)"
@@ -131,3 +137,8 @@ variable "enable_homepage" {
   type        = bool
   default     = true
 }
+
+# Open WebUI Configuration
+#
+#
+#

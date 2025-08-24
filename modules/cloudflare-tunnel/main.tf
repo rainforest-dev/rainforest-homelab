@@ -35,15 +35,15 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
 
     origin_request {
       connect_timeout          = "1m0s"
-      tls_timeout             = "1m0s"
-      tcp_keep_alive          = "1m0s"
-      no_happy_eyeballs       = false
-      keep_alive_connections  = 1024
-      keep_alive_timeout      = "1m30s"
-      http_host_header        = ""
-      origin_server_name      = ""
-      ca_pool                 = ""
-      no_tls_verify           = false
+      tls_timeout              = "1m0s"
+      tcp_keep_alive           = "1m0s"
+      no_happy_eyeballs        = false
+      keep_alive_connections   = 1024
+      keep_alive_timeout       = "1m30s"
+      http_host_header         = ""
+      origin_server_name       = ""
+      ca_pool                  = ""
+      no_tls_verify            = false
       disable_chunked_encoding = false
     }
 
@@ -78,7 +78,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
 resource "cloudflare_record" "services" {
   for_each = toset([
     "homepage",
-    "open-webui", 
+    "open-webui",
     "flowise",
     "n8n"
   ])
@@ -96,7 +96,7 @@ resource "cloudflare_zero_trust_access_application" "services" {
   for_each = length(var.allowed_email_domains) > 0 ? toset([
     "homepage",
     "open-webui",
-    "flowise", 
+    "flowise",
     "n8n"
   ]) : toset([])
 
@@ -108,13 +108,13 @@ resource "cloudflare_zero_trust_access_application" "services" {
 
   # Enable automatic HTTPS
   auto_redirect_to_identity = false
-  
+
   # CORS settings for modern web apps
   cors_headers {
-    allowed_methods = ["GET", "POST", "OPTIONS", "PUT", "DELETE"]
-    allowed_origins = ["https://${each.value}.${var.domain_suffix}"]
+    allowed_methods   = ["GET", "POST", "OPTIONS", "PUT", "DELETE"]
+    allowed_origins   = ["https://${each.value}.${var.domain_suffix}"]
     allow_credentials = true
-    max_age = 86400
+    max_age           = 86400
   }
 }
 
@@ -123,7 +123,7 @@ resource "cloudflare_zero_trust_access_policy" "email_policy" {
   for_each = length(var.allowed_email_domains) > 0 ? toset([
     "homepage",
     "open-webui",
-    "flowise", 
+    "flowise",
     "n8n"
   ]) : toset([])
 
@@ -178,7 +178,7 @@ metadata:
   labels:
     app: cloudflared
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: cloudflared

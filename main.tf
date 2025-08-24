@@ -17,22 +17,8 @@ module "open-webui" {
   enable_persistence = var.enable_persistence
   storage_size       = var.default_storage_size
   ollama_enabled     = false
+  ollama_base_url    = var.ollama_base_url
   chart_repository   = "https://helm.openwebui.com/"
-
-  # MCPO Configuration
-  mcpo_enabled         = true
-  enable_docker_socket = true
-  mcp_servers_config = {
-    MCP_DOCKER = {
-      command = "docker"
-      args = [
-        "mcp",
-        "gateway",
-        "run"
-      ]
-      type = "stdio"
-    }
-  }
 }
 
 module "flowise" {

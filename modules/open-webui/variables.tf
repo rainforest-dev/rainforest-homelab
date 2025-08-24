@@ -70,25 +70,9 @@ variable "ollama_enabled" {
   default     = false
 }
 
-variable "mcpo_enabled" {
-  description = "Enable MCPO (Model Context Protocol for Open WebUI) integration"
-  type        = bool
-  default     = false
+variable "ollama_base_url" {
+  description = "Ollama base URL for external Ollama instance"
+  type        = string
+  default     = ""
 }
 
-variable "mcp_servers_config" {
-  description = "Configuration for MCP servers in JSON format"
-  type = map(object({
-    command = string
-    args    = list(string)
-    type    = string
-    env     = optional(map(string), {})
-  }))
-  default = {}
-}
-
-variable "enable_docker_socket" {
-  description = "Enable Docker socket access for running MCP services in containers"
-  type        = bool
-  default     = false
-}
