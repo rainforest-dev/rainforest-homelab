@@ -18,12 +18,12 @@ resource "helm_release" "open-webui" {
       ollamaUrls = var.ollama_base_url != "" ? [var.ollama_base_url] : []
 
       # Environment variables for Open WebUI configuration
-        extraEnvVars = var.ollama_base_url != "" ? [
-          {
-            name  = "OLLAMA_BASE_URL"
-            value = var.ollama_base_url
-          }
-        ] : []
+      extraEnvVars = var.ollama_base_url != "" ? [
+        {
+          name  = "OLLAMA_BASE_URL"
+          value = var.ollama_base_url
+        }
+      ] : []
 
       # WebSocket support (optional, can be removed if not needed)
       websocket = {
