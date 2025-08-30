@@ -7,6 +7,13 @@ resource "kubernetes_namespace" "homelab" {
 # Legacy namespace and module removed
 
 
+module "mcpo" {
+  source = "./modules/mcpo"
+
+  project_name = var.project_name
+  environment  = var.environment
+}
+
 module "open-webui" {
   source = "./modules/open-webui"
 
@@ -19,6 +26,7 @@ module "open-webui" {
   ollama_enabled     = false
   ollama_base_url    = var.ollama_base_url
   chart_repository   = "https://helm.openwebui.com/"
+  chart_version      = "7.7.0"
 }
 
 module "flowise" {
@@ -70,6 +78,7 @@ module "n8n" {
   enable_persistence = var.enable_persistence
   storage_size       = var.default_storage_size
   chart_repository   = "oci://8gears.container-registry.com/library/"
+  chart_version      = "1.0.13"
 }
 
 module "homepage" {
