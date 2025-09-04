@@ -49,6 +49,10 @@ module "n8n" {
   source = "./modules/n8n"
 }
 
+module "mcp-gateway" {
+  source = "./modules/mcp-gateway"
+}
+
 resource "docker_container" "dockerproxy" {
   image   = "ghcr.io/tecnativa/docker-socket-proxy:latest"
   name    = "dockerproxy"

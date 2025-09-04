@@ -19,6 +19,7 @@ Each service is organized as a Terraform module in `modules/`:
 - `traefik/`: Ingress controller with IngressRoute definitions for all services
 - `postgresql/`: Database service for applications that need persistent storage  
 - `nfs-persistence/`: Network storage for persistent volumes
+- `mcp-gateway/`: Docker MCP Gateway for AI agent interactions with remote access
 - Application modules: `calibre-web/`, `flowise/`, `n8n/`, `open-webui/`, `openspeedtest/`, `homepage/`, `teleport/`
 
 ### Service Architecture
@@ -69,6 +70,7 @@ Services are available at:
 - `flowise.k8s.orb.local` - Flowise low-code AI workflows
 - `calibre.k8s.orb.local` - Calibre Web ebook server
 - `n8n.k8s.orb.local` - n8n automation platform
+- `mcp-gateway.k8s.orb.local` - Docker MCP Gateway for AI agent interactions
 
 ## Development Patterns
 

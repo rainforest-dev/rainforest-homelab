@@ -1,0 +1,9 @@
+# Example Terraform variables for rainforest-homelab
+# Copy this file to terraform.tfvars and update with your values
+
+# Cloudflare API credentials (if using external DNS)
+cloudflare_api_key = "your-cloudflare-api-key"
+cloudflare_email   = "your-email@example.com"
+
+# Container configuration
+container_name = "ExampleNginxContainer"
