@@ -1,5 +1,16 @@
 ## Services
 
+### MinIO Object Storage
+
+MinIO provides S3-compatible object storage for the homelab infrastructure.
+
+- **Console**: https://minio.k8s.orb.local
+- **S3 API**: https://minio-api.k8s.orb.local
+- **Default credentials**: admin / minioadmin123
+- **Storage**: 20Gi persistent volume
+
+Access the MinIO console to create buckets, manage objects, and configure policies. The S3 API endpoint can be used by applications requiring object storage.
+
 ### PostgreSQL
 
 - default port: 5432
