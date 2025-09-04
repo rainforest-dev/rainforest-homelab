@@ -162,3 +162,31 @@ resource "kubectl_manifest" "n8n-ingress-route" {
     }
   })
 }
+
+resource "kubectl_manifest" "mcp-gateway-ingress-route" {
+  depends_on = [helm_release.traefik]
+
+  yaml_body = yamlencode({
+    apiVersion = "traefik.io/v1alpha1"
+    kind       = "IngressRoute"
+    metadata = {
+      name      = "mcp-gateway"
+      namespace = "homelab"
+    }
+    spec = {
+      entryPoints = ["websecure"]
+      routes = [
+        {
+          match = "Host(`mcp-gateway.k8s.orb.local`)"
+          kind  = "Rule"
+          services = [
+            {
+              name = "mcp-gateway"
+              port = 80
+            }
+          ]
+        }
+      ]
+    }
+  })
+}

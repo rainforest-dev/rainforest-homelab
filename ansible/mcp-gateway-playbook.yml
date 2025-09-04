@@ -1,0 +1,319 @@
+---
+- name: Deploy Docker MCP Gateway
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  
+  vars:
+    namespace: homelab
+    gateway_port: 8080
+    image_tag: latest
+    transport_mode: sse
+    docker_host: "tcp://dockerproxy:2375"
+    
+    # MCP Servers configuration
+    mcp_servers:
+      docker:
+        image: "mcp/docker"
+        description: "Docker MCP server for container management"
+        environment:
+          DOCKER_HOST: "{{ docker_host }}"
+      playwright:
+        image: "mcp/playwright"
+        description: "Playwright MCP server for web automation"
+        environment: {}
+      fetch:
+        image: "mcp/fetch"
+        description: "Web fetching and content extraction"
+        environment: {}
+    
+    # Tools to enable
+    enabled_tools:
+      - docker
+      - playwright
+      - fetch
+    
+    # Security settings
+    security_block_network: false
+    security_block_secrets: true
+    cors_enabled: true
+    cors_origins:
+      - "*"
+    
+    # Resource limits
+    resource_limits:
+      cpu: "1000m"
+      memory: "2Gi"
+    resource_requests:
+      cpu: "500m"
+      memory: "1Gi"
+
+  tasks:
+    - name: Ensure namespace exists
+      kubernetes.core.k8s:
+        name: "{{ namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: Create MCP Gateway ConfigMap
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: mcp-gateway-config
+            namespace: "{{ namespace }}"
+          data:
+            config.yaml: |
+              version: "1.0"
+              gateway:
+                transport: {{ transport_mode }}
+                port: {{ gateway_port }}
+                cors:
+                  enabled: {{ cors_enabled | lower }}
+                  origins: {{ cors_origins | to_json }}
+              logging:
+                level: "info"
+                calls: true
+              security:
+                block_network: {{ security_block_network | lower }}
+                block_secrets: {{ security_block_secrets | lower }}
+            registry.yaml: |
+              version: "1.0"
+              servers:
+                {% for name, server in mcp_servers.items() %}
+                {{ name }}:
+                  image: "{{ server.image }}"
+                  description: "{{ server.description }}"
+                  {% if server.environment %}
+                  environment:
+                    {% for key, value in server.environment.items() %}
+                    {{ key }}: "{{ value }}"
+                    {% endfor %}
+                  {% endif %}
+                {% endfor %}
+            tools.yaml: |
+              version: "1.0"
+              tools: {{ enabled_tools | to_json }}
+
+    - name: Create MCP Gateway Secret
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: mcp-gateway-secret
+            namespace: "{{ namespace }}"
+          type: Opaque
+          data:
+            api_key: "{{ 'changeme-secure-key' | b64encode }}"
+
+    - name: Deploy MCP Gateway
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: mcp-gateway
+            namespace: "{{ namespace }}"
+            labels:
+              app: mcp-gateway
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: mcp-gateway
+            template:
+              metadata:
+                labels:
+                  app: mcp-gateway
+              spec:
+                containers:
+                - name: mcp-gateway
+                  image: "docker/mcp-gateway:{{ image_tag }}"
+                  command:
+                    - docker
+                    - mcp
+                    - gateway
+                    - run
+                    - --port
+                    - "{{ gateway_port }}"
+                    - --transport
+                    - "{{ transport_mode }}"
+                    - --config
+                    - /config/config.yaml
+                    - --registry
+                    - /config/registry.yaml
+                    - --tools-config
+                    - /config/tools.yaml
+                    - --verbose
+                    - --long-lived
+                    - --log-calls
+                  ports:
+                  - containerPort: "{{ gateway_port }}"
+                    name: http
+                    protocol: TCP
+                  env:
+                  - name: DOCKER_HOST
+                    value: "{{ docker_host }}"
+                  - name: MCP_GATEWAY_PORT
+                    value: "{{ gateway_port }}"
+                  - name: MCP_API_KEY
+                    valueFrom:
+                      secretKeyRef:
+                        name: mcp-gateway-secret
+                        key: api_key
+                  resources:
+                    limits:
+                      cpu: "{{ resource_limits.cpu }}"
+                      memory: "{{ resource_limits.memory }}"
+                    requests:
+                      cpu: "{{ resource_requests.cpu }}"
+                      memory: "{{ resource_requests.memory }}"
+                  volumeMounts:
+                  - name: config
+                    mountPath: /config
+                    readOnly: true
+                  livenessProbe:
+                    httpGet:
+                      path: /health
+                      port: "{{ gateway_port }}"
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                    failureThreshold: 3
+                  readinessProbe:
+                    httpGet:
+                      path: /ready
+                      port: "{{ gateway_port }}"
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+                    failureThreshold: 3
+                volumes:
+                - name: config
+                  configMap:
+                    name: mcp-gateway-config
+                restartPolicy: Always
+
+    - name: Create MCP Gateway Service
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: mcp-gateway
+            namespace: "{{ namespace }}"
+            labels:
+              app: mcp-gateway
+          spec:
+            selector:
+              app: mcp-gateway
+            ports:
+            - name: http
+              port: 80
+              targetPort: "{{ gateway_port }}"
+              protocol: TCP
+            type: ClusterIP
+
+    - name: Create Traefik IngressRoute
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: traefik.io/v1alpha1
+          kind: IngressRoute
+          metadata:
+            name: mcp-gateway
+            namespace: "{{ namespace }}"
+          spec:
+            entryPoints:
+            - websecure
+            routes:
+            - match: Host(`mcp-gateway.k8s.orb.local`)
+              kind: Rule
+              services:
+              - name: mcp-gateway
+                port: 80
+
+    - name: Wait for deployment to be ready
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: mcp-gateway
+        namespace: "{{ namespace }}"
+        wait: true
+        wait_condition:
+          type: Available
+          status: "True"
+        wait_timeout: 300
+
+    - name: Display deployment status
+      debug:
+        msg: |
+          MCP Gateway deployment completed successfully!
+          
+          Access URLs:
+          - HTTPS: https://mcp-gateway.k8s.orb.local
+          - Port Forward: kubectl port-forward -n {{ namespace }} svc/mcp-gateway 8080:80
+          
+          Verification commands:
+          - Check pods: kubectl get pods -n {{ namespace }} -l app=mcp-gateway
+          - Check service: kubectl get svc -n {{ namespace }} mcp-gateway
+          - View logs: kubectl logs -n {{ namespace }} deployment/mcp-gateway
+          
+          Enabled MCP servers: {{ mcp_servers.keys() | list | join(', ') }}
+          Enabled tools: {{ enabled_tools | join(', ') }}
+
+# Additional tasks for verification and troubleshooting
+- name: Verification Tasks
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    namespace: homelab
+  
+  tasks:
+    - name: Get pod status
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ namespace }}"
+        label_selectors:
+          - app=mcp-gateway
+      register: pod_status
+
+    - name: Display pod information
+      debug:
+        msg: |
+          Pod Status: {{ item.status.phase }}
+          Pod IP: {{ item.status.podIP | default('N/A') }}
+          Node: {{ item.spec.nodeName | default('N/A') }}
+      loop: "{{ pod_status.resources }}"
+      when: pod_status.resources | length > 0
+
+    - name: Get service endpoints
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Endpoints
+        name: mcp-gateway
+        namespace: "{{ namespace }}"
+      register: endpoints
+
+    - name: Display service endpoints
+      debug:
+        msg: |
+          Service Endpoints: {{ endpoints.resources[0].subsets | default([]) | map(attribute='addresses') | flatten | map(attribute='ip') | list }}
+      when: endpoints.resources | length > 0
+
+    - name: Test internal connectivity (if possible)
+      kubernetes.core.k8s_exec:
+        namespace: "{{ namespace }}"
+        pod: "{{ pod_status.resources[0].metadata.name }}"
+        command: |
+          curl -f http://localhost:8080/health || echo "Health check failed"
+      register: health_check
+      when: pod_status.resources | length > 0
+      ignore_errors: true
+
+    - name: Display health check result
+      debug:
+        msg: "Health check result: {{ health_check.stdout | default('Failed to execute') }}"
+      when: health_check is defined
