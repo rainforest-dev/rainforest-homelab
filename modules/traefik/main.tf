@@ -162,3 +162,59 @@ resource "kubectl_manifest" "n8n-ingress-route" {
     }
   })
 }
+
+resource "kubectl_manifest" "minio-console-ingress-route" {
+  depends_on = [helm_release.traefik]
+
+  yaml_body = yamlencode({
+    apiVersion = "traefik.io/v1alpha1"
+    kind       = "IngressRoute"
+    metadata = {
+      name      = "minio-console"
+      namespace = "homelab"
+    }
+    spec = {
+      entryPoints = ["websecure"]
+      routes = [
+        {
+          match = "Host(`minio.k8s.orb.local`)"
+          kind  = "Rule"
+          services = [
+            {
+              name = "minio-console"
+              port = 9001
+            }
+          ]
+        }
+      ]
+    }
+  })
+}
+
+resource "kubectl_manifest" "minio-api-ingress-route" {
+  depends_on = [helm_release.traefik]
+
+  yaml_body = yamlencode({
+    apiVersion = "traefik.io/v1alpha1"
+    kind       = "IngressRoute"
+    metadata = {
+      name      = "minio-api"
+      namespace = "homelab"
+    }
+    spec = {
+      entryPoints = ["websecure"]
+      routes = [
+        {
+          match = "Host(`minio-api.k8s.orb.local`)"
+          kind  = "Rule"
+          services = [
+            {
+              name = "minio"
+              port = 9000
+            }
+          ]
+        }
+      ]
+    }
+  })
+}

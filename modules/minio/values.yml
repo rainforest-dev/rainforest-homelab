@@ -1,0 +1,40 @@
+# MinIO configuration for homelab object storage
+mode: standalone
+
+# Credentials
+rootUser: admin
+rootPassword: minioadmin123
+
+# Persistence configuration
+persistence:
+  enabled: true
+  size: 20Gi
+  storageClass: ""
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 9000
+  
+# Console service configuration  
+consoleService:
+  type: ClusterIP
+  port: 9001
+
+# Resources
+resources:
+  requests:
+    memory: 512Mi
+    cpu: 250m
+
+# Enable metrics for monitoring
+metrics:
+  serviceMonitor:
+    enabled: false
+
+# Ingress - disabled since we use Traefik IngressRoute
+ingress:
+  enabled: false
+
+consoleIngress:
+  enabled: false
