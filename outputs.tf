@@ -6,7 +6,7 @@ output "traefik_id" {
 output "open_webui_id" {
   description = "The ID of the Open Web UI resource."
   value       = module.open-webui.id
-  
+
 }
 
 output "flowise_id" {
