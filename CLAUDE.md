@@ -19,13 +19,14 @@ Each service is organized as a Terraform module in `modules/`:
 - `traefik/`: Ingress controller with IngressRoute definitions for all services
 - `postgresql/`: Database service for applications that need persistent storage  
 - `nfs-persistence/`: Network storage for persistent volumes
-- Application modules: `calibre-web/`, `flowise/`, `n8n/`, `open-webui/`, `openspeedtest/`, `homepage/`, `teleport/`
+- Application modules: `calibre-web/`, `flowise/`, `n8n/`, `open-webui/`, `openspeedtest/`, `homepage/`, `teleport/`, `wetty/`
 
 ### Service Architecture
 - All services run in the `homelab` namespace (except Traefik in `traefik` namespace)
 - Services use `.k8s.orb.local` domain pattern for local access
 - Traefik handles SSL termination and routing via IngressRoute CRDs
 - Docker proxy container provides secure Docker socket access
+- Some services (like Wetty) use NodePort for Tailscale-only access without Traefik exposure
 
 ## Common Commands
 
@@ -69,6 +70,9 @@ Services are available at:
 - `flowise.k8s.orb.local` - Flowise low-code AI workflows
 - `calibre.k8s.orb.local` - Calibre Web ebook server
 - `n8n.k8s.orb.local` - n8n automation platform
+
+**Tailscale-only Services:**
+- `wetty` - Web terminal (NodePort 30080, accessible via `http://<tailscale-node-ip>:30080`)
 
 ## Development Patterns
 

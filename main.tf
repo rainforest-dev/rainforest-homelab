@@ -49,6 +49,10 @@ module "n8n" {
   source = "./modules/n8n"
 }
 
+module "wetty" {
+  source = "./modules/wetty"
+}
+
 resource "docker_container" "dockerproxy" {
   image   = "ghcr.io/tecnativa/docker-socket-proxy:latest"
   name    = "dockerproxy"
