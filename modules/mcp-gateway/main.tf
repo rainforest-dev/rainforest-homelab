@@ -13,45 +13,21 @@ resource "kubernetes_config_map" "mcp_gateway_config" {
   }
 
   data = {
-    "config.yaml" = yamlencode({
-      version = "1.0"
-      gateway = {
-        transport = var.transport_mode
-        port     = var.gateway_port
-        cors = {
-          enabled = var.cors_enabled
-          origins = var.cors_origins
-        }
-      }
-      logging = {
-        level = "info"
-        calls = true
-      }
-      security = {
-        block_network = var.security_block_network
-        block_secrets = var.security_block_secrets
-      }
-    })
-    
     "registry.yaml" = yamlencode({
-      version = "1.0"
-      servers = merge(
-        {
-          for name, server in var.mcp_servers : name => {
-            image       = server.image
-            description = server.description
-            environment = merge(
-              server.environment,
-              name == "docker" ? { DOCKER_HOST = var.docker_host } : {}
-            )
-          }
+      servers = {
+        for name, server in var.mcp_servers : name => {
+          image       = server.image
+          description = server.description
+          environment = merge(
+            server.environment,
+            name == "docker" ? { DOCKER_HOST = var.docker_host } : {}
+          )
         }
-      )
+      }
     })
     
     "tools.yaml" = yamlencode({
-      version = "1.0"
-      tools   = var.enabled_tools
+      tools = var.enabled_tools
     })
   }
 }
@@ -101,17 +77,19 @@ resource "kubernetes_deployment" "mcp_gateway" {
           image = "docker/mcp-gateway:${var.image_tag}"
           name  = "mcp-gateway"
           
-          command = [
-            "docker", "mcp", "gateway", "run",
+          # Note: Entrypoint is already set to /docker-mcp gateway run
+          args = concat([
             "--port", tostring(var.gateway_port),
             "--transport", var.transport_mode,
-            "--config", "/config/config.yaml",
             "--registry", "/config/registry.yaml", 
             "--tools-config", "/config/tools.yaml",
             "--verbose",
             "--long-lived",
             "--log-calls"
-          ]
+          ], 
+          var.security_block_network ? ["--block-network"] : [],
+          var.security_block_secrets ? ["--block-secrets"] : []
+          )
 
           port {
             container_port = var.gateway_port

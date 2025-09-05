@@ -4,13 +4,13 @@ This document describes the Terraform-based solution for deploying Docker MCP Ga
 
 ## Overview
 
-Docker MCP Gateway is Docker's implementation of the Model Context Protocol (MCP) that allows AI agents to interact with various tools and services. This solution deploys it as a Kubernetes service with remote access capabilities.
+Docker MCP Gateway is Docker's implementation of the Model Context Protocol (MCP) that allows AI agents to interact with various tools and services. While it's part of the Docker Desktop toolkit, it can also run in containers using the official `docker/mcp-gateway` image. This solution deploys it as a Kubernetes service with remote access capabilities.
 
 ## Architecture
 
 ### Components
-- **MCP Gateway**: Docker container running the MCP Gateway service
-- **Configuration**: ConfigMap with MCP server definitions, tools, and gateway settings
+- **MCP Gateway**: Docker container running the official `docker/mcp-gateway` image with `/docker-mcp gateway run` entrypoint
+- **Configuration**: ConfigMap with MCP server registry and tools configuration
 - **Ingress**: Traefik IngressRoute for secure remote access
 - **Service**: Kubernetes service for internal cluster communication
 - **Security**: Kubernetes secrets for authentication
