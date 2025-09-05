@@ -64,11 +64,11 @@ resource "helm_release" "minio" {
 
       # Security context
       securityContext = {
-        enabled           = true
-        runAsUser         = 1000
-        runAsGroup        = 1000
-        fsGroup           = 1000
-        runAsNonRoot      = true
+        enabled                  = true
+        runAsUser                = 1000
+        runAsGroup               = 1000
+        fsGroup                  = 1000
+        runAsNonRoot             = true
         allowPrivilegeEscalation = false
       }
 

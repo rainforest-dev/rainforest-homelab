@@ -117,7 +117,6 @@ variable "minio_storage_size" {
   type        = string
   default     = "100Gi"
 }
-}
 
 # Zero Trust Configuration
 variable "allowed_email_domains" {
