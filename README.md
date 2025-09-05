@@ -27,6 +27,7 @@ Internet → Cloudflare Edge → Cloudflare Tunnel → cloudflared pods → Kube
 #### Kubernetes Services (via Cloudflare Tunnel)
 - **cloudflared**: Tunnel client for secure connectivity
 - **PostgreSQL**: Database service for applications
+- **MinIO**: S3-compatible object storage for files and backups
 - **Open WebUI**: AI chat interface
 - **Flowise**: Low-code AI workflow builder  
 - **n8n**: Workflow automation platform
@@ -138,6 +139,7 @@ default_storage_size = "10Gi"
 Control which services are deployed:
 - `enable_cloudflare_tunnel`: Enable Cloudflare Tunnel for external access
 - `enable_postgresql`: Deploy PostgreSQL database
+- `enable_minio`: Deploy MinIO S3-compatible object storage
 - `enable_coredns`: Legacy Tailscale integration (disabled when using tunnel)
 - `enable_traefik`: Legacy ingress controller (disabled when using tunnel)
 
@@ -265,6 +267,36 @@ echo $(kubectl get secret --namespace homelab homelab-postgresql -o jsonpath="{.
 kubectl run postgresql-client --rm --tty -i --restart='Never' --namespace homelab --image docker.io/bitnami/postgresql:15 --env="PGPASSWORD=$(kubectl get secret --namespace homelab homelab-postgresql -o jsonpath="{.data.postgres-password}" | base64 --decode)" --command -- psql --host homelab-postgresql --username postgres --dbname homelab --port 5432
 ```
 
+### MinIO Object Storage Access
+
+**Web Console**: Access via `https://minio.yourdomain.com` (configured in Cloudflare Tunnel)
+
+**S3 API Endpoint**: Access via `https://s3.yourdomain.com` for S3-compatible applications
+
+```bash
+# Get MinIO credentials
+kubectl get secret --namespace homelab homelab-minio -o jsonpath="{.data.root-user}" | base64 --decode; echo
+kubectl get secret --namespace homelab homelab-minio -o jsonpath="{.data.root-password}" | base64 --decode; echo
+
+# MinIO client configuration (mc)
+mc alias set homelab https://s3.yourdomain.com <access-key> <secret-key>
+
+# Create a bucket
+mc mb homelab/my-bucket
+
+# Upload files
+mc cp /path/to/file homelab/my-bucket/
+
+# List buckets
+mc ls homelab/
+```
+
+**For Applications**: Use S3-compatible SDKs with:
+- **Endpoint**: `https://s3.yourdomain.com`
+- **Access Key**: Retrieved from Kubernetes secret
+- **Secret Key**: Retrieved from Kubernetes secret
+- **Region**: `us-east-1` (default)
+
 ## 📁 Project Structure
 
 ```
@@ -284,6 +316,7 @@ kubectl run postgresql-client --rm --tty -i --restart='Never' --namespace homela
     ├── volume-management/     # Docker volume management
     ├── cloudflare-tunnel/     # Cloudflare Tunnel for external access
     ├── postgresql/           # PostgreSQL database
+    ├── minio/                # MinIO S3-compatible object storage
     ├── calibre-web/          # Calibre Web ebook server
     ├── open-webui/           # Open WebUI interface
     ├── flowise/              # Flowise AI workflows

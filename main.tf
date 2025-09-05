@@ -54,6 +54,20 @@ module "postgresql" {
   memory_limit       = var.default_memory_limit
 }
 
+module "minio" {
+  source = "./modules/minio"
+  count  = var.enable_minio ? 1 : 0
+
+  project_name       = var.project_name
+  environment        = var.environment
+  enable_persistence = var.enable_persistence
+  storage_size       = var.minio_storage_size
+  cpu_limit          = var.default_cpu_limit
+  memory_limit       = var.default_memory_limit
+  chart_repository   = "https://charts.min.io/"
+  chart_version      = "5.2.0"
+}
+
 # OpenSpeedTest moved to Raspberry Pi (external hosting)
 # Module kept in /modules for reference if needed
 
