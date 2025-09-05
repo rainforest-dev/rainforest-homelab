@@ -81,6 +81,12 @@ variable "enable_postgresql" {
   default     = true
 }
 
+variable "enable_minio" {
+  description = "Enable MinIO S3-compatible object storage"
+  type        = bool
+  default     = true
+}
+
 variable "enable_cloudflare_tunnel" {
   description = "Enable Cloudflare Tunnel for secure external access"
   type        = bool
@@ -104,6 +110,13 @@ variable "default_storage_size" {
   description = "Default storage size for persistent volumes"
   type        = string
   default     = "10Gi"
+}
+
+variable "minio_storage_size" {
+  description = "Storage size for MinIO object storage"
+  type        = string
+  default     = "100Gi"
+}
 }
 
 # Zero Trust Configuration

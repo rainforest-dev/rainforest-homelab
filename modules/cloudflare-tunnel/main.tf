@@ -67,6 +67,16 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
       service  = "http://homelab-n8n.homelab.svc.cluster.local:80"
     }
 
+    ingress_rule {
+      hostname = "minio.${var.domain_suffix}"
+      service  = "http://homelab-minio-console.homelab.svc.cluster.local:9001"
+    }
+
+    ingress_rule {
+      hostname = "s3.${var.domain_suffix}"
+      service  = "http://homelab-minio.homelab.svc.cluster.local:9000"
+    }
+
     # Catch-all rule (required)
     ingress_rule {
       service = "http_status:404"
@@ -80,7 +90,9 @@ resource "cloudflare_record" "services" {
     "homepage",
     "open-webui",
     "flowise",
-    "n8n"
+    "n8n",
+    "minio",
+    "s3"
   ])
 
   zone_id = local.zone_id
@@ -97,7 +109,8 @@ resource "cloudflare_zero_trust_access_application" "services" {
     "homepage",
     "open-webui",
     "flowise",
-    "n8n"
+    "n8n",
+    "minio"
   ]) : toset([])
 
   zone_id          = local.zone_id
