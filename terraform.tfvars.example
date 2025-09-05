@@ -12,6 +12,7 @@ cloudflare_api_token  = ""  # Add your Cloudflare API Token here
 
 # Feature Flags
 enable_postgresql        = true   # Enable shared PostgreSQL database
+enable_minio            = true   # Enable MinIO S3-compatible object storage
 enable_persistence       = false  # Enable persistent volumes (optional)
 enable_cloudflare_tunnel = true   # Enable Cloudflare Tunnel for external access
 
@@ -24,6 +25,7 @@ enable_openspeedtest     = false  # Enable OpenSpeedTest (can run on separate ma
 default_cpu_limit    = "500m"
 default_memory_limit = "1Gi"
 default_storage_size = "10Gi"
+minio_storage_size   = "100Gi"  # MinIO storage size (larger default for object storage)
 
 # Zero Trust Access Control (requires enabling Access in Cloudflare dashboard)
 # Option A: Domain-specific (recommended for security)
