@@ -41,6 +41,12 @@ module "wetty" {
 Since Wetty is deployed as an internal-only service, access it using kubectl port-forwarding:
 
 ```bash
+# Enable Wetty in terraform.tfvars
+enable_wetty = true
+
+# Deploy Wetty
+terraform apply
+
 # Port-forward to access Wetty
 kubectl port-forward -n homelab service/homelab-wetty 3000:3000
 
@@ -48,24 +54,58 @@ kubectl port-forward -n homelab service/homelab-wetty 3000:3000
 # http://localhost:3000
 ```
 
-### Mobile Access via Tailscale
+### Mobile and Remote Access via Tailscale
 
-If you have Tailscale configured on your cluster host:
+If you have Tailscale configured on your Kubernetes cluster host:
 
-1. Set up the port-forward on your cluster host
-2. Access via your Tailscale IP: `http://your-tailscale-ip:3000`
-3. Use Tailscale's Magic DNS for easier access
+1. **Set up port-forward on your cluster host:**
+   ```bash
+   kubectl port-forward -n homelab service/homelab-wetty 3000:3000
+   ```
 
-### Authentication
+2. **Access via Tailscale IP:**
+   - Find your machine's Tailscale IP: `tailscale ip`
+   - Access from any Tailscale device: `http://your-tailscale-ip:3000`
+
+3. **Using Tailscale Magic DNS (recommended):**
+   - Access via machine name: `http://your-machine-name:3000`
+   - More user-friendly than IP addresses
+
+### Security and Authentication
 
 The default setup creates a user account within the container:
-- Username: `wetty` (or custom via `wetty_user` variable)
-- Password: `wetty123` (should be changed in production)
+- Username: `terminal` (or custom via `wetty_user` variable)
+- Password: `wetty123` 
 
-**Security Note**: This is a basic setup. For production use, consider:
-- Integrating with your existing authentication system
-- Using SSH key-based authentication
-- Implementing additional access controls
+**Important Security Notes:**
+- Change the default password in production
+- This setup is intended for private homelab use only
+- No external network exposure (consistent with security requirements)
+- Consider implementing SSH key authentication for enhanced security
+
+### Production Security Recommendations
+
+For production environments, consider these enhancements:
+
+1. **SSH Key Authentication:**
+   ```bash
+   # Generate SSH keys for wetty user
+   ssh-keygen -t ed25519 -f ~/.ssh/wetty_key
+   
+   # Mount keys as Kubernetes secrets
+   kubectl create secret generic wetty-ssh-keys \
+     --from-file=authorized_keys=~/.ssh/wetty_key.pub \
+     -n homelab
+   ```
+
+2. **Custom User Management:**
+   - Integrate with existing user directory (LDAP/AD)
+   - Use SSH keys instead of passwords
+   - Implement session timeouts
+
+3. **Network Policies:**
+   - Restrict pod-to-pod communication
+   - Limit egress traffic as needed
 
 ## Variables
 
