@@ -67,6 +67,11 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
       service  = "http://homelab-n8n.homelab.svc.cluster.local:80"
     }
 
+    ingress_rule {
+      hostname = "docker-mcp.${var.domain_suffix}"
+      service  = "http://homelab-docker-mcp-gateway.homelab.svc.cluster.local:8080"
+    }
+
     # Catch-all rule (required)
     ingress_rule {
       service = "http_status:404"
@@ -80,7 +85,8 @@ resource "cloudflare_record" "services" {
     "homepage",
     "open-webui",
     "flowise",
-    "n8n"
+    "n8n",
+    "docker-mcp"
   ])
 
   zone_id = local.zone_id
