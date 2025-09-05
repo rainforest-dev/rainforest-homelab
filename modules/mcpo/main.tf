@@ -46,7 +46,7 @@ resource "null_resource" "mcpo_server" {
         exit 1
       fi
     EOT
-    
+
     working_dir = path.root
   }
 
@@ -60,7 +60,7 @@ resource "null_resource" "mcpo_server" {
       fi
       pkill -f "mcpo.*--port.*8090" || true
     EOT
-    
+
     working_dir = path.root
   }
 

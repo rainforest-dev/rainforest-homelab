@@ -9,7 +9,7 @@ resource "helm_release" "flowise" {
   values = [
     yamlencode({
       fullnameOverride = "${var.project_name}-flowise"
-      
+
       resources = {
         limits = {
           cpu    = var.cpu_limit
@@ -20,7 +20,7 @@ resource "helm_release" "flowise" {
           memory = "128Mi"
         }
       }
-      
+
       persistence = {
         enabled = var.enable_persistence
         size    = var.storage_size

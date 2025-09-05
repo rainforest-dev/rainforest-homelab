@@ -9,7 +9,7 @@ resource "helm_release" "n8n" {
   values = [
     yamlencode({
       fullnameOverride = "${var.project_name}-n8n"
-      
+
       resources = {
         limits = {
           cpu    = var.cpu_limit
@@ -20,7 +20,7 @@ resource "helm_release" "n8n" {
           memory = "128Mi"
         }
       }
-      
+
       persistence = {
         enabled = var.enable_persistence
         size    = var.storage_size

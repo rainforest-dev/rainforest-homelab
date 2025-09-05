@@ -29,3 +29,20 @@ output "homepage_url" {
   description = "URL to access homepage dashboard"
   value       = module.homepage.service_url
 }
+
+output "minio_connection_info" {
+  description = "MinIO connection information"
+  value = var.enable_minio ? {
+    console_url  = "https://minio.${var.domain_suffix}"
+    s3_api_url   = "https://s3.${var.domain_suffix}"
+    access_key   = module.minio[0].access_key
+    service_name = module.minio[0].service_name
+    namespace    = module.minio[0].namespace
+  } : null
+}
+
+output "minio_secret_key" {
+  description = "MinIO secret key (sensitive)"
+  value       = var.enable_minio ? module.minio[0].secret_key : null
+  sensitive   = true
+}
