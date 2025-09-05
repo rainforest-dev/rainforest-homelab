@@ -93,6 +93,12 @@ variable "enable_cloudflare_tunnel" {
   default     = true
 }
 
+variable "enable_docker_mcp_gateway" {
+  description = "Enable Docker MCP Gateway for remote Docker operations"
+  type        = bool
+  default     = false
+}
+
 # Resource Sizing
 variable "default_cpu_limit" {
   description = "Default CPU limit for services"
