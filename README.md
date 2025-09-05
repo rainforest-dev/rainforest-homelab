@@ -137,6 +137,7 @@ Control which services are deployed:
 - `enable_cloudflare_tunnel`: Enable Cloudflare Tunnel for external access
 - `enable_postgresql`: Deploy PostgreSQL database
 - `enable_minio`: Deploy MinIO S3-compatible object storage
+- `enable_docker_mcp_gateway`: Deploy Docker MCP Gateway for remote Docker operations
 - `enable_coredns`: Legacy Tailscale integration (disabled when using tunnel)
 - `enable_traefik`: Legacy ingress controller (disabled when using tunnel)
 
@@ -165,6 +166,7 @@ These services are accessible globally with automatic HTTPS certificates:
 - **🌐 https://open-webui.yourdomain.com** - Open WebUI AI chat interface
 - **🔄 https://flowise.yourdomain.com** - Flowise AI workflow builder  
 - **⚡ https://n8n.yourdomain.com** - n8n automation platform
+- **🐳 https://docker-mcp.yourdomain.com** - Docker MCP Gateway for remote Docker operations (optional)
 
 ### 🔒 Security Features
 - **Real SSL Certificates**: Automatic and trusted certificates from Cloudflare

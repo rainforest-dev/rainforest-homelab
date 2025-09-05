@@ -14,6 +14,31 @@ module "mcpo" {
   environment  = var.environment
 }
 
+module "docker_mcp_gateway" {
+  source = "./modules/docker-mcp-gateway"
+  count  = var.enable_docker_mcp_gateway ? 1 : 0
+
+  project_name = var.project_name
+  environment  = var.environment
+  namespace    = "homelab"
+  
+  # Resource configuration
+  cpu_limit    = var.default_cpu_limit
+  memory_limit = var.default_memory_limit
+  
+  # External access configuration
+  enable_cloudflare_tunnel = var.enable_cloudflare_tunnel
+  tunnel_hostname         = "docker-mcp"
+  domain_suffix          = var.domain_suffix
+  
+  # Security configuration
+  enable_docker_socket  = true
+  enable_network_policy = false  # Can be enabled in production
+  log_level            = "info"
+  
+  depends_on = [kubernetes_namespace.homelab]
+}
+
 module "open-webui" {
   source = "./modules/open-webui"
 

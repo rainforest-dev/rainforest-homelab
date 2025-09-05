@@ -77,6 +77,11 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
       service  = "http://homelab-minio.homelab.svc.cluster.local:9000"
     }
 
+    ingress_rule {
+      hostname = "docker-mcp.${var.domain_suffix}"
+      service  = "http://homelab-docker-mcp-gateway.homelab.svc.cluster.local:8080"
+    }
+
     # Catch-all rule (required)
     ingress_rule {
       service = "http_status:404"
@@ -92,7 +97,8 @@ resource "cloudflare_record" "services" {
     "flowise",
     "n8n",
     "minio",
-    "s3"
+    "s3",
+    "docker-mcp"
   ])
 
   zone_id = local.zone_id
@@ -110,7 +116,8 @@ resource "cloudflare_zero_trust_access_application" "services" {
     "open-webui",
     "flowise",
     "n8n",
-    "minio"
+    "minio",
+    "docker-mcp"
   ]) : toset([])
 
   zone_id          = local.zone_id
@@ -138,7 +145,8 @@ resource "cloudflare_zero_trust_access_policy" "email_policy" {
     "open-webui",
     "flowise",
     "n8n",
-    "minio"
+    "minio",
+    "docker-mcp"
   ]) : toset([])
 
   application_id = cloudflare_zero_trust_access_application.services[each.key].id
@@ -271,6 +279,8 @@ data:
         service: http://homelab-minio-console.homelab.svc.cluster.local:9001
       - hostname: s3.${var.domain_suffix}
         service: http://homelab-minio.homelab.svc.cluster.local:9000
+      - hostname: docker-mcp.${var.domain_suffix}
+        service: http://homelab-docker-mcp-gateway.homelab.svc.cluster.local:8080
       - service: http_status:404
 YAML
 }
