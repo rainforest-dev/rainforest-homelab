@@ -1,0 +1,100 @@
+---
+# Install and configure ttyd web terminal for homelab
+- name: Setup ttyd web terminal
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+  
+  vars:
+    ttyd_port: 7681
+    ttyd_interface: "127.0.0.1"  # localhost only for security
+    ttyd_user: "{{ ansible_user }}"
+    
+  tasks:
+    - name: Install ttyd via Homebrew
+      community.general.homebrew:
+        name: ttyd
+        state: present
+      register: ttyd_install
+      
+    - name: Check if ttyd is installed
+      command: which ttyd
+      register: ttyd_path
+      changed_when: false
+      
+    - name: Display ttyd installation path
+      debug:
+        msg: "ttyd installed at: {{ ttyd_path.stdout }}"
+        
+    - name: Create LaunchAgents directory
+      file:
+        path: "{{ ansible_env.HOME }}/Library/LaunchAgents"
+        state: directory
+        mode: '0755'
+        
+    - name: Create ttyd launchd service plist
+      template:
+        src: ttyd.plist.j2
+        dest: "{{ ansible_env.HOME }}/Library/LaunchAgents/com.homelab.ttyd.plist"
+        mode: '0644'
+      notify: restart ttyd service
+      
+    - name: Load ttyd service
+      command: launchctl load {{ ansible_env.HOME }}/Library/LaunchAgents/com.homelab.ttyd.plist
+      register: load_result
+      changed_when: load_result.rc == 0
+      failed_when: load_result.rc != 0 and "already loaded" not in load_result.stderr
+      
+    - name: Start ttyd service
+      command: launchctl start com.homelab.ttyd
+      register: start_result
+      changed_when: start_result.rc == 0
+      failed_when: start_result.rc != 0 and "already started" not in start_result.stderr
+      
+    - name: Wait for ttyd to start
+      wait_for:
+        host: "{{ ttyd_interface }}"
+        port: "{{ ttyd_port }}"
+        timeout: 10
+      ignore_errors: yes
+      
+    - name: Check ttyd status
+      uri:
+        url: "http://{{ ttyd_interface }}:{{ ttyd_port }}"
+        method: GET
+        status_code: 200
+      register: ttyd_status
+      ignore_errors: yes
+      
+    - name: Display access information
+      debug:
+        msg: |
+          ttyd web terminal setup complete!
+          
+          Access URL: http://{{ ttyd_interface }}:{{ ttyd_port }}
+          Service: com.homelab.ttyd
+          Logs: /tmp/ttyd.log and /tmp/ttyd.error.log
+          
+          Service Management:
+          - Start: launchctl start com.homelab.ttyd
+          - Stop:  launchctl stop com.homelab.ttyd
+          - Reload: launchctl unload ~/Library/LaunchAgents/com.homelab.ttyd.plist && launchctl load ~/Library/LaunchAgents/com.homelab.ttyd.plist
+          
+          Status: {{ 'Running ✅' if ttyd_status.status == 200 else 'Not responding ❌' }}
+
+  handlers:
+    - name: restart ttyd service
+      block:
+        - name: Stop ttyd service
+          command: launchctl stop com.homelab.ttyd
+          ignore_errors: yes
+          
+        - name: Unload ttyd service
+          command: launchctl unload {{ ansible_env.HOME }}/Library/LaunchAgents/com.homelab.ttyd.plist
+          ignore_errors: yes
+          
+        - name: Load ttyd service
+          command: launchctl load {{ ansible_env.HOME }}/Library/LaunchAgents/com.homelab.ttyd.plist
+          
+        - name: Start ttyd service
+          command: launchctl start com.homelab.ttyd

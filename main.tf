@@ -121,19 +121,8 @@ module "cloudflare_tunnel" {
   depends_on = [kubernetes_namespace.homelab]
 }
 
-module "wetty" {
-  source = "./modules/wetty"
-  count  = var.enable_wetty ? 1 : 0
-
-  project_name       = var.project_name
-  environment        = var.environment
-  cpu_limit          = "200m"
-  memory_limit       = "256Mi"
-  enable_persistence = false
-  storage_size       = "1Gi"
-  wetty_user         = "terminal"
-  wetty_port         = 3000
-}
+# ttyd web terminal now managed via Ansible automation
+# See automation/ttyd-setup.yml for installation and configuration
 
 resource "docker_container" "dockerproxy" {
   image   = "ghcr.io/tecnativa/docker-socket-proxy:latest"
