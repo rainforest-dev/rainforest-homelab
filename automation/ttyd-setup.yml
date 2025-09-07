@@ -7,8 +7,9 @@
   
   vars:
     ttyd_port: 7681
-    ttyd_interface: "0.0.0.0"  # bind to all interfaces
+    ttyd_interface: "127.0.0.1"  # localhost-only for security
     ttyd_user: "{{ ansible_user }}"
+    enable_tailscale_serve: true  # Enable Tailscale access
     
   tasks:
     - name: Install ttyd via Homebrew
@@ -55,7 +56,6 @@
         host: "{{ ttyd_interface }}"
         port: "{{ ttyd_port }}"
         timeout: 10
-      ignore_errors: yes
       
     - name: Check ttyd status
       uri:
@@ -63,14 +63,64 @@
         method: GET
         status_code: 200
       register: ttyd_status
-      ignore_errors: yes
+      
+    # Tailscale Serve Configuration
+    - name: Check if Tailscale is installed
+      command: which tailscale
+      register: tailscale_path
+      changed_when: false
+      failed_when: false
+      when: enable_tailscale_serve | default(false)
+      
+    - name: Check Tailscale status
+      command: tailscale status --json
+      register: tailscale_status
+      changed_when: false
+      failed_when: false
+      when: enable_tailscale_serve | default(false) and tailscale_path.rc == 0
+      
+    - name: Parse Tailscale status
+      set_fact:
+        tailscale_running: "{{ (tailscale_status.stdout | from_json).BackendState == 'Running' }}"
+      when: enable_tailscale_serve | default(false) and tailscale_path.rc == 0 and tailscale_status.rc == 0
+      
+    - name: Stop existing Tailscale serve for ttyd
+      command: tailscale serve reset
+      register: tailscale_stop
+      changed_when: tailscale_stop.rc == 0
+      failed_when: false
+      when: enable_tailscale_serve | default(false) and tailscale_running | default(false)
+      
+    - name: Configure Tailscale Serve for ttyd
+      command: tailscale serve --bg 7681
+      register: tailscale_serve
+      changed_when: tailscale_serve.rc == 0
+      when: enable_tailscale_serve | default(false) and tailscale_running | default(false)
+      
+    - name: Get Tailscale machine name
+      command: tailscale status --json
+      register: tailscale_info
+      changed_when: false
+      when: enable_tailscale_serve | default(false) and tailscale_running | default(false)
+      
+    - name: Set Tailscale access URL
+      set_fact:
+        tailscale_url: "https://{{ (tailscale_info.stdout | from_json).Self.DNSName | regex_replace('\\.$', '') }}:{{ ttyd_port }}"
+      when: enable_tailscale_serve | default(false) and tailscale_running | default(false) and tailscale_info is defined
       
     - name: Display access information
       debug:
         msg: |
           ttyd web terminal setup complete!
           
-          Access URL: http://{{ ttyd_interface }}:{{ ttyd_port }}
+          Local Access: http://{{ ttyd_interface }}:{{ ttyd_port }}
+          {% if enable_tailscale_serve | default(false) and tailscale_running | default(false) %}
+          Tailscale Access: {{ tailscale_url | default('Configuration pending...') }}
+          Security: Localhost + Tailscale tunnel (most secure)
+          {% else %}
+          Security: Localhost-only, no external exposure
+          {% endif %}
+          
           Service: com.homelab.ttyd
           Logs: /tmp/ttyd.log and /tmp/ttyd.error.log
           
