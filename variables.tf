@@ -138,10 +138,7 @@ variable "enable_homepage" {
   default     = true
 }
 
-variable "enable_wetty" {
-  description = "Enable Wetty web terminal (internal access only)"
-  type        = bool
-  default     = false
-}
+# Web terminal variables removed - ttyd now managed via Ansible
+# See automation/ttyd-setup.yml for configuration
 
 # Open WebUI Configuration

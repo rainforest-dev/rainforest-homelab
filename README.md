@@ -37,6 +37,9 @@ Internet → Cloudflare Edge → Cloudflare Tunnel → cloudflared pods → Kube
 - **OpenSpeedTest**: Network speed testing tool
 - **Docker Proxy**: Secure Docker socket access
 
+#### Native Applications (Ansible Managed)
+- **ttyd**: Web terminal for direct Mac host access
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -273,6 +276,10 @@ kubectl run postgresql-client --rm --tty -i --restart='Never' --namespace homela
 ├── terraform.tfvars          # Environment-specific values
 ├── terraform.tfvars.example  # Example configuration
 ├── CLAUDE.md                  # AI assistant guidance
+├── automation/               # Ansible playbooks for host services
+│   ├── ttyd-setup.yml       # ttyd web terminal setup
+│   ├── templates/           # Ansible templates
+│   └── requirements.yml     # Ansible dependencies
 └── modules/
     ├── volume-management/     # Docker volume management
     ├── cloudflare-tunnel/     # Cloudflare Tunnel for external access
@@ -295,6 +302,42 @@ Each module follows a standardized structure:
 - `outputs.tf`: Output values for resource information
 - `versions.tf`: Provider version constraints (where needed)
 
+## 🖥️ Web Terminal Access
+
+For direct Mac host access via web browser, ttyd is available as an Ansible-managed service:
+
+### ttyd Setup (One-time installation)
+```bash
+cd automation
+ansible-playbook ttyd-setup.yml
+```
+
+This will:
+- Install ttyd via Homebrew
+- Create a launchd service for auto-start
+- Configure localhost-only access (127.0.0.1:7681)
+- Enable the service to start on boot
+
+### Access ttyd
+- **URL**: http://127.0.0.1:7681
+- **Features**: Full Mac terminal access, perfect for Claude code usage
+- **Security**: Localhost-only, no external exposure
+
+### Service Management
+```bash
+# Check status
+launchctl list | grep ttyd
+
+# Stop/Start service
+launchctl stop com.homelab.ttyd
+launchctl start com.homelab.ttyd
+
+# View logs
+tail -f /tmp/ttyd.log
+```
+
+**Note**: ttyd provides direct access to your Mac system, unlike containerized solutions that have limited filesystem access.
+
 ## 🔒 Security
 
 - **Cloudflare Tunnel**: Zero trust network access with hidden home IP
@@ -310,6 +353,8 @@ Each module follows a standardized structure:
 ## 🔄 Development
 
 ### Adding New Services
+
+#### Terraform/Kubernetes Services
 1. Create new module directory in `modules/[service-name]/`
 2. Create standardized module files:
    - `main.tf`: Main resource definitions
@@ -323,7 +368,15 @@ Each module follows a standardized structure:
 7. For persistent storage, use the `volume-management` module
 8. Run `terraform plan` and `terraform apply`
 
-Note: New services automatically get SSL certificates and DNS records via Cloudflare
+#### Ansible/Host Services
+For services requiring direct host access (like ttyd):
+1. Create Ansible playbook in `automation/[service-name]-setup.yml`
+2. Add any required templates in `automation/templates/`
+3. Follow Infrastructure as Code principles with idempotent tasks
+4. Include service management (launchd/systemd) for auto-start
+5. Document usage in README
+
+Note: New Terraform services automatically get SSL certificates and DNS records via Cloudflare
 
 ### Variable Conventions
 All modules use standardized variables:
