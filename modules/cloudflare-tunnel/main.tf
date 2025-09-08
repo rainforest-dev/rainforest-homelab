@@ -137,7 +137,8 @@ resource "cloudflare_zero_trust_access_policy" "email_policy" {
     "homepage",
     "open-webui",
     "flowise",
-    "n8n"
+    "n8n",
+    "minio"
   ]) : toset([])
 
   application_id = cloudflare_zero_trust_access_application.services[each.key].id
@@ -266,6 +267,10 @@ data:
         service: http://homelab-flowise.homelab.svc.cluster.local:3000
       - hostname: n8n.${var.domain_suffix}
         service: http://homelab-n8n.homelab.svc.cluster.local:80
+      - hostname: minio.${var.domain_suffix}
+        service: http://homelab-minio-console.homelab.svc.cluster.local:9001
+      - hostname: s3.${var.domain_suffix}
+        service: http://homelab-minio.homelab.svc.cluster.local:9000
       - service: http_status:404
 YAML
 }
