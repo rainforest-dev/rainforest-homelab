@@ -10,6 +10,7 @@ This project is a **Terraform-based homelab infrastructure** that deploys self-h
 - **Cloudflare Tunnel** replaces traditional ingress - provides SSL termination, DNS, and Zero Trust auth
 - **Terraform modules** for each service following standardized patterns
 - **Docker volumes** for persistence instead of traditional PVCs
+- **MinIO S3 storage** for centralized object storage across all services
 
 ### Critical Flow Understanding
 
@@ -38,7 +39,7 @@ When adding a service, you MUST update these locations:
 3. **Update Cloudflare tunnel config** in `modules/cloudflare-tunnel/main.tf`:
    - Add ingress rule in `cloudflare_zero_trust_tunnel_cloudflared_config`
    - Add to DNS records `for_each` list in `cloudflare_record.services`
-   - Add to Zero Trust apps if authentication needed
+   - Add to Zero Trust apps if authentication needed (MinIO console gets auth, S3 API does not)
 
 ### Module Standardization (Critical Pattern)
 
@@ -65,6 +66,21 @@ ingress_rule {
 }
 ```
 
+**MinIO Special Case** - Dual endpoints required:
+```hcl
+# Console (management UI)
+ingress_rule {
+  hostname = "minio.${var.domain_suffix}"
+  service  = "http://homelab-minio-console.homelab.svc.cluster.local:9001"
+}
+
+# S3 API (for applications)
+ingress_rule {
+  hostname = "s3.${var.domain_suffix}"
+  service  = "http://homelab-minio.homelab.svc.cluster.local:9000"
+}
+```
+
 ## ⚙️ Configuration Management
 
 ### Two-Step Deployment Pattern
@@ -77,6 +93,7 @@ ingress_rule {
 ```hcl
 enable_cloudflare_tunnel = true   # Main external access method
 enable_postgresql = true          # Shared database
+enable_minio = true               # S3-compatible object storage
 enable_persistence = true         # Docker volume storage
 ```
 
@@ -87,6 +104,7 @@ Use `terraform.tfvars` for:
 - `domain_suffix` - Your Cloudflare-managed domain
 - `cloudflare_account_id` / `cloudflare_api_token` - Required for tunnel
 - `allowed_email_domains` - Controls Zero Trust access
+- `minio_storage_size` - MinIO storage allocation (default: 100Gi)
 
 ## 🚀 Common Operations
 
@@ -123,13 +141,30 @@ kubectl logs -n homelab -l app=cloudflared --tail=20
 kubectl get configmap -n homelab cloudflared-config -o yaml
 ```
 
+### MinIO S3 Storage Operations
+
+```bash
+# Get MinIO credentials
+kubectl get secret --namespace homelab homelab-minio -o jsonpath="{.data.root-user}" | base64 --decode; echo
+kubectl get secret --namespace homelab homelab-minio -o jsonpath="{.data.root-password}" | base64 --decode; echo
+
+# Access via MinIO client
+mc alias set homelab https://s3.yourdomain.com <access-key> <secret-key>
+mc ls homelab/
+
+# Use with applications via S3 API
+# Endpoint: https://s3.yourdomain.com
+# Console: https://minio.yourdomain.com
+```
+
 ## 📁 Project Structure Intelligence
 
 ### Service Categories
 
 - **Kubernetes services** (via tunnel): open-webui, flowise, n8n, homepage
 - **Docker containers** (direct): calibre-web, openspeedtest, dockerproxy
-- **Infrastructure**: cloudflare-tunnel, postgresql, metrics-server, volume-management
+- **Infrastructure**: cloudflare-tunnel, postgresql, minio, metrics-server, volume-management
+- **Development tools**: mcpo (MCP-to-OpenAPI proxy for AI workflows)
 
 ### Legacy vs Active
 
@@ -161,19 +196,27 @@ variables.tf (defaults) → module variables.tf (service-specific)
 
 ### Ansible Automation
 
-The `automation/` directory contains Ansible playbooks for version checking:
+The `automation/` directory contains Ansible playbooks for comprehensive version management:
 
 ```bash
-cd automation && ./upgrade check  # Shows available updates
+cd automation && ./upgrade check    # Shows available updates
+cd automation && ./upgrade all      # Upgrade all services
+cd automation && ./upgrade SERVICE  # Upgrade specific service
 ```
 
-**Important**: The upgrade script only **checks** versions - all upgrades must be done manually via Terraform for safety.
+**Features**:
+- Beautiful table display of current vs latest versions
+- Auto-updates Terraform module versions
+- Safe deployment with confirmation prompts
+- Support for Helm charts, OCI registries, and Docker images
+
+**Important**: All upgrades update Terraform first, then use `terraform apply` for safety.
 
 ### Service Types for Updates
 
-- **Helm charts**: Update `chart_version` in module call
-- **OCI registries**: Force recreation with `terraform apply -replace`
-- **Docker latest**: Force pull with container replacement
+- **Helm charts**: Auto-updates `chart_version` in module call
+- **OCI registries**: Manual check required, then Terraform update
+- **Docker latest**: Force recreation with `terraform apply -replace`
 
 ## 🎯 When Working on This Codebase
 
