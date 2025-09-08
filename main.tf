@@ -20,10 +20,8 @@ module "docker_mcp_gateway" {
 
   project_name = var.project_name
   environment  = var.environment
-  namespace    = "homelab"
   
   # Resource configuration
-  cpu_limit    = var.default_cpu_limit
   memory_limit = var.default_memory_limit
   
   # External access configuration
@@ -31,12 +29,8 @@ module "docker_mcp_gateway" {
   tunnel_hostname         = "docker-mcp"
   domain_suffix          = var.domain_suffix
   
-  # Security configuration
-  enable_docker_socket  = true
-  enable_network_policy = false  # Can be enabled in production
-  log_level            = "info"
-  
-  depends_on = [kubernetes_namespace.homelab]
+  # Logging configuration
+  log_level = "info"
 }
 
 module "open-webui" {
