@@ -12,40 +12,22 @@ variable "environment" {
   default     = "production"
 }
 
-variable "namespace" {
-  description = "Kubernetes namespace"
-  type        = string
-  default     = "homelab"
-}
-
 # Docker MCP Gateway specific variables
-
-variable "replicas" {
-  description = "Number of Docker MCP Gateway replicas"
-  type        = number
-  default     = 1
-}
 
 variable "docker_image" {
   description = "Docker image for the MCP Gateway container"
   type        = string
-  default     = "alpine:3.19"  # Lightweight base image
+  default     = "docker/mcp-gateway:latest"  # Use official Docker MCP Gateway image
 }
 
 variable "port" {
   description = "Port for Docker MCP Gateway service"
   type        = number
-  default     = 8080
-}
-
-variable "cpu_limit" {
-  description = "CPU limit for Docker MCP Gateway"
-  type        = string
-  default     = "500m"
+  default     = 3000  # Standard MCP server port
 }
 
 variable "memory_limit" {
-  description = "Memory limit for Docker MCP Gateway"
+  description = "Memory limit for Docker MCP Gateway (e.g., 512Mi, 1Gi)"
   type        = string
   default     = "512Mi"
 }
@@ -58,39 +40,6 @@ variable "log_level" {
     condition     = contains(["debug", "info", "warn", "error"], var.log_level)
     error_message = "Log level must be one of: debug, info, warn, error."
   }
-}
-
-variable "docker_timeout" {
-  description = "Timeout for Docker operations in seconds"
-  type        = number
-  default     = 30
-}
-
-variable "enable_network_policy" {
-  description = "Enable Kubernetes network policy for security"
-  type        = bool
-  default     = false
-}
-
-# Security variables
-
-variable "enable_docker_socket" {
-  description = "Enable Docker socket access (required for MCP Docker operations)"
-  type        = bool
-  default     = true
-}
-
-variable "allowed_docker_operations" {
-  description = "List of allowed Docker operations for security"
-  type        = list(string)
-  default = [
-    "container.list",
-    "container.inspect",
-    "container.logs",
-    "container.stats",
-    "image.list",
-    "image.inspect"
-  ]
 }
 
 # External access variables
@@ -111,24 +60,4 @@ variable "domain_suffix" {
   description = "Domain suffix for external access"
   type        = string
   default     = ""
-}
-
-# Monitoring and observability
-
-variable "enable_metrics" {
-  description = "Enable Prometheus metrics endpoint"
-  type        = bool
-  default     = false
-}
-
-variable "metrics_port" {
-  description = "Port for Prometheus metrics"
-  type        = number
-  default     = 9090
-}
-
-variable "enable_health_checks" {
-  description = "Enable health check endpoints"
-  type        = bool
-  default     = true
 }
