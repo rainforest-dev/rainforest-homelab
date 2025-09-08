@@ -79,7 +79,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
 
     ingress_rule {
       hostname = "docker-mcp.${var.domain_suffix}"
-      service  = "http://homelab-docker-mcp-gateway.homelab.svc.cluster.local:8080"
+      service  = "http://host.docker.internal:3000"
     }
 
     # Catch-all rule (required)
@@ -280,7 +280,7 @@ data:
       - hostname: s3.${var.domain_suffix}
         service: http://homelab-minio.homelab.svc.cluster.local:9000
       - hostname: docker-mcp.${var.domain_suffix}
-        service: http://homelab-docker-mcp-gateway.homelab.svc.cluster.local:8080
+        service: http://host.docker.internal:3000
       - service: http_status:404
 YAML
 }
