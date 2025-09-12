@@ -23,9 +23,10 @@ spec:
         environment: ${var.environment}
     spec:
       securityContext:
-        runAsNonRoot: false
-        runAsUser: 0
-        fsGroup: 0
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
       - name: wetty
         image: wettyoss/wetty:latest
@@ -33,10 +34,11 @@ spec:
         - containerPort: ${var.wetty_port}
           name: http
         env:
+        - name: WETTY_USER
+          value: "${var.wetty_user}"
         - name: WETTY_PORT  
           value: "${var.wetty_port}"
-        - name: WETTY_HOST
-          value: "0.0.0.0"
+        # Add SSH user creation for terminal access
         command: ["/bin/sh"]
         args:
         - -c
@@ -46,8 +48,8 @@ spec:
             adduser -D -s /bin/bash "${var.wetty_user}"
             echo "${var.wetty_user}:wetty123" | chpasswd
           fi
-          # Start wetty with correct parameters
-          exec node app.js --port ${var.wetty_port} --host 0.0.0.0 --title "Homelab Terminal"
+          # Start wetty
+          exec node app.js --port ${var.wetty_port} --host 0.0.0.0
         resources:
           limits:
             cpu: ${var.cpu_limit}
@@ -56,13 +58,11 @@ spec:
             cpu: 50m
             memory: 64Mi
         securityContext:
-          allowPrivilegeEscalation: true
+          allowPrivilegeEscalation: false
           readOnlyRootFilesystem: false
           capabilities:
-            add:
-            - CHOWN
-            - SETUID
-            - SETGID
+            drop:
+            - ALL
         livenessProbe:
           httpGet:
             path: /
@@ -102,8 +102,6 @@ spec:
   selector:
     app: ${var.project_name}-wetty
 YAML
-
-  depends_on = [kubectl_manifest.wetty_configmap]
 }
 
 # Optional: ConfigMap for custom Wetty configuration
