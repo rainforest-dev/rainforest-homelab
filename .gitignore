@@ -56,3 +56,5 @@ terraform.rc
 mcpo.log
 .gitignore
 mcpo.pid
+
+node_modules

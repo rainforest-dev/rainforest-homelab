@@ -23,7 +23,7 @@ Each service is organized as a Terraform module in `modules/`:
 - `volume-management/`: Docker volume management for persistent storage
 - Application modules: `calibre-web/`, `flowise/`, `n8n/`, `open-webui/`, `homepage/`
 - External services: `openspeedtest/` (moved to Raspberry Pi)
-- Legacy modules: `traefik/` (ingress), `coredns/` (DNS - replaced by Cloudflare), `nfs-persistence/` (storage)
+- Legacy modules: `traefik/` (removed - replaced by pure Cloudflare Tunnel), `coredns/` (DNS - replaced by Cloudflare), `nfs-persistence/` (storage)
 
 ### Standardized Module Structure
 All modules follow a consistent structure:
@@ -134,15 +134,16 @@ docker run --rm -v homelab-calibre-web-config:/data -v $(pwd):/backup alpine tar
 ### Service Access
 Services are available at (using `rainforest.tools` domain):
 
-**Kubernetes Services (via Cloudflare Tunnel):**
+**All Services (via Cloudflare Tunnel with HTTPS):**
 - `https://homepage.yourdomain.com` - Homepage dashboard with all services
 - `https://open-webui.yourdomain.com` - Open WebUI AI interface  
 - `https://flowise.yourdomain.com` - Flowise AI workflows
 - `https://n8n.yourdomain.com` - n8n automation platform
+- `https://calibre-web.yourdomain.com` - Calibre Web ebook server
+- `https://docker-mcp.yourdomain.com` - Docker MCP Gateway (port 3100)
 
-**Docker Containers (direct access):**
-- `http://localhost:8083` - Calibre Web ebook server
-- `http://localhost:3333` - OpenSpeedTest network testing
+**Local Development Access:**
+- Use `kubectl port-forward` for internal service access during development
 
 **Cloudflare Tunnel Benefits:**
 - Real SSL certificates from Cloudflare (trusted by all browsers)
@@ -262,6 +263,73 @@ for_each = length(var.allowed_email_domains) > 0 ? toset([
 - **CORS Support**: Modern web applications work properly
 - **Domain Restrictions**: Limit access by email domain or specific addresses
 - **Access Policies**: Granular control per service
+
+## MCP Client Authentication
+
+### For Non-Web MCP Clients (Claude Code, etc.)
+
+**Option 1: Service Tokens (Recommended for Production)**
+
+1. **Create Service Token**:
+   ```bash
+   # In Cloudflare Zero Trust Dashboard:
+   # Access → Service Auth → Service Tokens → Create Service Token
+   # Name: "Docker MCP Gateway"
+   # Copy the Client ID and Client Secret
+   ```
+
+2. **Configure MCP Client**:
+   ```json
+   {
+     "mcpServers": {
+       "docker-remote": {
+         "type": "sse",
+         "url": "https://docker-mcp.yourdomain.com/sse",
+         "headers": {
+           "CF-Access-Client-Id": "your-service-token-id",
+           "CF-Access-Client-Secret": "your-service-token-secret"
+         }
+       }
+     }
+   }
+   ```
+
+3. **Update Zero Trust Policy** (add to Docker MCP service):
+   ```bash
+   # In Cloudflare Dashboard:
+   # Access → Applications → Docker MCP → Policies
+   # Edit policy → Add Include rule → Service Token
+   # Select your created service token
+   ```
+
+**Option 2: Disable Authentication (Development Only)**
+```hcl
+# In locals.tf - set enable_auth = false for docker-mcp
+"docker-mcp" = {
+  hostname     = "docker-mcp"
+  service_url  = "http://host.docker.internal:3100"
+  enable_auth  = false  # No Zero Trust authentication
+  type         = "docker"
+}
+```
+
+**Option 3: Local Development**
+```json
+{
+  "mcpServers": {
+    "docker-local": {
+      "type": "sse",
+      "url": "http://localhost:3100/sse"  // Bypasses Cloudflare entirely
+    }
+  }
+}
+```
+
+**Service Token Benefits:**
+- **Programmatic Access**: No browser interaction required
+- **Secure**: Scoped to specific applications  
+- **Rotatable**: Can be regenerated/revoked anytime
+- **Auditable**: All access logged in Cloudflare Analytics
 
 ## Security Considerations
 
