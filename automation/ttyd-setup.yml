@@ -7,7 +7,7 @@
   
   vars:
     ttyd_port: 7681
-    ttyd_interface: "0.0.0.0"  # bind to all interfaces
+    ttyd_interface: "127.0.0.1"  # localhost only for security
     ttyd_user: "{{ ansible_user }}"
     
   tasks:
@@ -37,6 +37,7 @@
         src: ttyd.plist.j2
         dest: "{{ ansible_env.HOME }}/Library/LaunchAgents/com.homelab.ttyd.plist"
         mode: '0644'
+      notify: restart ttyd service
       
     - name: Load ttyd service
       command: launchctl load {{ ansible_env.HOME }}/Library/LaunchAgents/com.homelab.ttyd.plist
@@ -79,7 +80,7 @@
           - Stop:  launchctl stop com.homelab.ttyd
           - Reload: launchctl unload ~/Library/LaunchAgents/com.homelab.ttyd.plist && launchctl load ~/Library/LaunchAgents/com.homelab.ttyd.plist
           
-          Status: {{ 'Running [OK]' if ttyd_status.status == 200 else 'Not responding [ERROR]' }}
+          Status: {{ 'Running ✅' if ttyd_status.status == 200 else 'Not responding ❌' }}
 
   handlers:
     - name: restart ttyd service
