@@ -14,7 +14,7 @@ locals {
     {
       "open-webui" = {
         hostname    = "open-webui"
-        service_url = "http://open-webui.homelab.svc.cluster.local:80"
+        service_url = "http://homelab-open-webui.homelab.svc.cluster.local:80"
         enable_auth = true
         type        = "kubernetes"
       }
