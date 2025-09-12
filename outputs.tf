@@ -50,12 +50,14 @@ output "minio_secret_key" {
 output "oauth_worker_url" {
   description = "URL to access OAuth-enabled Docker MCP Gateway"
   value       = var.enable_docker_mcp_gateway && var.oauth_client_id != "" ? module.oauth_worker[0].worker_url : null
+  sensitive   = true
 }
 
 # Persistent OAuth client credentials for MCP configuration
 output "claude_oauth_client_id" {
   description = "Persistent OAuth client ID for Claude MCP client configuration"
   value       = var.enable_docker_mcp_gateway && var.oauth_client_id != "" ? module.oauth_worker[0].claude_client_id : null
+  sensitive   = true
 }
 
 output "claude_oauth_client_secret" {
