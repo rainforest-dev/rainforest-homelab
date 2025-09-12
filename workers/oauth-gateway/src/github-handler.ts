@@ -101,13 +101,56 @@ app.get("/authorize", async (c) => {
 });
 
 app.post("/authorize", async (c) => {
-	// Validates form submission, extracts state, and generates Set-Cookie headers to skip approval dialog next time
-	const { state, headers } = await parseRedirectApproval(c.req.raw, c.env.COOKIE_ENCRYPTION_KEY);
-	if (!state.oauthReqInfo) {
-		return c.text("Invalid request", 400);
-	}
+	try {
+		// Check if COOKIE_ENCRYPTION_KEY is properly configured
+		if (!c.env.COOKIE_ENCRYPTION_KEY) {
+			console.error("[OAuth] COOKIE_ENCRYPTION_KEY is not configured");
+			return c.json({
+				error: "server_error",
+				error_description: "OAuth service configuration error - missing cookie encryption key",
+				hint: "Administrator needs to configure COOKIE_ENCRYPTION_KEY secret"
+			}, 500);
+		}
 
-	return redirectToGithub(c.req.raw, state.oauthReqInfo, c.env, headers);
+		// Validates form submission, extracts state, and generates Set-Cookie headers to skip approval dialog next time
+		const { state, headers } = await parseRedirectApproval(c.req.raw, c.env.COOKIE_ENCRYPTION_KEY);
+		if (!state.oauthReqInfo) {
+			return c.json({
+				error: "invalid_request",
+				error_description: "Invalid approval request - missing OAuth state"
+			}, 400);
+		}
+
+		return redirectToGithub(c.req.raw, state.oauthReqInfo, c.env, headers);
+	} catch (error) {
+		console.error("[OAuth] Authorization approval error:", error);
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		
+		// Handle specific OAuth approval errors
+		if (errorMessage.includes("COOKIE_SECRET is not defined") || errorMessage.includes("missing cookie encryption key")) {
+			return c.json({
+				error: "server_error",
+				error_description: "OAuth service configuration error - cookie encryption not properly configured",
+				hint: "Administrator needs to set COOKIE_ENCRYPTION_KEY secret"
+			}, 500);
+		} else if (errorMessage.includes("Invalid request method")) {
+			return c.json({
+				error: "invalid_request",
+				error_description: "Invalid request method for authorization approval"
+			}, 405);
+		} else if (errorMessage.includes("Missing or invalid 'state'")) {
+			return c.json({
+				error: "invalid_request",
+				error_description: "Missing or invalid state parameter in approval form"
+			}, 400);
+		} else {
+			return c.json({
+				error: "server_error",
+				error_description: "Internal server error during authorization approval",
+				details: errorMessage
+			}, 500);
+		}
+	}
 });
 
 async function redirectToGithub(
