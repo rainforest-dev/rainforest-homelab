@@ -4,15 +4,15 @@ Ansible-based automation for managing your homelab infrastructure, including ver
 
 ## 🏗️ Available Automations
 
-### [VERSION] Version Management (`upgrade.yml`)
+### 🔄 Version Management (`upgrade.yml`)
 Automated version checking and upgrading for your homelab services using Terraform.
 
-### [TERMINAL] ttyd Web Terminal (`ttyd-setup.yml`)  
+### 🖥️ ttyd Web Terminal (`ttyd-setup.yml`)  
 Web-based terminal access to your Mac host system for direct system interaction.
 
 ---
 
-## [TERMINAL] ttyd Web Terminal Setup
+## 🖥️ ttyd Web Terminal Setup
 
 ### Quick Setup
 ```bash
@@ -21,11 +21,11 @@ ansible-playbook ttyd-setup.yml
 ```
 
 ### What it does:
-- [x] Installs ttyd via Homebrew
-- [x] Creates launchd service for auto-start  
-- [x] Configures localhost-only access (127.0.0.1:7681)
-- [x] Enables writable terminal with full Mac system access
-- [x] Sets up proper service management
+- ✅ Installs ttyd via Homebrew
+- ✅ Creates launchd service for auto-start  
+- ✅ Configures localhost-only access (127.0.0.1:7681)
+- ✅ Enables writable terminal with full Mac system access
+- ✅ Sets up proper service management
 
 ### Access Your Terminal
 - **URL**: http://127.0.0.1:7681
@@ -52,15 +52,15 @@ launchctl load ~/Library/LaunchAgents/com.homelab.ttyd.plist
 
 ---
 
-## [VERSION] Version Management
+## 🔄 Version Management
 
 ## Features
 
-- [SEARCH] **Automated Version Discovery**: Finds current and latest versions for all services
-- [TABLE] **Beautiful Table Display**: Clear comparison of current vs available versions  
-- [TARGET] **Selective Upgrades**: Upgrade individual services or all at once
-- [SYNC] **Terraform Integration**: Updates Terraform modules and applies changes safely
-- [BOLT] **Zero Configuration**: Works out of the box with your existing setup
+- 🔍 **Automated Version Discovery**: Finds current and latest versions for all services
+- 📊 **Beautiful Table Display**: Clear comparison of current vs available versions  
+- 🎯 **Selective Upgrades**: Upgrade individual services or all at once
+- 🔄 **Terraform Integration**: Updates Terraform modules and applies changes safely
+- ⚡ **Zero Configuration**: Works out of the box with your existing setup
 
 ## Quick Start
 
@@ -84,16 +84,16 @@ This installs required Ansible collections (`kubernetes.core`, `community.docker
 **Example Output:**
 ```
 ╔══════════════════════════════════════════════════════════════════════════════════╗
-║                      [HOME] HOMELAB SERVICES VERSION STATUS                     ║
+║                      🏠 HOMELAB SERVICES VERSION STATUS                          ║
 ╠════════════════╦══════════╦═══════════════╦═══════════════╦═══════════════════╣
 ║    SERVICE     ║   TYPE   ║    CURRENT    ║    LATEST     ║      STATUS       ║
 ╠════════════════╬══════════╬═══════════════╬═══════════════╬═══════════════════╣
-║ open-webui     ║ helm     ║ 7.2.0         ║ 7.3.0         ║ [UP] UPGRADE_AVAIL║
-║ flowise        ║ helm     ║ 5.1.1         ║ 6.0.0         ║ [UP] UPGRADE_AVAIL║
-║ homepage       ║ helm     ║ 2.1.0         ║ 2.1.0         ║ [OK] UP_TO_DATE   ║
-║ postgresql     ║ helm_oci ║ 16.7.21       ║ OCI_REGISTRY  ║ [?] MANUAL_CHECK  ║
-║ n8n            ║ helm_oci ║ 1.0.10        ║ OCI_REGISTRY  ║ [?] MANUAL_CHECK  ║
-║ calibre-web    ║ docker   ║ latest        ║ latest        ║ [UP] PULL_LATEST  ║
+║ open-webui     ║ helm     ║ 7.2.0         ║ 7.3.0         ║ ⬆️ UPGRADE_AVAILAB ║
+║ flowise        ║ helm     ║ 5.1.1         ║ 6.0.0         ║ ⬆️ UPGRADE_AVAILAB ║
+║ homepage       ║ helm     ║ 2.1.0         ║ 2.1.0         ║ ✅ UP_TO_DATE      ║
+║ postgresql     ║ helm_oci ║ 16.7.21       ║ OCI_REGISTRY  ║ 🔍 MANUAL_CHECK   ║
+║ n8n            ║ helm_oci ║ 1.0.10        ║ OCI_REGISTRY  ║ 🔍 MANUAL_CHECK   ║
+║ calibre-web    ║ docker   ║ latest        ║ latest        ║ ⬆️ PULL_LATEST    ║
 ╚════════════════╩══════════╩═══════════════╩═══════════════╩═══════════════════╝
 ```
 
@@ -119,23 +119,23 @@ This installs required Ansible collections (`kubernetes.core`, `community.docker
 
 | Status | Description | Action Required |
 |--------|-------------|-----------------|
-| [OK] **UP_TO_DATE** | Running latest version | None |
-| [UP] **UPGRADE_AVAILABLE** | New version available | Can upgrade automatically |
-| [?] **MANUAL_CHECK** | OCI registry chart | Check manually, update Terraform |
-| [X] **NOT_DEPLOYED** | Service not running | Check Terraform deployment |
-| [UP] **PULL_LATEST** | Docker latest tag | Will pull fresh image |
+| ✅ **UP_TO_DATE** | Running latest version | None |
+| ⬆️ **UPGRADE_AVAILABLE** | New version available | Can upgrade automatically |
+| 🔍 **MANUAL_CHECK** | OCI registry chart | Check manually, update Terraform |
+| ❌ **NOT_DEPLOYED** | Service not running | Check Terraform deployment |
+| ⬆️ **PULL_LATEST** | Docker latest tag | Will pull fresh image |
 
 ## Supported Services
 
 | Service | Type | Repository | Auto-Upgrade |
 |---------|------|------------|--------------|
-| **open-webui** | Helm | helm.openwebui.com | [x] Yes |
-| **flowise** | Helm | cowboysysop.github.io | [x] Yes |
-| **homepage** | Helm | jameswynn.github.io | [x] Yes |
-| **postgresql** | Helm (OCI) | registry-1.docker.io/bitnami | [?] Manual |
-| **n8n** | Helm (OCI) | 8gears.container-registry.com | [?] Manual |
-| **calibre-web** | Docker | lscr.io/linuxserver | [x] Yes |
-| **metrics-server** | Helm | kubernetes-sigs.github.io | [x] Yes |
+| **open-webui** | Helm | helm.openwebui.com | ✅ Yes |
+| **flowise** | Helm | cowboysysop.github.io | ✅ Yes |
+| **homepage** | Helm | jameswynn.github.io | ✅ Yes |
+| **postgresql** | Helm (OCI) | registry-1.docker.io/bitnami | 🔍 Manual |
+| **n8n** | Helm (OCI) | 8gears.container-registry.com | 🔍 Manual |
+| **calibre-web** | Docker | lscr.io/linuxserver | ✅ Yes |
+| **metrics-server** | Helm | kubernetes-sigs.github.io | ✅ Yes |
 
 ## Project Structure
 
