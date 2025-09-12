@@ -47,39 +47,14 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
       disable_chunked_encoding = false
     }
 
-    ingress_rule {
-      hostname = "homepage.${var.domain_suffix}"
-      service  = "http://homelab-homepage.homelab.svc.cluster.local:3000"
+    # Dynamic ingress rules from service configuration
+    dynamic "ingress_rule" {
+      for_each = var.services
+      content {
+        hostname = "${ingress_rule.value.hostname}.${var.domain_suffix}"
+        service  = ingress_rule.value.service_url
+      }
     }
-
-    ingress_rule {
-      hostname = "open-webui.${var.domain_suffix}"
-      service  = "http://open-webui.homelab.svc.cluster.local:80"
-    }
-
-    ingress_rule {
-      hostname = "flowise.${var.domain_suffix}"
-      service  = "http://homelab-flowise.homelab.svc.cluster.local:3000"
-    }
-
-    ingress_rule {
-      hostname = "n8n.${var.domain_suffix}"
-      service  = "http://homelab-n8n.homelab.svc.cluster.local:80"
-    }
-
-    ingress_rule {
-      hostname = "minio.${var.domain_suffix}"
-      service  = "http://homelab-minio-console.homelab.svc.cluster.local:9001"
-    }
-
-    ingress_rule {
-      hostname = "s3.${var.domain_suffix}"
-      service  = "http://homelab-minio.homelab.svc.cluster.local:9000"
-    }
-
-    ingress_rule {
-      hostname = "docker-mcp.${var.domain_suffix}"
-      service  = "http://host.docker.internal:3000"
     }
 
     # Catch-all rule (required)
@@ -89,20 +64,15 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
   }
 }
 
-# Create DNS records for each service
+# Create DNS records for each service (exclude internal services)
 resource "cloudflare_record" "services" {
-  for_each = toset([
-    "homepage",
-    "open-webui",
-    "flowise",
-    "n8n",
-    "minio",
-    "s3",
-    "docker-mcp"
-  ])
+  for_each = {
+    for name, config in var.services : name => config
+    if !try(config.internal, false)  # Skip services marked as internal
+  }
 
   zone_id = local.zone_id
-  name    = each.value
+  name    = each.value.hostname
   content = cloudflare_zero_trust_tunnel_cloudflared.homelab.cname
   type    = "CNAME"
   proxied = true
@@ -111,18 +81,14 @@ resource "cloudflare_record" "services" {
 
 # Create Zero Trust Application for each service (only if email domains are configured)
 resource "cloudflare_zero_trust_access_application" "services" {
-  for_each = length(var.allowed_email_domains) > 0 ? toset([
-    "homepage",
-    "open-webui",
-    "flowise",
-    "n8n",
-    "minio",
-    "docker-mcp"
-  ]) : toset([])
+  for_each = length(var.allowed_email_domains) > 0 ? {
+    for name, config in var.services : name => config
+    if config.enable_auth
+  } : {}
 
   zone_id          = local.zone_id
-  name             = "${title(each.value)} - ${var.project_name}"
-  domain           = "${each.value}.${var.domain_suffix}"
+  name             = "${title(each.value.hostname)} - ${var.project_name}"
+  domain           = "${each.value.hostname}.${var.domain_suffix}"
   type             = "self_hosted"
   session_duration = "24h"
 
@@ -132,7 +98,7 @@ resource "cloudflare_zero_trust_access_application" "services" {
   # CORS settings for modern web apps
   cors_headers {
     allowed_methods   = ["GET", "POST", "OPTIONS", "PUT", "DELETE"]
-    allowed_origins   = ["https://${each.value}.${var.domain_suffix}"]
+    allowed_origins   = ["https://${each.value.hostname}.${var.domain_suffix}"]
     allow_credentials = true
     max_age           = 86400
   }
@@ -140,14 +106,10 @@ resource "cloudflare_zero_trust_access_application" "services" {
 
 # Create Zero Trust Access Policy - Email verification (only if applications exist)
 resource "cloudflare_zero_trust_access_policy" "email_policy" {
-  for_each = length(var.allowed_email_domains) > 0 ? toset([
-    "homepage",
-    "open-webui",
-    "flowise",
-    "n8n",
-    "minio",
-    "docker-mcp"
-  ]) : toset([])
+  for_each = length(var.allowed_email_domains) > 0 ? {
+    for name, config in var.services : name => config
+    if config.enable_auth
+  } : {}
 
   application_id = cloudflare_zero_trust_access_application.services[each.key].id
   zone_id        = local.zone_id
@@ -155,8 +117,12 @@ resource "cloudflare_zero_trust_access_policy" "email_policy" {
   precedence     = 1
   decision       = "allow"
 
-  include {
-    email_domain = var.allowed_email_domains
+  # Email domain restriction
+  dynamic "include" {
+    for_each = length(var.allowed_email_domains) > 0 ? [1] : []
+    content {
+      email_domain = var.allowed_email_domains
+    }
   }
 
   # Optional: Add email list for specific users
@@ -166,6 +132,7 @@ resource "cloudflare_zero_trust_access_policy" "email_policy" {
       email = var.allowed_emails
     }
   }
+
 }
 
 # Create Kubernetes secret for tunnel credentials
@@ -267,20 +234,10 @@ data:
     no-autoupdate: true
     
     ingress:
-      - hostname: homepage.${var.domain_suffix}
-        service: http://homelab-homepage.homelab.svc.cluster.local:3000
-      - hostname: open-webui.${var.domain_suffix}
-        service: http://open-webui.homelab.svc.cluster.local:80
-      - hostname: flowise.${var.domain_suffix}
-        service: http://homelab-flowise.homelab.svc.cluster.local:3000
-      - hostname: n8n.${var.domain_suffix}
-        service: http://homelab-n8n.homelab.svc.cluster.local:80
-      - hostname: minio.${var.domain_suffix}
-        service: http://homelab-minio-console.homelab.svc.cluster.local:9001
-      - hostname: s3.${var.domain_suffix}
-        service: http://homelab-minio.homelab.svc.cluster.local:9000
-      - hostname: docker-mcp.${var.domain_suffix}
-        service: http://host.docker.internal:3000
+%{for name, config in var.services~}
+      - hostname: ${config.hostname}.${var.domain_suffix}
+        service: ${config.service_url}
+%{endfor~}
       - service: http_status:404
 YAML
 }

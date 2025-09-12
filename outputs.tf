@@ -46,3 +46,8 @@ output "minio_secret_key" {
   value       = var.enable_minio ? module.minio[0].secret_key : null
   sensitive   = true
 }
+
+output "oauth_worker_url" {
+  description = "URL to access OAuth-enabled Docker MCP Gateway"
+  value       = var.enable_docker_mcp_gateway && var.oauth_client_id != "" ? module.oauth_worker[0].worker_url : null
+}
