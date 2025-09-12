@@ -150,10 +150,7 @@ variable "enable_homepage" {
   default     = true
 }
 
-variable "enable_wetty" {
-  description = "Enable Wetty web terminal (internal access only)"
-  type        = bool
-  default     = false
-}
-
 # Open WebUI Configuration
+#
+#
+#
