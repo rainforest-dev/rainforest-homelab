@@ -331,6 +331,78 @@ for_each = length(var.allowed_email_domains) > 0 ? toset([
 - **Rotatable**: Can be regenerated/revoked anytime
 - **Auditable**: All access logged in Cloudflare Analytics
 
+## Persistent OAuth Setup (Recommended)
+
+The OAuth Worker now provides **persistent client registration** managed by Terraform. This ensures OAuth credentials survive deployments and infrastructure changes.
+
+### **Automatic Client Registration**
+
+Terraform automatically registers an OAuth client when deploying the infrastructure:
+
+```bash
+terraform apply
+```
+
+The client registration happens via:
+1. **OAuth Worker Deployment**: Professional TypeScript OAuth Worker with GitHub authentication
+2. **Client Registration**: Terraform runs `scripts/register-oauth-client.sh` automatically
+3. **Credential Storage**: Client ID and secret stored in local files for persistence
+4. **Output Generation**: Terraform outputs provide ready-to-use MCP configuration
+
+### **Using Persistent Credentials**
+
+After `terraform apply`, get your persistent OAuth credentials:
+
+```bash
+# Get client ID
+terraform output claude_oauth_client_id
+
+# Get client secret
+terraform output claude_oauth_client_secret
+```
+
+### **MCP Client Configuration**
+
+Use the Terraform-generated credentials for permanent OAuth setup:
+
+```json
+{
+  "mcpServers": {
+    "docker-remote": {
+      "type": "sse",
+      "url": "https://docker-mcp.rainforest.tools/sse",
+      "oauth": {
+        "client_id": "3E4n4MoSYkyIXXBo",
+        "client_secret": "jkpYLZKtgGJfi0gT6wKgIqEm8KGBimGt"
+      }
+    }
+  }
+}
+```
+
+### **Benefits of Persistent OAuth**
+
+- ✅ **Infrastructure as Code**: OAuth client managed by Terraform
+- ✅ **Deployment Resilience**: Credentials persist across Worker redeployments  
+- ✅ **Automatic Registration**: No manual client setup required
+- ✅ **Team Sharing**: Consistent credentials across team members
+- ✅ **Backup & Restore**: Credentials stored in Terraform state
+- ✅ **Professional OAuth 2.0**: Full GitHub authentication flow with approval dialog
+
+### **Manual Client Registration** (Alternative)
+
+If needed, you can manually register additional clients:
+
+```bash
+# Run the registration script
+./scripts/register-oauth-client.sh
+
+# Or use curl directly
+curl -X POST "https://docker-mcp.rainforest.tools/register" \
+  -H "Content-Type: application/json" \
+  -d '{"client_name": "My Client", "redirect_uris": ["https://example.com/callback"]}'
+```
+
 ## Security Considerations
 
 - **Cloudflare API Credentials**: The `cloudflare_api_token` and `cloudflare_account_id` variables are marked as sensitive in Terraform
