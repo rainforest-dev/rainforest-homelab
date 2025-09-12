@@ -1,58 +1,6 @@
-# Homelab Ansible Automation
+# Homelab Version Manager
 
-Ansible-based automation for managing your homelab infrastructure, including version management for Terraform services and host-level service setup.
-
-## 🏗️ Available Automations
-
-### 🔄 Version Management (`upgrade.yml`)
-Automated version checking and upgrading for your homelab services using Terraform.
-
-### 🖥️ ttyd Web Terminal (`ttyd-setup.yml`)  
-Web-based terminal access to your Mac host system for direct system interaction.
-
----
-
-## 🖥️ ttyd Web Terminal Setup
-
-### Quick Setup
-```bash
-cd automation
-ansible-playbook ttyd-setup.yml
-```
-
-### What it does:
-- ✅ Installs ttyd via Homebrew
-- ✅ Creates launchd service for auto-start  
-- ✅ Configures localhost-only access (127.0.0.1:7681)
-- ✅ Enables writable terminal with full Mac system access
-- ✅ Sets up proper service management
-
-### Access Your Terminal
-- **URL**: http://127.0.0.1:7681
-- **Features**: Full Mac terminal access, perfect for Claude code usage
-- **Security**: Localhost-only, no external exposure
-
-### Service Management
-```bash
-# Check status
-launchctl list | grep ttyd
-
-# Stop/Start service  
-launchctl stop com.homelab.ttyd
-launchctl start com.homelab.ttyd
-
-# View logs
-tail -f /tmp/ttyd.log
-tail -f /tmp/ttyd.error.log
-
-# Reload after config changes
-launchctl unload ~/Library/LaunchAgents/com.homelab.ttyd.plist && \
-launchctl load ~/Library/LaunchAgents/com.homelab.ttyd.plist
-```
-
----
-
-## 🔄 Version Management
+Ansible-based automation for checking and upgrading your homelab services using Terraform.
 
 ## Features
 
