@@ -130,6 +130,28 @@ module "n8n" {
   storage_size       = var.default_storage_size
   chart_repository   = "oci://8gears.container-registry.com/library/"
   chart_version      = "1.0.13"
+
+  # PostgreSQL configuration (when enabled)
+  enable_external_database = var.enable_postgresql
+  database_host           = var.enable_postgresql ? module.postgresql[0].postgresql_host : ""
+  database_port           = "5432"
+  database_name           = "postgres"
+  database_user           = "postgres"
+  database_secret_name    = var.enable_postgresql ? module.postgresql[0].postgresql_secret_name : ""
+  database_secret_key     = "postgres-password"
+
+  # MinIO/S3 configuration (when enabled)
+  enable_s3_storage = var.enable_minio
+  s3_endpoint      = var.enable_minio ? "http://${module.minio[0].s3_endpoint}" : ""
+  s3_bucket        = "n8n-storage"
+  s3_access_key    = var.enable_minio ? module.minio[0].access_key : ""
+  s3_secret_key    = var.enable_minio ? module.minio[0].secret_key : ""
+  s3_region        = "us-east-1"
+
+  depends_on = [
+    module.postgresql,
+    module.minio
+  ]
 }
 
 module "homepage" {
