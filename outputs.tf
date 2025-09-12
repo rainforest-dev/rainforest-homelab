@@ -51,3 +51,15 @@ output "oauth_worker_url" {
   description = "URL to access OAuth-enabled Docker MCP Gateway"
   value       = var.enable_docker_mcp_gateway && var.oauth_client_id != "" ? module.oauth_worker[0].worker_url : null
 }
+
+# Persistent OAuth client credentials for MCP configuration
+output "claude_oauth_client_id" {
+  description = "Persistent OAuth client ID for Claude MCP client configuration"
+  value       = var.enable_docker_mcp_gateway && var.oauth_client_id != "" ? module.oauth_worker[0].claude_client_id : null
+}
+
+output "claude_oauth_client_secret" {
+  description = "Persistent OAuth client secret for Claude MCP client configuration"
+  value       = var.enable_docker_mcp_gateway && var.oauth_client_id != "" ? module.oauth_worker[0].claude_client_secret : null
+  sensitive   = true
+}
