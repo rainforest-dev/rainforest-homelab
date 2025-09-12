@@ -20,17 +20,34 @@ module "docker_mcp_gateway" {
 
   project_name = var.project_name
   environment  = var.environment
-  
+
   # Resource configuration
   memory_limit = var.default_memory_limit
-  
+
   # External access configuration
   enable_cloudflare_tunnel = var.enable_cloudflare_tunnel
-  tunnel_hostname         = "docker-mcp"
-  domain_suffix          = var.domain_suffix
-  
+  tunnel_hostname          = "docker-mcp"
+  domain_suffix            = var.domain_suffix
+
   # Logging configuration
   log_level = "info"
+}
+
+# OAuth Worker for Docker MCP Gateway
+module "oauth_worker" {
+  source = "./modules/oauth-worker"
+  count  = var.enable_docker_mcp_gateway && var.oauth_client_id != "" ? 1 : 0
+
+  project_name          = var.project_name
+  environment           = var.environment
+  cloudflare_account_id = var.cloudflare_account_id
+  cloudflare_zone_id    = var.enable_cloudflare_tunnel ? module.cloudflare_tunnel[0].zone_id : ""
+  cloudflare_team_name  = var.cloudflare_team_name
+  domain_suffix         = var.domain_suffix
+  oauth_client_id       = var.oauth_client_id
+  oauth_client_secret   = var.oauth_client_secret
+
+  depends_on = [module.docker_mcp_gateway]
 }
 
 module "open-webui" {
@@ -150,6 +167,8 @@ module "cloudflare_tunnel" {
   kubernetes_namespace  = "homelab"
   allowed_email_domains = var.allowed_email_domains
   allowed_emails        = var.allowed_emails
+  service_token_ids     = var.service_token_ids
+  services              = local.services
 
   depends_on = [kubernetes_namespace.homelab]
 }

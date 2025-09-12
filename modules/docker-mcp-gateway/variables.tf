@@ -17,13 +17,13 @@ variable "environment" {
 variable "docker_image" {
   description = "Docker image for the MCP Gateway container"
   type        = string
-  default     = "docker/mcp-gateway:latest"  # Use official Docker MCP Gateway image
+  default     = "docker/mcp-gateway:latest" # Use official Docker MCP Gateway image
 }
 
 variable "port" {
   description = "Port for Docker MCP Gateway service"
   type        = number
-  default     = 3000  # Standard MCP server port
+  default     = 3100 # Avoid conflicts with common dev servers on 3000
 }
 
 variable "memory_limit" {

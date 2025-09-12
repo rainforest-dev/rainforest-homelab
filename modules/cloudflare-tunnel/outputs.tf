@@ -8,6 +8,11 @@ output "tunnel_cname" {
   value       = cloudflare_zero_trust_tunnel_cloudflared.homelab.cname
 }
 
+output "zone_id" {
+  description = "Cloudflare Zone ID"
+  value       = local.zone_id
+}
+
 output "service_urls" {
   description = "Service URLs accessible via Cloudflare Tunnel"
   value = {
