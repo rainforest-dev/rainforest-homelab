@@ -40,3 +40,6 @@ variable "oauth_client_secret" {
   type        = string
   sensitive   = true
 }
+
+# OAuth client credentials are automatically registered via null_resource
+# No manual configuration needed - Terraform will register and manage the client
