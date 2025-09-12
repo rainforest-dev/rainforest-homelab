@@ -32,21 +32,32 @@ resource "docker_container" "docker_mcp_gateway" {
   }
   
   # Docker socket access (required for MCP operations)
+  # SECURITY WARNING: This provides significant privileges equivalent to root access on the host
+  # Consider these security mitigations:
+  # - Deploy only in trusted environments
+  # - Use OAuth authentication (configured via enable_auth in locals.tf) 
+  # - Monitor container activities via logs
+  # - Network isolation via Docker networks
+  # - Alternative: Consider Docker-in-Docker (DinD) for enhanced isolation
   volumes {
     host_path      = "/var/run/docker.sock"
     container_path = "/var/run/docker.sock"
     read_only      = false  # MCP Gateway needs write access for container operations
   }
   
-  # Mount local Docker MCP configuration
-  volumes {
-    host_path      = "${pathexpand("~/.docker/mcp")}"
-    container_path = "/mcp"
-    read_only      = true
+  # Mount local Docker MCP configuration (conditional - only if directory exists)
+  # This allows optional MCP configuration customization but gracefully handles missing directories
+  dynamic "volumes" {
+    for_each = fileexists("${pathexpand("~/.docker/mcp")}/config.yaml") ? [1] : []
+    content {
+      host_path      = "${pathexpand("~/.docker/mcp")}"
+      container_path = "/mcp"
+      read_only      = true
+    }
   }
   
   
-  # Resource limits
+  # Resource limits - Docker expects memory in bytes
   memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (
     can(regex("Gi", var.memory_limit)) ? 1024 * 1024 * 1024 :
     can(regex("Mi", var.memory_limit)) ? 1024 * 1024 : 1
