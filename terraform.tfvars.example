@@ -20,8 +20,7 @@ enable_cloudflare_tunnel = true   # Enable Cloudflare Tunnel for external access
 enable_calibre_web       = true   # Enable Calibre Web ebook server
 enable_homepage          = true   # Enable Homepage dashboard
 enable_openspeedtest     = false  # Enable OpenSpeedTest (can run on separate machine)
-# Web Terminal - Now managed via Ansible automation
-# Run: cd automation && ansible-playbook ttyd-setup.yml
+enable_wetty             = false  # Enable Wetty web terminal (internal access only)
 
 # Resource Sizing
 default_cpu_limit    = "500m"
