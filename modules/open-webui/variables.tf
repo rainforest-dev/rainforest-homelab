@@ -76,3 +76,79 @@ variable "ollama_base_url" {
   default     = ""
 }
 
+# Database configuration variables
+variable "enable_external_database" {
+  description = "Enable external PostgreSQL database instead of default SQLite"
+  type        = bool
+  default     = false
+}
+
+variable "database_host" {
+  description = "PostgreSQL database host"
+  type        = string
+  default     = ""
+}
+
+variable "database_port" {
+  description = "PostgreSQL database port"
+  type        = string
+  default     = "5432"
+}
+
+variable "database_name" {
+  description = "PostgreSQL database name"
+  type        = string
+  default     = "openwebui"
+}
+
+variable "database_user" {
+  description = "PostgreSQL database user"
+  type        = string
+  default     = "openwebui"
+}
+
+variable "database_password" {
+  description = "PostgreSQL database password"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+# MinIO S3 storage configuration variables
+variable "enable_s3_storage" {
+  description = "Enable S3/MinIO storage for file uploads and exports"
+  type        = bool
+  default     = false
+}
+
+variable "s3_endpoint" {
+  description = "S3/MinIO endpoint URL"
+  type        = string
+  default     = ""
+}
+
+variable "s3_access_key" {
+  description = "S3/MinIO access key"
+  type        = string
+  default     = ""
+}
+
+variable "s3_secret_key" {
+  description = "S3/MinIO secret key"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "s3_bucket" {
+  description = "S3/MinIO bucket name for Open WebUI storage"
+  type        = string
+  default     = "openwebui"
+}
+
+variable "s3_region" {
+  description = "S3/MinIO region"
+  type        = string
+  default     = "us-east-1"
+}
+
