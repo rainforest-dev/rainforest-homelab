@@ -188,6 +188,109 @@ These services run as Docker containers with direct port access:
 - **🚀 http://localhost:3333** - OpenSpeedTest network testing
 - **🔧 http://localhost:2375** - Docker Proxy (internal use)
 
+## 🐳 Docker MCP Gateway
+
+The Docker MCP Gateway provides **remote Docker operations** via the Model Context Protocol (MCP), enabling secure container management from anywhere.
+
+### Features
+- **Remote Docker Control**: Manage containers from any MCP-compatible client
+- **OAuth Authentication**: Secure access with Cloudflare Zero Trust
+- **132+ Tools**: Includes GitHub, Terraform, Obsidian, Playwright, and Sequential Thinking tools
+- **Multiple Transports**: SSE and HTTP streaming support
+- **Claude Compatible**: Works with Claude web, desktop, and mobile apps
+
+### Usage
+1. **OAuth-Protected (Recommended)**: `https://docker-mcp.rainforest.tools/sse`
+2. **Local Development**: `http://localhost:3100/sse` (bypasses authentication)
+
+### OAuth Setup for Docker MCP Gateway (Terraform Approach)
+
+**⚠️ RECOMMENDED:** Use Terraform for automated OAuth Worker deployment with centralized configuration management.
+
+#### Terraform Deployment (Recommended)
+
+1. **Add OAuth Configuration** to your `terraform.tfvars`:
+   ```hcl
+   # OAuth Configuration for Docker MCP Gateway
+   cloudflare_team_name  = "your-team-name"      # e.g., "rainforest"
+   oauth_client_id       = "your-client-id"      # From Cloudflare Access SaaS app
+   oauth_client_secret   = "your-client-secret"  # From Cloudflare Access SaaS app
+   ```
+
+2. **Update API Token Permissions** (if needed):
+   Your Cloudflare API token needs **Cloudflare Workers:Edit** permissions for KV and Worker management:
+   - Go to [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens)
+   - Edit your existing token or create a new one
+   - Add permissions: **Cloudflare Workers:Edit**, **Zone:Edit**, **Account:Read**
+
+3. **Deploy via Terraform**:
+   ```bash
+   terraform plan
+   terraform apply
+   ```
+
+   This automatically:
+   - Creates KV namespace for session storage
+   - Deploys OAuth Worker with all environment variables
+   - Sets up custom domain `docker-mcp.yourdomain.com`
+   - Manages configuration through Infrastructure as Code
+
+4. **Access OAuth-protected endpoint**: `https://docker-mcp.yourdomain.com/sse`
+
+#### Manual Setup (Deprecated)
+<details>
+<summary>🚫 Legacy Manual Setup (Click to expand - Not recommended)</summary>
+
+**Note**: Manual setup is deprecated in favor of the Terraform approach above for better configuration management and consistency.
+
+1. **Create Cloudflare Access SaaS Application**:
+   - Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → **Access** → **Applications**
+   - Click **Add application** → **SaaS**
+   - Configure with redirect URI: `https://docker-mcp.yourdomain.com/callback`
+   - Copy Client ID and Client Secret
+
+2. **Manually Deploy Worker**: Use Cloudflare Workers dashboard with manual environment variable configuration
+
+</details>
+
+#### OAuth Worker Architecture
+
+The Terraform deployment automatically creates and configures:
+
+**📁 Worker Code**: `workers/oauth-gateway.js` (KV-enabled OAuth proxy)  
+**🏗️ Infrastructure**: 
+- `modules/oauth-worker/` - Terraform module for OAuth Worker
+- KV namespace for session storage  
+- Custom domain configuration
+- Environment variable management
+
+**🔧 Features**:
+- **Session Management**: Secure server-side sessions in Cloudflare KV
+- **OAuth Flow**: Complete OAuth 2.1 implementation with Cloudflare Access
+- **Request Proxying**: Transparent forwarding to Docker MCP Gateway
+- **Security**: User authentication, session validation, and audit logging
+
+#### Usage After Terraform Deployment
+
+- **OAuth-Protected URL**: `https://docker-mcp.yourdomain.com/sse`
+- **Authentication**: Automatic OAuth flow with Cloudflare Access
+- **Configuration**: Centrally managed via `terraform.tfvars`
+
+### Security Considerations
+
+⚠️ **Docker Socket Access**: The Docker MCP Gateway requires Docker socket access, providing significant privileges:
+- Container management capabilities
+- Image operations (pull, build, push)
+- Potential host filesystem access
+- Privilege escalation possibilities
+
+**Security Mitigations**:
+- Deploy only in trusted environments
+- Use OAuth authentication (see setup above)
+- Monitor container activities via logs
+- Network isolation via Docker networks
+- Resource limits and health checks
+
 ### Management Interfaces
 Access administrative interfaces:
 

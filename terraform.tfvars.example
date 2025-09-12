@@ -9,6 +9,11 @@ domain_suffix      = "example.com"  # Change to your domain
 # Cloudflare Configuration
 cloudflare_account_id = ""  # Add your Cloudflare Account ID here
 cloudflare_api_token  = ""  # Add your Cloudflare API Token here
+cloudflare_team_name  = ""  # Add your Cloudflare Zero Trust team name (e.g., "rainforest")
+
+# OAuth Configuration for Docker MCP Gateway
+oauth_client_id     = ""  # Cloudflare Access SaaS Application Client ID
+oauth_client_secret = ""  # Cloudflare Access SaaS Application Client Secret
 
 # Feature Flags
 enable_postgresql        = true   # Enable shared PostgreSQL database
@@ -40,3 +45,7 @@ allowed_emails        = []                  # Add specific emails if needed
 # Option C: Disable authentication (for testing only)
 # allowed_email_domains = []  # No authentication
 # allowed_emails        = []  # No authentication
+
+# Service Tokens for MCP Clients (requires creating tokens in Cloudflare dashboard)
+# Access → Service Auth → Service Tokens → Create Service Token
+service_token_ids = []  # Add service token IDs here for programmatic access
