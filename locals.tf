@@ -51,7 +51,7 @@ locals {
       s3 = {
         hostname    = "s3"
         service_url = "http://homelab-minio.homelab.svc.cluster.local:9000"
-        enable_auth = false  # S3 API doesn't need Zero Trust auth
+        enable_auth = false # S3 API doesn't need Zero Trust auth
         type        = "kubernetes"
       }
     } : {},
