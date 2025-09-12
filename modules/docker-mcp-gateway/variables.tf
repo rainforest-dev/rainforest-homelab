@@ -17,7 +17,7 @@ variable "environment" {
 variable "docker_image" {
   description = "Docker image for the MCP Gateway container"
   type        = string
-  default     = "docker/mcp-gateway:latest" # Use official Docker MCP Gateway image
+  default     = "docker/mcp-gateway:0.1.0" # Use specific version for reproducibility
 }
 
 variable "port" {
@@ -61,3 +61,31 @@ variable "domain_suffix" {
   type        = string
   default     = ""
 }
+
+variable "docker_host_address" {
+  description = "Address for accessing Docker containers from Cloudflare Tunnel (use 'host.docker.internal' for Docker Desktop, 'localhost' for Linux)"
+  type        = string
+  default     = "host.docker.internal"  # Default for Docker Desktop
+}
+
+# Security Notes for Docker MCP Gateway:
+# This module requires Docker socket access which provides significant privileges.
+# Security considerations:
+# 1. Container management capabilities (create, modify, delete containers)
+# 2. Image operations (pull, build, push images)  
+# 3. Potential host filesystem access through volume mounts
+# 4. Privilege escalation possibilities
+# 
+# Mitigations implemented:
+# - OAuth authentication via Cloudflare Zero Trust (when enabled)
+# - Localhost-only port binding (127.0.0.1)
+# - Resource limits (memory constraints)
+# - Health checks and restart policies
+# - Conditional configuration mounting
+# 
+# Additional recommended mitigations:
+# - Deploy only in trusted environments
+# - Enable comprehensive logging and monitoring
+# - Use network segmentation
+# - Regular security audits of container activities
+# - Consider Docker-in-Docker (DinD) for enhanced isolation
