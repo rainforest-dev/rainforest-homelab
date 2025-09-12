@@ -68,7 +68,7 @@ locals {
     var.enable_docker_mcp_gateway ? {
       "docker-mcp" = {
         hostname    = "docker-mcp"
-        service_url = "http://host.docker.internal:3100"
+        service_url = module.docker_mcp_gateway[0].tunnel_service_url
         enable_auth = true
         type        = "docker"
       }
