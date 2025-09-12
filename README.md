@@ -41,7 +41,7 @@ Internet → Cloudflare Edge → Cloudflare Tunnel → cloudflared pods → Kube
 #### Native Applications (Ansible Managed)
 - **ttyd**: Web terminal for direct Mac host access
 
-## [ROCKET] Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 - **Docker Desktop** with Kubernetes enabled
@@ -164,12 +164,12 @@ Control which services are deployed:
 ### Kubernetes Services (via Cloudflare Tunnel)
 These services are accessible globally with automatic HTTPS certificates:
 
-- **[HOME] https://homepage.yourdomain.com** - Homepage dashboard with all services
-- **[GLOBE] https://open-webui.yourdomain.com** - Open WebUI AI chat interface
-- **[SYNC] https://flowise.yourdomain.com** - Flowise AI workflow builder  
-- **[BOLT] https://n8n.yourdomain.com** - n8n automation platform
+- **🏠 https://homepage.yourdomain.com** - Homepage dashboard with all services
+- **🌐 https://open-webui.yourdomain.com** - Open WebUI AI chat interface
+- **🔄 https://flowise.yourdomain.com** - Flowise AI workflow builder  
+- **⚡ https://n8n.yourdomain.com** - n8n automation platform
 
-### [LOCK] Security Features
+### 🔒 Security Features
 - **Real SSL Certificates**: Automatic and trusted certificates from Cloudflare
 - **Hidden Home IP**: Your public IP is never exposed 
 - **Global CDN**: Fast access from anywhere via Cloudflare's network
@@ -185,9 +185,9 @@ These services are accessible globally with automatic HTTPS certificates:
 ### Docker Containers (Direct HTTP)
 These services run as Docker containers with direct port access:
 
-- **[BOOK] http://localhost:8083** - Calibre Web ebook server
-- **[ROCKET] http://localhost:3333** - OpenSpeedTest network testing
-- **[WRENCH] http://localhost:2375** - Docker Proxy (internal use)
+- **📚 http://localhost:8083** - Calibre Web ebook server
+- **🚀 http://localhost:3333** - OpenSpeedTest network testing
+- **🔧 http://localhost:2375** - Docker Proxy (internal use)
 
 ### Management Interfaces
 Access administrative interfaces:
@@ -195,7 +195,7 @@ Access administrative interfaces:
 - **☁️ Cloudflare Dashboard**: https://dash.cloudflare.com/
 - **🗄️ PostgreSQL**: Access via kubectl (see management section below)
 
-## [WRENCH] Management
+## 🔧 Management
 
 ### Terraform Operations
 ```bash
@@ -335,7 +335,7 @@ Each module follows a standardized structure:
 - `outputs.tf`: Output values for resource information
 - `versions.tf`: Provider version constraints (where needed)
 
-## [TERMINAL] Web Terminal Access
+## 🖥️ Web Terminal Access
 
 For direct Mac host access via web browser, ttyd is available as an Ansible-managed service:
 
@@ -371,7 +371,7 @@ tail -f /tmp/ttyd.log
 
 **Note**: ttyd provides direct access to your Mac system, unlike containerized solutions that have limited filesystem access.
 
-## [LOCK] Security
+## 🔒 Security
 
 - **Cloudflare Tunnel**: Zero trust network access with hidden home IP
 - **Automatic SSL**: Real certificates from Cloudflare with perfect forward secrecy
@@ -383,7 +383,7 @@ tail -f /tmp/ttyd.log
 - **Network Policies**: Kubernetes namespace isolation
 - **Credential Security**: API tokens and secrets encrypted in Kubernetes
 
-## [SYNC] Development
+## 🔄 Development
 
 ### Adding New Services
 
@@ -424,7 +424,7 @@ All modules use standardized variables:
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## [HANDSHAKE] Contributing
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
