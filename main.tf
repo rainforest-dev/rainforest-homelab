@@ -119,6 +119,9 @@ module "calibre-web" {
   memory_limit       = var.default_memory_limit
 }
 
+# n8n Workflow Automation Platform
+# Configured to use centralized PostgreSQL for workflows/settings storage
+# and MinIO for binary data, file attachments, and node files
 module "n8n" {
   source = "./modules/n8n"
 
@@ -132,6 +135,7 @@ module "n8n" {
   chart_version      = "1.0.13"
 
   # PostgreSQL configuration (when enabled)
+  # n8n will use external PostgreSQL instead of SQLite for workflows and settings
   enable_external_database = var.enable_postgresql
   database_host           = var.enable_postgresql ? module.postgresql[0].postgresql_host : ""
   database_port           = "5432"
@@ -141,6 +145,7 @@ module "n8n" {
   database_secret_key     = "postgres-password"
 
   # MinIO/S3 configuration (when enabled)
+  # n8n will store binary data, file attachments, and node files in MinIO
   enable_s3_storage = var.enable_minio
   s3_endpoint      = var.enable_minio ? "http://${module.minio[0].s3_endpoint}" : ""
   s3_bucket        = "n8n-storage"
@@ -148,6 +153,7 @@ module "n8n" {
   s3_secret_key    = var.enable_minio ? module.minio[0].secret_key : ""
   s3_region        = "us-east-1"
 
+  # Ensure PostgreSQL and MinIO are available before deploying n8n
   depends_on = [
     module.postgresql,
     module.minio
