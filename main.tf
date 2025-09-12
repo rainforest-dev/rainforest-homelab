@@ -28,7 +28,7 @@ module "docker_mcp_gateway" {
   enable_cloudflare_tunnel = var.enable_cloudflare_tunnel
   tunnel_hostname          = "docker-mcp"
   domain_suffix            = var.domain_suffix
-  docker_host_address      = "host.docker.internal"  # Configurable for platform compatibility
+  docker_host_address      = "host.docker.internal" # Configurable for platform compatibility
 
   # Logging configuration
   log_level = "info"
