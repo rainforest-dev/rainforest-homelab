@@ -7,12 +7,15 @@ resource "docker_container" "docker_mcp_gateway" {
   name    = "${var.project_name}-docker-mcp-gateway"
   restart = "unless-stopped"
   
-  # Docker MCP Gateway command - automatically use all enabled servers
+  # Docker MCP Gateway command - proper configuration
   command = [
     "--port", tostring(var.port),
     "--transport", "sse",
     "--verbose",
-    "--use-configured-catalogs"
+    "--watch",
+    "--config", "/mcp/config.yaml",
+    "--registry", "/mcp/registry.yaml",
+    "--tools-config", "/mcp/tools.yaml"
   ]
   
   # Environment variables
@@ -35,12 +38,13 @@ resource "docker_container" "docker_mcp_gateway" {
     read_only      = false  # MCP Gateway needs write access for container operations
   }
   
-  # Docker MCP configuration access (required for reading enabled servers)
+  # Mount local Docker MCP configuration
   volumes {
-    host_path      = pathexpand("~/.docker/mcp")
-    container_path = "/root/.docker/mcp"
-    read_only      = true  # Only read access needed for configuration
+    host_path      = "${pathexpand("~/.docker/mcp")}"
+    container_path = "/mcp"
+    read_only      = true
   }
+  
   
   # Resource limits
   memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (

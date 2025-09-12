@@ -37,3 +37,22 @@ variable "allowed_emails" {
   type        = list(string)
   default     = []
 }
+
+variable "service_token_ids" {
+  description = "List of Cloudflare Access Service Token IDs for programmatic access"
+  type        = list(string)
+  default     = []
+  sensitive   = true
+}
+
+variable "services" {
+  description = "Map of services to expose through Cloudflare Tunnel"
+  type = map(object({
+    hostname     = string
+    service_url  = string
+    enable_auth  = bool
+    type         = string
+  }))
+  default = {}
+}
+

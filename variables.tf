@@ -74,6 +74,27 @@ variable "cloudflare_api_token" {
   default     = ""
 }
 
+variable "cloudflare_team_name" {
+  description = "Cloudflare Zero Trust team name for OAuth URLs"
+  type        = string
+  default     = ""
+}
+
+# OAuth Configuration
+variable "oauth_client_id" {
+  description = "Cloudflare Access SaaS Application Client ID for OAuth Worker"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "oauth_client_secret" {
+  description = "Cloudflare Access SaaS Application Client Secret for OAuth Worker"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # Feature Flags
 variable "enable_postgresql" {
   description = "Enable PostgreSQL database"
@@ -98,6 +119,8 @@ variable "enable_docker_mcp_gateway" {
   type        = bool
   default     = false
 }
+
+
 
 # Resource Sizing
 variable "default_cpu_limit" {
@@ -135,6 +158,13 @@ variable "allowed_emails" {
   description = "List of specific email addresses allowed to access services"
   type        = list(string)
   default     = []
+}
+
+variable "service_token_ids" {
+  description = "List of Cloudflare Access Service Token IDs for programmatic access"
+  type        = list(string)
+  default     = []
+  sensitive   = true
 }
 
 # Service Feature Flags (moved from terraform.tfvars)
