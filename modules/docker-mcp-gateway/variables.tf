@@ -17,7 +17,7 @@ variable "environment" {
 variable "docker_image" {
   description = "Docker image for the MCP Gateway container"
   type        = string
-  default     = "docker/mcp-gateway:0.1.0" # Use specific version for reproducibility
+  default     = "docker/mcp-gateway:latest" # Use latest as 0.1.0 tag doesn't exist yet
 }
 
 variable "port" {
