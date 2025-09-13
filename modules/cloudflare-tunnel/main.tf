@@ -55,7 +55,6 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         service  = ingress_rule.value.service_url
       }
     }
-    }
 
     # Catch-all rule (required)
     ingress_rule {
