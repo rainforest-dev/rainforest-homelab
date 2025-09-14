@@ -66,11 +66,12 @@ locals {
     } : {},
 
     var.enable_docker_mcp_gateway ? {
-      "docker-mcp" = {
-        hostname    = "docker-mcp"
+      "docker-mcp-internal" = {
+        hostname    = "docker-mcp-internal"
         service_url = module.docker_mcp_gateway[0].tunnel_service_url
-        enable_auth = true
+        enable_auth = false  # No auth needed for internal proxy route
         type        = "docker"
+        internal    = true  # Skip DNS record creation - OAuth Worker handles the domain
       }
     } : {},
 

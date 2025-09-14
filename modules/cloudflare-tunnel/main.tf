@@ -67,7 +67,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
 resource "cloudflare_record" "services" {
   for_each = {
     for name, config in var.services : name => config
-    if !try(config.internal, false)  # Skip services marked as internal
+    if !lookup(config, "internal", false)  # Skip services marked as internal
   }
 
   zone_id = local.zone_id
