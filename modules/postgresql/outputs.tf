@@ -17,3 +17,13 @@ output "postgresql_username" {
   description = "PostgreSQL admin username"
   value       = "postgres"
 }
+
+output "postgresql_host" {
+  description = "PostgreSQL service host"
+  value       = "${helm_release.postgresql.name}.${helm_release.postgresql.namespace}.svc.cluster.local"
+}
+
+output "postgresql_secret_name" {
+  description = "Name of the PostgreSQL secret containing passwords"
+  value       = "${helm_release.postgresql.name}"
+}
