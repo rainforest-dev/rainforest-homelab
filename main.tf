@@ -64,6 +64,26 @@ module "open-webui" {
   ollama_base_url    = var.ollama_base_url
   chart_repository   = "https://helm.openwebui.com/"
   chart_version      = "7.7.0"
+
+  # PostgreSQL database configuration
+  enable_external_database = var.enable_postgresql
+  database_host            = var.enable_postgresql ? "${var.project_name}-postgresql.${kubernetes_namespace.homelab.metadata[0].name}.svc.cluster.local" : ""
+  database_port            = "5432"
+  database_name            = "homelab"
+  database_user            = "postgres"
+
+  # MinIO S3 storage configuration  
+  enable_s3_storage = var.enable_minio
+  s3_endpoint       = var.enable_minio ? "http://${var.project_name}-minio.${kubernetes_namespace.homelab.metadata[0].name}.svc.cluster.local:9000" : ""
+  s3_access_key     = var.enable_minio ? "admin" : ""
+  s3_bucket         = "openwebui"
+  s3_region         = "us-east-1"
+
+  depends_on = [
+    kubernetes_namespace.homelab,
+    module.postgresql,
+    module.minio
+  ]
 }
 
 module "flowise" {
@@ -188,4 +208,58 @@ resource "docker_container" "dockerproxy" {
     container_path = "/var/run/docker.sock"
     read_only      = true
   }
+}
+
+# Create MinIO bucket for Open WebUI when MinIO is enabled
+resource "kubernetes_job" "create_openwebui_bucket" {
+  count = var.enable_minio ? 1 : 0
+  
+  metadata {
+    name      = "create-openwebui-bucket"
+    namespace = kubernetes_namespace.homelab.metadata[0].name
+  }
+
+  spec {
+    template {
+      metadata {}
+      spec {
+        restart_policy = "OnFailure"
+        
+        container {
+          name  = "mc"
+          image = "minio/mc:latest"
+          
+          command = [
+            "/bin/sh",
+            "-c",
+            <<-EOT
+              set -e
+              echo "Waiting for MinIO to be ready..."
+              while ! mc alias set minio http://homelab-minio:9000 admin $MINIO_PASSWORD; do
+                echo "MinIO not ready, waiting..."
+                sleep 5
+              done
+              echo "Creating bucket if it doesn't exist..."
+              mc mb minio/openwebui --ignore-existing
+              echo "Setting bucket policy to allow read/write..."
+              mc anonymous set upload minio/openwebui
+              echo "Bucket setup complete"
+            EOT
+          ]
+          
+          env {
+            name = "MINIO_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = "${var.project_name}-minio"
+                key  = "root-password"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [module.minio]
 }
