@@ -5,7 +5,7 @@
 resource "docker_container" "docker_mcp_gateway" {
   image   = var.docker_image
   name    = "${var.project_name}-docker-mcp-gateway"
-  restart = "unless-stopped"
+  restart = "always"
   
   # Docker MCP Gateway command - proper configuration
   command = [
