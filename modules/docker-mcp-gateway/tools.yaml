@@ -1,0 +1,55 @@
+# Tools allowlist configuration for MCP Gateway
+# Reduces tool count for clients like Windsurf (100 tool limit)
+# Format based on mcp-gateway test files: server -> tool array
+
+# GitHub tools to keep (49 tools - reduced from 93)
+github-official:
+  - add_comment_to_pending_review
+  - add_issue_comment
+  - add_sub_issue
+  - create_and_submit_pull_request_review
+  - create_issue
+  - create_pending_pull_request_review
+  - create_pull_request
+  - get_commit
+  - get_issue
+  - get_issue_comments
+  - get_job_logs
+  - get_latest_release
+  - get_me
+  - get_pull_request
+  - get_pull_request_diff
+  - get_pull_request_files
+  - get_pull_request_review_comments
+  - get_pull_request_reviews
+  - get_pull_request_status
+  - get_release_by_tag
+  - get_tag
+  - get_team_members
+  - get_teams
+  - get_workflow_run
+  - get_workflow_run_logs
+  - get_workflow_run_usage
+  - list_branches
+  - list_commits
+  - list_issues
+  - list_pull_requests
+  - list_releases
+  - list_repository_security_advisories
+  - list_starred_repositories
+  - list_sub_issues
+  - list_tags
+  - list_workflow_jobs
+  - list_workflow_run_artifacts
+  - list_workflow_runs
+  - list_workflows
+  - merge_pull_request
+  - remove_sub_issue
+  - reprioritize_sub_issue
+  - search_issues
+  - search_pull_requests
+  - star_repository
+  - submit_pending_pull_request_review
+  - unstar_repository
+  - update_issue
+  - update_pull_request
