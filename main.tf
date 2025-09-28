@@ -7,12 +7,6 @@ resource "kubernetes_namespace" "homelab" {
 # Legacy namespace and module removed
 
 
-module "mcpo" {
-  source = "./modules/mcpo"
-
-  project_name = var.project_name
-  environment  = var.environment
-}
 
 module "docker_mcp_gateway" {
   source = "./modules/docker-mcp-gateway"
@@ -63,7 +57,7 @@ module "open-webui" {
   ollama_enabled     = false
   ollama_base_url    = var.ollama_base_url
   chart_repository   = "https://helm.openwebui.com/"
-  chart_version      = "7.7.0"
+  chart_version      = "8.7.0" # Updated to v0.6.31 with native MCP support
 }
 
 module "flowise" {
