@@ -123,7 +123,7 @@ module "n8n" {
   enable_persistence = var.enable_persistence
   storage_size       = var.default_storage_size
   chart_repository   = "oci://8gears.container-registry.com/library/"
-  chart_version      = "1.0.13"
+  chart_version      = "1.0.15"  # Updated to n8n v1.112.0
 }
 
 module "homepage" {
