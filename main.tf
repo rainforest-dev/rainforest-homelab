@@ -50,8 +50,8 @@ module "open-webui" {
 
   project_name       = var.project_name
   environment        = var.environment
-  cpu_limit          = var.default_cpu_limit
-  memory_limit       = var.default_memory_limit
+  cpu_limit          = "2"      # Generous CPU for smooth web search and AI processing  
+  memory_limit       = "4Gi"    # High memory to prevent OOM during web search operations
   enable_persistence = var.enable_persistence
   storage_size       = var.default_storage_size
   ollama_enabled     = false
