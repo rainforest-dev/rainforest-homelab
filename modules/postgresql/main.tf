@@ -28,10 +28,12 @@ resource "kubernetes_persistent_volume" "postgresql_pv" {
     persistent_volume_source {
       host_path {
         path = "${var.external_storage_path}/postgresql"
+        type = "DirectoryOrCreate"
       }
     }
     
     storage_class_name = "manual"
+    persistent_volume_reclaim_policy = "Retain"
   }
 }
 
@@ -108,6 +110,11 @@ resource "helm_release" "postgresql" {
           size             = var.storage_size
           storageClass     = "manual"
           accessModes      = ["ReadWriteOnce"]
+        }
+        
+        # Enable volume permissions for external storage
+        volumePermissions = {
+          enabled = true
         }
         
         resources = {
