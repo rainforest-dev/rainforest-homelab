@@ -102,7 +102,37 @@ resource "kubernetes_deployment" "n8n" {
           
           env {
             name  = "DB_TYPE"
-            value = "sqlite"
+            value = "postgresdb"
+          }
+          
+          env {
+            name  = "DB_POSTGRESDB_HOST"
+            value = var.postgres_host
+          }
+          
+          env {
+            name  = "DB_POSTGRESDB_PORT"
+            value = "5432"
+          }
+          
+          env {
+            name  = "DB_POSTGRESDB_DATABASE"
+            value = var.database_name
+          }
+          
+          env {
+            name  = "DB_POSTGRESDB_USER"
+            value = "postgres"
+          }
+          
+          env {
+            name = "DB_POSTGRESDB_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = "homelab-postgresql-auth"
+                key  = "postgres-password"
+              }
+            }
           }
           
           env {
