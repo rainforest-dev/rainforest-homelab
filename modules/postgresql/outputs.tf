@@ -85,3 +85,9 @@ output "storage_path" {
   description = "External storage path for PostgreSQL data"
   value       = "${var.external_storage_path}/postgresql"
 }
+
+# Secret management outputs
+output "postgresql_secret_name" {
+  description = "Name of the Kubernetes secret containing PostgreSQL credentials"
+  value       = kubernetes_secret.postgresql_auth.metadata[0].name
+}

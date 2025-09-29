@@ -82,6 +82,12 @@ variable "timezone" {
   default     = "Asia/Taipei"
 }
 
+variable "use_external_storage" {
+  description = "Use external storage (Samsung T7 Touch) instead of Docker volumes"
+  type        = bool
+  default     = true
+}
+
 variable "books_path" {
   description = "Host path to books library"
   type        = string
