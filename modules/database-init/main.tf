@@ -1,115 +1,177 @@
 # Database Initialization Helper Module
 # Allows services to self-register their databases with PostgreSQL
+# Updated for Kubernetes-native PostgreSQL deployment
 
 terraform {
   required_providers {
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = "~> 3.0"
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
     }
   }
 }
 
-# Wait for PostgreSQL to be ready and create database
-resource "null_resource" "database_init" {
-  # Only run if database creation is enabled
+# Create Kubernetes Job for database initialization
+resource "kubernetes_job" "database_init" {
   count = var.create_database ? 1 : 0
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      # Wait for PostgreSQL to be ready
-      echo "Waiting for PostgreSQL to be ready..."
-      max_attempts=30
-      attempt=0
-      
-      while [ $attempt -lt $max_attempts ]; do
-        if docker exec ${var.postgres_container_name} pg_isready -U ${var.postgres_user} > /dev/null 2>&1; then
-          echo "PostgreSQL is ready!"
-          break
-        fi
-        echo "Attempt $((attempt + 1))/$max_attempts: PostgreSQL not ready yet..."
-        sleep 5
-        attempt=$((attempt + 1))
-      done
-      
-      if [ $attempt -eq $max_attempts ]; then
-        echo "ERROR: PostgreSQL did not become ready within timeout"
-        exit 1
-      fi
-      
-      # Create database if it doesn't exist
-      echo "Creating database '${var.database_name}' if it doesn't exist..."
-      docker exec ${var.postgres_container_name} psql -U ${var.postgres_user} -d ${var.postgres_admin_db} -c "
-        SELECT 'Database already exists' WHERE EXISTS (SELECT FROM pg_database WHERE datname = '${var.database_name}')
-        UNION ALL
-        SELECT 'Creating database' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${var.database_name}');
-      " || true
-      
-      docker exec ${var.postgres_container_name} psql -U ${var.postgres_user} -d ${var.postgres_admin_db} -c "
-        CREATE DATABASE \"${var.database_name}\" OWNER ${var.postgres_user};
-      " 2>/dev/null || echo "Database '${var.database_name}' already exists or creation failed"
-      
-      # Create service-specific user if specified
-      if [ -n "${var.service_user}" ] && [ "${var.service_user}" != "${var.postgres_user}" ]; then
-        echo "Creating service user '${var.service_user}' if it doesn't exist..."
-        docker exec ${var.postgres_container_name} psql -U ${var.postgres_user} -d ${var.postgres_admin_db} -c "
-          CREATE USER \"${var.service_user}\" WITH PASSWORD '${var.service_password}';
-          GRANT ALL PRIVILEGES ON DATABASE \"${var.database_name}\" TO \"${var.service_user}\";
-        " 2>/dev/null || echo "User '${var.service_user}' already exists or creation failed"
-        
-        # Grant comprehensive schema permissions
-        echo "Granting schema permissions to '${var.service_user}'..."
-        docker exec ${var.postgres_container_name} psql -U ${var.postgres_user} -d ${var.database_name} -c "
-          GRANT ALL ON SCHEMA public TO \"${var.service_user}\";
-          GRANT CREATE ON SCHEMA public TO \"${var.service_user}\";
-          GRANT USAGE ON SCHEMA public TO \"${var.service_user}\";
-          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO \"${var.service_user}\";
-          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO \"${var.service_user}\";
-          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO \"${var.service_user}\";
-        " || echo "Schema permissions grant failed"
-      fi
-      
-      # Run custom initialization SQL if provided
-      if [ -n "${var.init_sql}" ]; then
-        echo "Running custom initialization SQL..."
-        docker exec ${var.postgres_container_name} psql -U ${var.postgres_user} -d ${var.database_name} -c "${var.init_sql}" || echo "Custom SQL execution failed"
-      fi
-      
-      echo "Database initialization completed for '${var.database_name}'"
-    EOT
+  
+  metadata {
+    name      = "${var.service_name}-db-init-${var.force_recreate}"
+    namespace = var.namespace
+    labels = {
+      app     = "database-init"
+      service = var.service_name
+    }
   }
-
-  # Trigger re-creation if key parameters change
-  triggers = {
-    database_name           = var.database_name
-    postgres_container_name = var.postgres_container_name
-    service_user           = var.service_user
-    init_sql_hash          = md5(var.init_sql)
-    force_recreate         = var.force_recreate
+  
+  spec {
+    template {
+      metadata {
+        labels = {
+          app     = "database-init"
+          service = var.service_name
+        }
+      }
+      
+      spec {
+        restart_policy = "Never"
+        
+        container {
+          name  = "db-init"
+          image = "postgres:15-alpine"
+          
+          env {
+            name  = "PGHOST"
+            value = var.postgres_host
+          }
+          
+          env {
+            name  = "PGPORT"
+            value = "5432"
+          }
+          
+          env {
+            name  = "PGUSER"
+            value = var.postgres_user
+          }
+          
+          env {
+            name  = "PGPASSWORD"
+            value = var.postgres_password
+          }
+          
+          env {
+            name  = "PGDATABASE"
+            value = var.postgres_admin_db
+          }
+          
+          env {
+            name  = "TARGET_DATABASE"
+            value = var.database_name
+          }
+          
+          env {
+            name  = "SERVICE_USER"
+            value = var.service_user
+          }
+          
+          env {
+            name  = "SERVICE_PASSWORD"
+            value = var.service_password
+          }
+          
+          command = ["/bin/sh", "-c"]
+          args = [
+            <<-EOT
+              set -e
+              echo "Waiting for PostgreSQL to be ready..."
+              
+              # Wait for PostgreSQL to be ready
+              max_attempts=30
+              attempt=0
+              
+              while [ $attempt -lt $max_attempts ]; do
+                if pg_isready -h $PGHOST -p $PGPORT -U $PGUSER > /dev/null 2>&1; then
+                  echo "PostgreSQL is ready!"
+                  break
+                fi
+                echo "Attempt $((attempt + 1))/$max_attempts: PostgreSQL not ready yet..."
+                sleep 5
+                attempt=$((attempt + 1))
+              done
+              
+              if [ $attempt -eq $max_attempts ]; then
+                echo "ERROR: PostgreSQL did not become ready within timeout"
+                exit 1
+              fi
+              
+              # Create database if it doesn't exist
+              echo "Creating database '$TARGET_DATABASE' if it doesn't exist..."
+              psql -c "CREATE DATABASE \"$TARGET_DATABASE\" OWNER $PGUSER;" 2>/dev/null || echo "Database '$TARGET_DATABASE' already exists"
+              
+              # Create service-specific user if specified
+              if [ -n "$SERVICE_USER" ] && [ "$SERVICE_USER" != "$PGUSER" ]; then
+                echo "Creating service user '$SERVICE_USER' if it doesn't exist..."
+                psql -c "CREATE USER \"$SERVICE_USER\" WITH PASSWORD '$SERVICE_PASSWORD';" 2>/dev/null || echo "User '$SERVICE_USER' already exists"
+                psql -c "GRANT ALL PRIVILEGES ON DATABASE \"$TARGET_DATABASE\" TO \"$SERVICE_USER\";" || echo "Grant privileges failed"
+                
+                # Grant comprehensive schema permissions
+                echo "Granting schema permissions to '$SERVICE_USER'..."
+                PGDATABASE="$TARGET_DATABASE" psql -c "
+                  GRANT ALL ON SCHEMA public TO \"$SERVICE_USER\";
+                  GRANT CREATE ON SCHEMA public TO \"$SERVICE_USER\";
+                  GRANT USAGE ON SCHEMA public TO \"$SERVICE_USER\";
+                  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO \"$SERVICE_USER\";
+                  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO \"$SERVICE_USER\";
+                  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO \"$SERVICE_USER\";
+                " || echo "Schema permissions grant failed"
+              fi
+              
+              # Run custom initialization SQL if provided
+              if [ -n "${var.init_sql}" ]; then
+                echo "Running custom initialization SQL..."
+                PGDATABASE="$TARGET_DATABASE" psql -c "${var.init_sql}" || echo "Custom SQL execution failed"
+              fi
+              
+              echo "Database initialization completed for '$TARGET_DATABASE'"
+            EOT
+          ]
+        }
+      }
+    }
+    
+    backoff_limit = 3
+  }
+  
+  wait_for_completion = true
+  
+  timeouts {
+    create = "10m"
+    update = "10m"
   }
 }
 
-# Create database initialization status tracking
-resource "null_resource" "database_status" {
+# Create ConfigMap to track database initialization status
+resource "kubernetes_config_map" "database_status" {
   count = var.create_database ? 1 : 0
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      # Log database creation status
-      echo "$(date): Database '${var.database_name}' initialized for service '${var.service_name}'" >> /tmp/homelab-db-init.log
-      
-      # Verify database exists
-      docker exec ${var.postgres_container_name} psql -U ${var.postgres_user} -d ${var.database_name} -c "
-        SELECT 
-          '${var.service_name}' as service_name,
-          '${var.database_name}' as database_name,
-          current_database() as connected_db,
-          current_user as current_user,
-          version() as postgres_version,
-          now() as initialized_at;
-      " || echo "Database verification failed"
-    EOT
+  
+  metadata {
+    name      = "${var.service_name}-db-status"
+    namespace = var.namespace
+    labels = {
+      app     = "database-init"
+      service = var.service_name
+    }
   }
-
-  depends_on = [null_resource.database_init]
+  
+  data = {
+    service_name    = var.service_name
+    database_name   = var.database_name
+    postgres_host   = var.postgres_host
+    service_user    = var.service_user
+    initialized_at  = timestamp()
+    force_recreate  = var.force_recreate
+  }
+  
+  depends_on = [kubernetes_job.database_init]
 }

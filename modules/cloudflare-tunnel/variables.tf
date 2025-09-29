@@ -52,6 +52,7 @@ variable "services" {
     service_url  = string
     enable_auth  = bool
     type         = string
+    internal     = optional(bool, false)
   }))
   default = {}
 }

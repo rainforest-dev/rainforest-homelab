@@ -8,8 +8,8 @@ variable "database_name" {
   type        = string
 }
 
-variable "postgres_container_name" {
-  description = "Name of the PostgreSQL container"
+variable "postgres_host" {
+  description = "PostgreSQL service hostname"
   type        = string
 }
 
@@ -17,6 +17,12 @@ variable "postgres_user" {
   description = "PostgreSQL superuser username"
   type        = string
   default     = "postgres"
+}
+
+variable "namespace" {
+  description = "Kubernetes namespace for database initialization job"
+  type        = string
+  default     = "homelab"
 }
 
 variable "postgres_admin_db" {

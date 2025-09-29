@@ -13,11 +13,33 @@ output "flowise_id" {
 output "postgresql_connection_info" {
   description = "PostgreSQL connection information"
   value = var.enable_postgresql ? {
-    service_name = module.postgresql[0].postgres_host
-    port         = module.postgresql[0].postgres_port
-    database     = module.postgresql[0].postgres_database
-    username     = module.postgresql[0].postgres_user
+    service_name = module.postgresql[0].service_name
+    port         = module.postgresql[0].postgresql_port
+    database     = module.postgresql[0].postgresql_database
+    username     = module.postgresql[0].postgresql_username
   } : null
+}
+
+output "postgresql_admin_password" {
+  description = "PostgreSQL admin password (sensitive)"
+  value       = var.enable_postgresql ? module.postgresql[0].postgres_password : null
+  sensitive   = true
+}
+
+output "pgadmin_access_info" {
+  description = "pgAdmin access information"
+  value = var.enable_postgresql ? {
+    email             = "contact@rainforest.tools"
+    internal_url      = module.postgresql[0].pgadmin_url
+    service_name      = module.postgresql[0].pgadmin_service_name
+    port_forward_cmd  = "kubectl port-forward -n homelab svc/${module.postgresql[0].pgadmin_service_name} 8080:80"
+  } : null
+}
+
+output "pgadmin_password" {
+  description = "pgAdmin login password (sensitive)"
+  value       = var.enable_postgresql ? module.postgresql[0].pgadmin_password : null
+  sensitive   = true
 }
 
 output "homepage_id" {

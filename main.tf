@@ -1,3 +1,19 @@
+# Random passwords for database services
+resource "random_password" "open_webui_password" {
+  length  = 24
+  special = true
+}
+
+resource "random_password" "flowise_password" {
+  length  = 24
+  special = true
+}
+
+resource "random_password" "n8n_password" {
+  length  = 24
+  special = true
+}
+
 resource "kubernetes_namespace" "homelab" {
   metadata {
     name = "homelab"
@@ -8,29 +24,28 @@ resource "kubernetes_namespace" "homelab" {
 
 
 
-# PostgreSQL Stack with pgAdmin and automated backups
+# PostgreSQL Helm Chart with External Storage
 module "postgresql" {
   source = "./modules/postgresql"
   count  = var.enable_postgresql ? 1 : 0
 
   project_name = var.project_name
   environment  = var.environment
+  namespace    = "homelab"
 
   # PostgreSQL configuration
-  postgres_external_port = 5432
-  postgres_memory_limit  = 512
-  postgres_cpu_limit     = 1.0
+  postgres_database     = "homelab"
+  cpu_limit            = 1000
+  memory_limit         = 512
+  storage_size         = "20Gi"
+  external_storage_path = var.external_storage_path
 
-  # pgAdmin configuration  
-  pgadmin_external_port = 5050
-  pgadmin_email         = "contact@rainforest.tools"
+  # pgAdmin configuration
+  enable_pgadmin       = true
+  pgadmin_email        = "contact@rainforest.tools"
 
-  # Services will self-register their databases
-
-  # Backup configuration
-  backup_enabled        = true
-  backup_schedule       = "0 2 * * *"  # Daily at 2 AM
-  backup_retention_days = 30
+  # Monitoring
+  enable_metrics = false
 }
 
 module "docker_mcp_gateway" {
@@ -76,15 +91,16 @@ module "open_webui_database" {
   
   source = "./modules/database-init"
   
-  service_name            = "open-webui"
-  database_name           = "open_webui_db"
-  postgres_container_name = module.postgresql[0].postgres_container_name
-  postgres_user           = module.postgresql[0].postgres_user
-  postgres_password       = module.postgresql[0].postgres_password
+  service_name      = "open-webui"
+  database_name     = "open_webui_db"
+  postgres_host     = module.postgresql[0].postgresql_host
+  postgres_user     = module.postgresql[0].postgresql_username
+  postgres_password = module.postgresql[0].postgres_password
+  namespace         = "homelab"
   
   # Create service-specific user for better security
   service_user     = "open_webui_user"
-  service_password = "secure_open_webui_password_2024"
+  service_password = random_password.open_webui_password.result
   
   # Custom initialization SQL for Open WebUI
   init_sql = <<-SQL
@@ -119,9 +135,9 @@ module "open-webui" {
   chart_repository   = "https://helm.openwebui.com/"
   chart_version      = "8.7.0" # Updated to v0.6.31 with native MCP support
   
-  # Switch to Docker deployment with PostgreSQL database
-  deployment_type  = "docker"
-  database_url     = length(module.open_webui_database) > 0 ? "postgresql://${module.open_webui_database[0].database_user}:secure_open_webui_password_2024@${module.postgresql[0].postgres_host}:5432/${module.open_webui_database[0].database_name}" : ""
+  # Switch to Helm deployment with PostgreSQL database
+  deployment_type  = "helm"
+  database_url     = length(module.open_webui_database) > 0 ? "postgresql://${module.open_webui_database[0].database_user}:${random_password.open_webui_password.result}@${module.postgresql[0].postgresql_host}:5432/${module.open_webui_database[0].database_name}" : ""
   
   depends_on = [module.open_webui_database]
 }
@@ -132,15 +148,16 @@ module "flowise_database" {
   
   source = "./modules/database-init"
   
-  service_name            = "flowise"
-  database_name           = "flowise_db"
-  postgres_container_name = module.postgresql[0].postgres_container_name
-  postgres_user           = module.postgresql[0].postgres_user
-  postgres_password       = module.postgresql[0].postgres_password
+  service_name      = "flowise"
+  database_name     = "flowise_db"
+  postgres_host     = module.postgresql[0].postgresql_host
+  postgres_user     = module.postgresql[0].postgresql_username
+  postgres_password = module.postgresql[0].postgres_password
+  namespace         = "homelab"
   
   # Create service-specific user for better security
   service_user     = "flowise_user"
-  service_password = "secure_flowise_password_2024"
+  service_password = random_password.flowise_password.result
   
   # Custom initialization SQL for Flowise
   init_sql = <<-SQL
@@ -152,6 +169,40 @@ module "flowise_database" {
     
     -- Comment on database
     COMMENT ON DATABASE flowise_db IS 'Flowise AI workflow automation database';
+  SQL
+  
+  force_recreate = "1"  # Initial creation
+  
+  depends_on = [module.postgresql]
+}
+
+# n8n Database Self-Registration
+module "n8n_database" {
+  count = length(module.postgresql) > 0 ? 1 : 0
+  
+  source = "./modules/database-init"
+  
+  service_name      = "n8n"
+  database_name     = "n8n_db"
+  postgres_host     = module.postgresql[0].postgresql_host
+  postgres_user     = module.postgresql[0].postgresql_username
+  postgres_password = module.postgresql[0].postgres_password
+  namespace         = "homelab"
+  
+  # Create service-specific user for better security
+  service_user     = "n8n_user"
+  service_password = random_password.n8n_password.result
+  
+  # Custom initialization SQL for n8n
+  init_sql = <<-SQL
+    -- Create extensions for n8n
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    
+    -- Grant permissions for application operations
+    GRANT ALL ON SCHEMA public TO n8n_user;
+    
+    -- Comment on database
+    COMMENT ON DATABASE n8n_db IS 'n8n workflow automation database';
   SQL
   
   force_recreate = "1"  # Initial creation
@@ -203,15 +254,28 @@ module "calibre-web" {
 
 module "n8n" {
   source = "./modules/n8n"
-
-  project_name       = var.project_name
-  environment        = var.environment
-  cpu_limit          = var.default_cpu_limit
-  memory_limit       = var.default_memory_limit
-  enable_persistence = var.enable_persistence
-  storage_size       = var.default_storage_size
-  chart_repository   = "oci://8gears.container-registry.com/library/"
-  chart_version      = "1.0.15"  # Updated to n8n v1.112.0
+  count  = var.enable_n8n ? 1 : 0
+  
+  project_name          = var.project_name
+  environment           = var.environment
+  external_storage_path = var.external_storage_path
+  
+  # n8n Configuration
+  n8n_host        = "n8n.${var.domain_suffix}"
+  n8n_port        = 5678
+  memory_limit_mb = 512
+  
+  # Database Configuration
+  database_name    = "n8n_db"
+  service_user     = "n8n_user"
+  service_password = random_password.n8n_password.result
+  postgres_host    = length(module.postgresql) > 0 ? module.postgresql[0].postgresql_host : ""
+  postgres_user    = length(module.postgresql) > 0 ? module.postgresql[0].postgresql_username : ""
+  
+  # Encryption
+  encryption_key = "n8n-homelab-encryption-key-2024"
+  
+  depends_on = [module.postgresql, module.n8n_database]
 }
 
 module "homepage" {
@@ -238,6 +302,7 @@ module "metrics_server" {
 
 # CoreDNS removed - using Cloudflare Tunnel for external DNS
 # Legacy module kept in /modules for reference
+
 
 module "cloudflare_tunnel" {
   source = "./modules/cloudflare-tunnel"

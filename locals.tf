@@ -14,7 +14,7 @@ locals {
     {
       "open-webui" = {
         hostname    = "open-webui"
-        service_url = "http://open-webui.homelab.svc.cluster.local:80"
+        service_url = "http://homelab-open-webui.homelab.svc.cluster.local:8080"
         enable_auth = true
         type        = "kubernetes"
       }
@@ -29,14 +29,14 @@ locals {
       }
     },
 
-    {
+    var.enable_n8n ? {
       n8n = {
         hostname    = "n8n"
-        service_url = "http://homelab-n8n.homelab.svc.cluster.local:80"
+        service_url = "http://homelab-n8n.homelab.svc.cluster.local:5678"
         enable_auth = true
         type        = "kubernetes"
       }
-    },
+    } : {},
 
     var.enable_minio ? {
       minio = {
@@ -65,6 +65,15 @@ locals {
       }
     } : {},
 
+    var.enable_postgresql ? {
+      pgadmin = {
+        hostname    = "pgadmin"
+        service_url = "http://homelab-pgadmin-pgadmin4.homelab.svc.cluster.local:80"
+        enable_auth = true
+        type        = "kubernetes"
+      }
+    } : {},
+
     var.enable_docker_mcp_gateway ? {
       "docker-mcp-internal" = {
         hostname    = "docker-mcp-internal"
@@ -74,7 +83,6 @@ locals {
         internal    = true  # Skip DNS record creation - OAuth Worker handles the domain
       }
     } : {},
-
 
   )
 

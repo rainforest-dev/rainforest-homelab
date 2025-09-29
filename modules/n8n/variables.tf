@@ -10,56 +10,97 @@ variable "environment" {
   default     = "dev"
 }
 
-variable "namespace" {
-  description = "Kubernetes namespace"
+# n8n Container Configuration
+variable "n8n_image" {
+  description = "n8n Docker image"
   type        = string
-  default     = "homelab"
+  default     = "n8nio/n8n"
 }
 
-variable "cpu_limit" {
-  description = "CPU limit for n8n"
+variable "n8n_version" {
+  description = "n8n version tag"
   type        = string
-  default     = "500m"
+  default     = "latest"
 }
 
-variable "memory_limit" {
-  description = "Memory limit for n8n"
+variable "n8n_port" {
+  description = "External port for n8n"
+  type        = number
+  default     = 5678
+}
+
+variable "n8n_host" {
+  description = "n8n hostname for webhooks"
   type        = string
-  default     = "512Mi"
+  default     = "n8n.rainforest.tools"
 }
 
-variable "enable_persistence" {
-  description = "Enable persistent storage"
-  type        = bool
-  default     = true
+variable "memory_limit_mb" {
+  description = "Memory limit in MB for n8n container"
+  type        = number
+  default     = 512
 }
 
-variable "storage_size" {
-  description = "Storage size for n8n"
+variable "timezone" {
+  description = "Timezone for n8n"
   type        = string
-  default     = "10Gi"
+  default     = "America/New_York"
 }
 
-variable "chart_repository" {
-  description = "Helm chart repository URL"
+variable "encryption_key" {
+  description = "n8n encryption key for securing credentials"
   type        = string
-  default     = "oci://8gears.container-registry.com/library/"
+  sensitive   = true
+  default     = "n8n-homelab-encryption-key-2024"
 }
 
-variable "chart_name" {
-  description = "Helm chart name"
+# External Storage
+variable "external_storage_path" {
+  description = "Path to external storage for data persistence"
   type        = string
-  default     = "n8n"
+  default     = "/Volumes/Samsung T7 Touch/homelab-data"
 }
 
-variable "chart_version" {
-  description = "Helm chart version"
+# Database Configuration
+variable "database_name" {
+  description = "PostgreSQL database name for n8n"
   type        = string
-  default     = null
+  default     = "n8n_db"
 }
 
-variable "create_namespace" {
-  description = "Create namespace if it doesn't exist"
-  type        = bool
-  default     = true
+variable "service_user" {
+  description = "PostgreSQL user for n8n service"
+  type        = string
+  default     = "n8n_user"
+}
+
+variable "service_password" {
+  description = "PostgreSQL password for n8n service"
+  type        = string
+  sensitive   = true
+  default     = "n8n_secure_password_2024"
+}
+
+variable "postgres_container_name" {
+  description = "PostgreSQL container name"
+  type        = string
+  default     = "homelab-postgresql"
+}
+
+variable "postgres_user" {
+  description = "PostgreSQL admin user"
+  type        = string
+  default     = "postgres"
+}
+
+variable "postgres_host" {
+  description = "PostgreSQL host"
+  type        = string
+  default     = "homelab-postgresql"
+}
+
+variable "depends_on_container" {
+  description = "Container dependency for database initialization"
+  type        = string
+  default     = "homelab-postgresql"
 }

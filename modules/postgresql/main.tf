@@ -1,373 +1,229 @@
-# PostgreSQL + pgAdmin Docker Stack with External Storage
-terraform {
-  required_providers {
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = "~> 3.0"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.4"
-    }
-  }
-}
+# PostgreSQL Helm Chart with External Storage
+# Using Bitnami PostgreSQL for professional setup
 
-# Generate random password for PostgreSQL if not provided
+# Generate secure random passwords
 resource "random_password" "postgres_password" {
-  count   = var.postgres_password == "" ? 1 : 0
   length  = 20
   special = true
 }
 
-# Generate random password for pgAdmin if not provided
 resource "random_password" "pgadmin_password" {
-  count   = var.pgadmin_password == "" ? 1 : 0
   length  = 16
-  special = false
+  special = false  # Avoid special chars that might cause issues in web UI
 }
 
-locals {
-  postgres_password = var.postgres_password != "" ? var.postgres_password : random_password.postgres_password[0].result
-  pgadmin_password  = var.pgadmin_password != "" ? var.pgadmin_password : random_password.pgadmin_password[0].result
-  external_storage_base = "/Volumes/Samsung T7 Touch/homelab-data"
-}
-
-# Create directories on external storage
-resource "null_resource" "external_directories" {
-  provisioner "local-exec" {
-    command = <<-EOT
-      mkdir -p "${local.external_storage_base}/postgresql"
-      mkdir -p "${local.external_storage_base}/pgadmin"
-      chmod 755 "${local.external_storage_base}/postgresql"
-      chmod 755 "${local.external_storage_base}/pgadmin"
-    EOT
+# Create PVC for PostgreSQL data on external storage
+resource "kubernetes_persistent_volume" "postgresql_pv" {
+  metadata {
+    name = "${var.project_name}-postgresql-pv"
   }
   
-  triggers = {
-    postgres_path = "${local.external_storage_base}/postgresql"
-    pgadmin_path  = "${local.external_storage_base}/pgadmin"
+  spec {
+    capacity = {
+      storage = var.storage_size
+    }
+    
+    access_modes = ["ReadWriteOnce"]
+    
+    persistent_volume_source {
+      host_path {
+        path = "${var.external_storage_path}/postgresql"
+      }
+    }
+    
+    storage_class_name = "manual"
   }
 }
 
-# Docker network for PostgreSQL stack
-resource "docker_network" "postgres_network" {
-  name = "${var.project_name}-postgres-network"
+resource "kubernetes_persistent_volume_claim" "postgresql_pvc" {
+  metadata {
+    name      = "${var.project_name}-postgresql-pvc"
+    namespace = var.namespace
+  }
   
-  labels {
-    label = "project"
-    value = var.project_name
+  spec {
+    access_modes = ["ReadWriteOnce"]
+    
+    resources {
+      requests = {
+        storage = var.storage_size
+      }
+    }
+    
+    storage_class_name = "manual"
+    volume_name        = kubernetes_persistent_volume.postgresql_pv.metadata[0].name
   }
 }
 
-# PostgreSQL volume on external storage
-resource "docker_volume" "postgres_data" {
-  name   = "${var.project_name}-postgres-data"
-  driver = "local"
-  
-  driver_opts = {
-    type   = "none"
-    o      = "bind"
-    device = "${local.external_storage_base}/postgresql"
-  }
+# PostgreSQL Helm Chart
+resource "helm_release" "postgresql" {
+  name             = "${var.project_name}-postgresql"
+  repository       = "https://charts.bitnami.com/bitnami"
+  chart            = "postgresql"
+  version          = var.chart_version
+  create_namespace = false
+  namespace        = var.namespace
 
-  labels {
-    label = "project"
-    value = var.project_name
-  }
+  values = [
+    yamlencode({
+      # Global settings
+      global = {
+        postgresql = {
+          auth = {
+            postgresPassword = random_password.postgres_password.result
+            database        = var.postgres_database
+          }
+        }
+      }
 
-  labels {
-    label = "service"
-    value = "postgresql"
-  }
+      # Primary PostgreSQL configuration
+      primary = {
+        service = {
+          type = "ClusterIP"
+          ports = {
+            postgresql = 5432
+          }
+        }
+        
+        persistence = {
+          enabled          = true
+          existingClaim    = kubernetes_persistent_volume_claim.postgresql_pvc.metadata[0].name
+          size             = var.storage_size
+          storageClass     = "manual"
+          accessModes      = ["ReadWriteOnce"]
+        }
+        
+        resources = {
+          limits = {
+            cpu    = "${var.cpu_limit}m"
+            memory = "${var.memory_limit}Mi"
+          }
+          requests = {
+            cpu    = "100m"
+            memory = "128Mi"
+          }
+        }
+        
+        # PostgreSQL configuration
+        postgresql = {
+          configuration = {
+            # Enable extensions for advanced features
+            shared_preload_libraries = "pg_cron"
+            
+            # Performance tuning
+            max_connections          = 100
+            shared_buffers          = "128MB"
+            effective_cache_size    = "384MB"
+            work_mem               = "4MB"
+            maintenance_work_mem   = "64MB"
+            
+            # WAL settings for backup
+            wal_level               = "replica"
+            max_wal_size           = "1GB"
+            min_wal_size           = "80MB"
+            archive_mode           = "on"
+            archive_timeout        = 60
+            
+            # Logging
+            log_min_duration_statement = 1000
+            log_checkpoints        = "on"
+            log_connections        = "on"
+            log_disconnections     = "on"
+            
+            # Timezone
+            timezone = var.timezone
+          }
+        }
+        
+        initdb = {
+          scripts = {
+            "01-extensions.sql" = <<-SQL
+              -- Create extensions
+              CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+              CREATE EXTENSION IF NOT EXISTS "pg_cron";
+              
+              -- Set up pg_cron
+              UPDATE pg_database SET datallowconn = TRUE WHERE datname = 'postgres';
+              
+              -- Grant cron permissions
+              GRANT USAGE ON SCHEMA cron TO postgres;
+            SQL
+          }
+        }
+      }
 
-  labels {
-    label = "storage_type"
-    value = "external"
-  }
-
-  depends_on = [null_resource.external_directories]
-}
-
-# pgAdmin volume on external storage
-resource "docker_volume" "pgadmin_data" {
-  name   = "${var.project_name}-pgadmin-data"
-  driver = "local"
-  
-  driver_opts = {
-    type   = "none"
-    o      = "bind"
-    device = "${local.external_storage_base}/pgadmin"
-  }
-
-  labels {
-    label = "project"
-    value = var.project_name
-  }
-
-  labels {
-    label = "service"
-    value = "pgadmin"
-  }
-
-  labels {
-    label = "storage_type"
-    value = "external"
-  }
-
-  depends_on = [null_resource.external_directories]
-}
-
-# PostgreSQL container with advanced backup features
-resource "docker_container" "postgres" {
-  image   = "postgres:${var.postgres_version}"
-  name    = "${var.project_name}-postgresql"
-  restart = "unless-stopped"
-
-  # Network configuration
-  networks_advanced {
-    name = docker_network.postgres_network.name
-  }
-
-  # Port mapping for Tailscale access
-  ports {
-    internal = 5432
-    external = var.postgres_external_port
-  }
-
-  # Environment variables
-  env = [
-    "POSTGRES_DB=${var.postgres_database}",
-    "POSTGRES_USER=${var.postgres_user}",
-    "POSTGRES_PASSWORD=${local.postgres_password}",
-    "PGDATA=/var/lib/postgresql/data/pgdata"
+      # Metrics (optional)
+      metrics = {
+        enabled = var.enable_metrics
+        serviceMonitor = {
+          enabled = false
+        }
+      }
+    })
   ]
 
-  # Volume mounts
-  volumes {
-    container_path = "/var/lib/postgresql/data"
-    volume_name    = docker_volume.postgres_data.name
-  }
-
-  # Mount custom PostgreSQL configuration
-  volumes {
-    container_path = "/etc/postgresql/postgresql.conf"
-    host_path      = "${abspath(path.module)}/configs/postgresql.conf"
-    read_only      = true
-  }
-
-  # Mount initialization scripts
-  volumes {
-    container_path = "/docker-entrypoint-initdb.d/init-advanced-backup.sql"
-    host_path      = "${abspath(path.module)}/scripts/init-advanced-backup.sql"
-    read_only      = true
-  }
-
-  # Health check
-  healthcheck {
-    test         = ["CMD-SHELL", "pg_isready -U ${var.postgres_user} -d ${var.postgres_database}"]
-    interval     = "30s"
-    timeout      = "10s"
-    retries      = 3
-    start_period = "60s"
-  }
-
-  # Resource limits
-  memory = var.postgres_memory_limit
-
-  # Labels
-  labels {
-    label = "project"
-    value = var.project_name
-  }
-
-  labels {
-    label = "service"
-    value = "postgresql"
-  }
-
-  labels {
-    label = "environment"
-    value = var.environment
-  }
+  depends_on = [kubernetes_persistent_volume_claim.postgresql_pvc]
 }
 
-# pgAdmin container
-resource "docker_container" "pgadmin" {
-  image   = "dpage/pgadmin4:${var.pgadmin_version}"
-  name    = "${var.project_name}-pgadmin"
-  restart = "unless-stopped"
+# pgAdmin for GUI management (lean setup without external PVC)
+resource "helm_release" "pgadmin" {
+  count = var.enable_pgadmin ? 1 : 0
+  
+  name             = "${var.project_name}-pgadmin"
+  repository       = "https://helm.runix.net"
+  chart            = "pgadmin4"
+  version          = var.pgadmin_chart_version
+  create_namespace = false
+  namespace        = var.namespace
 
-  # Network configuration
-  networks_advanced {
-    name = docker_network.postgres_network.name
-  }
+  values = [
+    yamlencode({
+      env = {
+        email    = var.pgadmin_email
+        password = random_password.pgadmin_password.result
+      }
+      
+      service = {
+        type = "ClusterIP"
+        port = 80
+      }
+      
+      # Lean setup: use default storage class for pgAdmin data
+      persistentVolume = {
+        enabled      = true
+        size         = "2Gi"
+        storageClass = ""  # Use default Docker Desktop storage class
+        accessModes  = ["ReadWriteOnce"]
+      }
+      
+      resources = {
+        limits = {
+          cpu    = "500m"
+          memory = "512Mi"
+        }
+        requests = {
+          cpu    = "100m"
+          memory = "128Mi"
+        }
+      }
 
-  # Port mapping for Tailscale access
-  ports {
-    internal = 80
-    external = var.pgadmin_external_port
-  }
-
-  # Environment variables
-  env = [
-    "PGADMIN_DEFAULT_EMAIL=${var.pgadmin_email}",
-    "PGADMIN_DEFAULT_PASSWORD=${local.pgadmin_password}",
-    "PGADMIN_CONFIG_SERVER_MODE=True",
-    "PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False"
+      # Pre-configure PostgreSQL server connection for immediate access
+      serverDefinitions = {
+        enabled = true
+        servers = {
+          "1" = {
+            Name          = "HomeLab PostgreSQL"
+            Group         = "Servers" 
+            Host          = "${var.project_name}-postgresql"
+            Port          = 5432
+            MaintenanceDB = var.postgres_database
+            Username      = "postgres"
+            SSLMode       = "prefer"
+          }
+        }
+      }
+    })
   ]
 
-  # Volume mounts
-  volumes {
-    container_path = "/var/lib/pgadmin"
-    volume_name    = docker_volume.pgadmin_data.name
-  }
-
-  # Resource limits
-  memory = var.pgadmin_memory_limit
-
-  # Labels
-  labels {
-    label = "project"
-    value = var.project_name
-  }
-
-  labels {
-    label = "service"
-    value = "pgadmin"
-  }
-
-  labels {
-    label = "environment"
-    value = var.environment
-  }
-
-  depends_on = [docker_container.postgres]
+  depends_on = [helm_release.postgresql]
 }
-
-# PostgreSQL is ready - services will self-register their databases
-# No centralized database creation - each service manages its own database lifecycle
-
-# pgBackRest backup container for incremental backups
-# Temporarily disabled due to image availability issues
-# resource "docker_container" "pgbackrest" {
-#   count   = var.backup_enabled ? 1 : 0
-#   image   = "pgbackrest/pgbackrest:latest"
-#   name    = "${var.project_name}-pgbackrest"
-#   restart = "unless-stopped"
-#
-#   # Network configuration
-#   networks_advanced {
-#     name = docker_network.postgres_network.name
-#   }
-#
-#   # Environment variables
-#   env = [
-#     "PGBACKREST_STANZA=homelab",
-#     "PGBACKREST_LOG_LEVEL_CONSOLE=info",
-#     "POSTGRES_HOST=${docker_container.postgres.name}",
-#     "POSTGRES_PORT=5432",
-#     "POSTGRES_USER=${var.postgres_user}",
-#     "POSTGRES_PASSWORD=${local.postgres_password}"
-#   ]
-#
-#   # Volume mounts
-#   volumes {
-#     container_path = "/backup"
-#     host_path      = "${local.external_storage_base}/backups"
-#   }
-#
-#   volumes {
-#     container_path = "/var/lib/postgresql/data"
-#     volume_name    = docker_volume.postgres_data.name
-#     read_only      = true
-#   }
-#
-#   # Mount pgBackRest configuration
-#   volumes {
-#     container_path = "/etc/pgbackrest/pgbackrest.conf"
-#     host_path      = "${abspath(path.module)}/configs/pgbackrest.conf"
-#     read_only      = true
-#   }
-#
-#   # pgBackRest daemon mode for continuous WAL archiving
-#   command = ["pgbackrest", "--stanza=homelab", "--config=/etc/pgbackrest/pgbackrest.conf", "server"]
-#
-#   # Resource limits
-#   memory = 256
-#
-#   # Labels
-#   labels {
-#     label = "project"
-#     value = var.project_name
-#   }
-#
-#   labels {
-#     label = "service"
-#     value = "pgbackrest"
-#   }
-#
-#   depends_on = [docker_container.postgres, null_resource.external_directories]
-# }
-
-# Backup monitoring and NAS sync container
-# Temporarily disabled due to pgBackRest issues
-# resource "docker_container" "backup_monitor" {
-#   count   = var.backup_enabled ? 1 : 0
-#   image   = "postgres:${var.postgres_version}"
-#   name    = "${var.project_name}-backup-monitor"
-#   restart = "unless-stopped"
-#
-#   # Network configuration
-#   networks_advanced {
-#     name = docker_network.postgres_network.name
-#   }
-#
-#   # Environment variables
-#   env = [
-#     "POSTGRES_HOST=${docker_container.postgres.name}",
-#     "POSTGRES_USER=${var.postgres_user}",
-#     "POSTGRES_PASSWORD=${local.postgres_password}",
-#     "NAS_IP=100.84.80.123",
-#     "PROJECT_NAME=${var.project_name}"
-#   ]
-#
-#   # Volume mounts
-#   volumes {
-#     container_path = "/backup"
-#     host_path      = "${local.external_storage_base}/backups"
-#   }
-#
-#   # Monitor pg_cron jobs and sync to NAS
-#   command = [
-#     "sh", "-c",
-#     <<-EOT
-#     apt-get update && apt-get install -y rsync openssh-client postgresql-client
-#     while true; do
-#       echo "Checking backup status and syncing to NAS..."
-#       
-#       # Sync backups to NAS
-#       if ping -c 1 100.84.80.123 > /dev/null 2>&1; then
-#         rsync -avz /backup/ root@100.84.80.123:/volume1/backups/homelab/postgresql/ 2>/dev/null || echo "NAS sync failed"
-#       fi
-#       
-#       sleep 3600  # Check every hour
-#     done
-#     EOT
-#   ]
-#
-#   # Resource limits  
-#   memory = 128
-#
-#   # Labels
-#   labels {
-#     label = "project"
-#     value = var.project_name
-#   }
-#
-#   labels {
-#     label = "service"
-#     value = "backup-monitor"
-#   }
-#
-#   depends_on = [docker_container.postgres]
-# }

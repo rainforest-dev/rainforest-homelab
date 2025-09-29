@@ -7,15 +7,19 @@ resource "docker_container" "docker_mcp_gateway" {
   name    = "${var.project_name}-docker-mcp-gateway"
   restart = "always"
   
-  # Docker MCP Gateway command - proper configuration
+  # Docker MCP Gateway command - support multiple OAuth configurations
   command = [
     "--port", tostring(var.port),
     "--transport", "sse",
     "--verbose",
     "--watch",
-    "--config", "/mcp/config.yaml",
-    "--registry", "/mcp/registry.yaml",
-    "--tools-config", "/mcp/tools.yaml"
+    "--config", "/mcp/config-multiple-oauth.yaml",
+    "--registry", "/mcp/registry-multiple-oauth.yaml",
+    "--tools-config", "/mcp/tools-multiple-oauth.yaml",
+    # Fallback to original configs if multiple oauth configs don't exist
+    "--additional-config", "/mcp/config.yaml",
+    "--additional-registry", "/mcp/registry.yaml", 
+    "--additional-tools-config", "/mcp/tools.yaml"
   ]
   
   # Environment variables

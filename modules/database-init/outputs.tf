@@ -23,7 +23,7 @@ output "connection_info" {
   value = {
     database_name = var.database_name
     user         = var.service_user != "" ? var.service_user : var.postgres_user
-    host         = var.postgres_container_name
+    host         = var.postgres_host
     port         = 5432
   }
 }
