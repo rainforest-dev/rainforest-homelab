@@ -34,3 +34,9 @@ variable "driver_opts" {
   type        = map(string)
   default     = {}
 }
+
+variable "use_external_storage" {
+  description = "Use external storage (Samsung T7 Touch) instead of Docker's internal storage"
+  type        = bool
+  default     = false
+}

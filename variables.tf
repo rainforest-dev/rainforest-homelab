@@ -97,10 +97,11 @@ variable "oauth_client_secret" {
 
 # Feature Flags
 variable "enable_postgresql" {
-  description = "Enable PostgreSQL database"
+  description = "Enable PostgreSQL Docker stack with pgAdmin and automated backups"
   type        = bool
   default     = true
 }
+
 
 variable "enable_minio" {
   description = "Enable MinIO S3-compatible object storage"

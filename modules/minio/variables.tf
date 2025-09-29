@@ -86,3 +86,9 @@ variable "console_enabled" {
   type        = bool
   default     = true
 }
+
+variable "use_external_storage" {
+  description = "Use external storage (Samsung T7 Touch) instead of Kubernetes PVC"
+  type        = bool
+  default     = true
+}
