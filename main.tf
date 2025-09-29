@@ -1,8 +1,9 @@
 # Random passwords for database services
-resource "random_password" "open_webui_password" {
-  length  = 24
-  special = true
-}
+# Open WebUI password - DISABLED (using SQLite instead of PostgreSQL)
+# resource "random_password" "open_webui_password" {
+#   length  = 24
+#   special = true
+# }
 
 resource "random_password" "flowise_password" {
   length  = 24
@@ -85,41 +86,41 @@ module "oauth_worker" {
   depends_on = [module.docker_mcp_gateway]
 }
 
-# Open WebUI Database Self-Registration
-module "open_webui_database" {
-  count = length(module.postgresql) > 0 ? 1 : 0
-  
-  source = "./modules/database-init"
-  
-  service_name      = "open-webui"
-  database_name     = "open_webui_db"
-  postgres_host     = module.postgresql[0].postgresql_host
-  postgres_user     = module.postgresql[0].postgresql_username
-  postgres_password = module.postgresql[0].postgres_password
-  namespace         = "homelab"
-  
-  # Create service-specific user for better security
-  service_user     = "open_webui_user"
-  service_password = random_password.open_webui_password.result
-  
-  # Custom initialization SQL for Open WebUI
-  init_sql = <<-SQL
-    -- Create extensions for Open WebUI
-    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-    -- Vector extension for embeddings (if available)
-    CREATE EXTENSION IF NOT EXISTS "vector" SCHEMA public;
-    
-    -- Grant permissions for vector operations
-    GRANT ALL ON SCHEMA public TO open_webui_user;
-    
-    -- Comment on database
-    COMMENT ON DATABASE open_webui_db IS 'Open WebUI AI interface database';
-  SQL
-  
-  force_recreate = "2"  # Updated to include schema permissions
-  
-  depends_on = [module.postgresql]
-}
+# Open WebUI Database - DISABLED (using SQLite instead of PostgreSQL)
+# module "open_webui_database" {
+#   count = 0  # Disabled - Open WebUI now uses SQLite
+#   
+#   source = "./modules/database-init"
+#   
+#   service_name      = "open-webui"
+#   database_name     = "open_webui_db"
+#   postgres_host     = module.postgresql[0].postgresql_host
+#   postgres_user     = module.postgresql[0].postgresql_username
+#   postgres_password = module.postgresql[0].postgres_password
+#   namespace         = "homelab"
+#   
+#   # Create service-specific user for better security
+#   service_user     = "open_webui_user"
+#   service_password = random_password.open_webui_password.result
+#   
+#   # Custom initialization SQL for Open WebUI
+#   init_sql = <<-SQL
+#     -- Create extensions for Open WebUI
+#     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+#     -- Vector extension for embeddings (if available)
+#     CREATE EXTENSION IF NOT EXISTS "vector" SCHEMA public;
+#     
+#     -- Grant permissions for vector operations
+#     GRANT ALL ON SCHEMA public TO open_webui_user;
+#     
+#     -- Comment on database
+#     COMMENT ON DATABASE open_webui_db IS 'Open WebUI AI interface database';
+#   SQL
+#   
+#   force_recreate = "3"  # Clean database recreation after dropping DB
+#   
+#   depends_on = [module.postgresql]
+# }
 
 module "open-webui" {
   source = "./modules/open-webui"
@@ -133,13 +134,13 @@ module "open-webui" {
   ollama_enabled     = false
   ollama_base_url    = var.ollama_base_url
   chart_repository   = "https://helm.openwebui.com/"
-  chart_version      = "8.7.0" # Updated to v0.6.31 with native MCP support
+  chart_version      = "8.7.0" # Latest version with clean database
   
   # Switch to Helm deployment with PostgreSQL database
   deployment_type  = "helm"
-  database_url     = length(module.open_webui_database) > 0 ? "postgresql://${module.open_webui_database[0].database_user}:${random_password.open_webui_password.result}@${module.postgresql[0].postgresql_host}:5432/${module.open_webui_database[0].database_name}" : ""
+  database_url     = ""  # Use SQLite (default) instead of PostgreSQL to avoid migration bugs
   
-  depends_on = [module.open_webui_database]
+  # No longer depends on PostgreSQL database - using SQLite
 }
 
 # Flowise Database Self-Registration
@@ -148,12 +149,13 @@ module "flowise_database" {
   
   source = "./modules/database-init"
   
-  service_name      = "flowise"
-  database_name     = "flowise_db"
-  postgres_host     = module.postgresql[0].postgresql_host
-  postgres_user     = module.postgresql[0].postgresql_username
-  postgres_password = module.postgresql[0].postgres_password
-  namespace         = "homelab"
+  service_name          = "flowise"
+  database_name         = "flowise_db"
+  postgres_host         = module.postgresql[0].postgresql_host
+  postgres_user         = module.postgresql[0].postgresql_username
+  postgres_secret_name  = module.postgresql[0].postgresql_secret_name
+  postgres_secret_key   = "postgres-password"
+  namespace             = "homelab"
   
   # Create service-specific user for better security
   service_user     = "flowise_user"
@@ -182,12 +184,13 @@ module "n8n_database" {
   
   source = "./modules/database-init"
   
-  service_name      = "n8n"
-  database_name     = "n8n_db"
-  postgres_host     = module.postgresql[0].postgresql_host
-  postgres_user     = module.postgresql[0].postgresql_username
-  postgres_password = module.postgresql[0].postgres_password
-  namespace         = "homelab"
+  service_name          = "n8n"
+  database_name         = "n8n_db"
+  postgres_host         = module.postgresql[0].postgresql_host
+  postgres_user         = module.postgresql[0].postgresql_username
+  postgres_secret_name  = module.postgresql[0].postgresql_secret_name
+  postgres_secret_key   = "postgres-password"
+  namespace             = "homelab"
   
   # Create service-specific user for better security
   service_user     = "n8n_user"
@@ -244,12 +247,13 @@ module "minio" {
 module "calibre-web" {
   source = "./modules/calibre-web"
 
-  project_name       = var.project_name
-  environment        = var.environment
-  enable_persistence = var.enable_persistence
-  storage_size       = var.default_storage_size
-  cpu_limit          = var.default_cpu_limit
-  memory_limit       = var.default_memory_limit
+  project_name         = var.project_name
+  environment          = var.environment
+  enable_persistence   = var.enable_persistence
+  storage_size         = var.default_storage_size
+  cpu_limit            = var.default_cpu_limit
+  memory_limit         = var.default_memory_limit
+  use_external_storage = true
 }
 
 module "n8n" {
@@ -258,7 +262,13 @@ module "n8n" {
   
   project_name          = var.project_name
   environment           = var.environment
+  namespace             = "homelab"
   external_storage_path = var.external_storage_path
+  
+  # Kubernetes Configuration
+  use_external_storage = true
+  storage_size         = "5Gi"
+  cpu_limit           = "1000m"
   
   # n8n Configuration
   n8n_host        = "n8n.${var.domain_suffix}"

@@ -2,21 +2,23 @@
 module "calibre_config_volume" {
   source = "../volume-management"
 
-  project_name = var.project_name
-  service_name = "calibre-web"
-  volume_name  = "config"
-  environment  = var.environment
-  volume_type  = "config"
+  project_name         = var.project_name
+  service_name         = "calibre-web"
+  volume_name          = "config"
+  environment          = var.environment
+  volume_type          = "config"
+  use_external_storage = var.use_external_storage
 }
 
 module "calibre_books_volume" {
   source = "../volume-management"
 
-  project_name = var.project_name
-  service_name = "calibre-web"
-  volume_name  = "books"
-  environment  = var.environment
-  volume_type  = "data"
+  project_name         = var.project_name
+  service_name         = "calibre-web"
+  volume_name          = "books"
+  environment          = var.environment
+  volume_type          = "data"
+  use_external_storage = var.use_external_storage
 }
 
 resource "docker_container" "calibre-web" {

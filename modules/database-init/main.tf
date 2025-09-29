@@ -56,8 +56,13 @@ resource "kubernetes_job" "database_init" {
           }
           
           env {
-            name  = "PGPASSWORD"
-            value = var.postgres_password
+            name = "PGPASSWORD"
+            value_from {
+              secret_key_ref {
+                name = var.postgres_secret_name
+                key  = var.postgres_secret_key
+              }
+            }
           }
           
           env {

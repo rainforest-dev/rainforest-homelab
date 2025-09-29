@@ -1,57 +1,57 @@
 # Standard outputs
 output "resource_id" {
-  description = "The ID of the n8n container"
-  value       = docker_container.n8n.id
+  description = "The ID of the n8n deployment"
+  value       = kubernetes_deployment.n8n.id
 }
 
 output "service_url" {
   description = "Service URL for n8n"
-  value       = "https://${var.n8n_host}"
+  value       = "http://${kubernetes_service.n8n.metadata[0].name}.${var.namespace}.svc.cluster.local:5678"
 }
 
 output "service_name" {
-  description = "Name of the n8n container"
-  value       = docker_container.n8n.name
+  description = "Name of the n8n service"
+  value       = kubernetes_service.n8n.metadata[0].name
 }
 
-output "container_ip" {
-  description = "IP address of the n8n container"
-  value       = docker_container.n8n.network_data[0].ip_address
+output "namespace" {
+  description = "Kubernetes namespace where n8n is deployed"
+  value       = var.namespace
 }
 
-# Service-specific outputs
-output "container_name" {
-  description = "Docker container name for n8n"
-  value       = docker_container.n8n.name
+# n8n-specific outputs
+output "n8n_host" {
+  description = "n8n hostname for webhooks"
+  value       = var.n8n_host
 }
 
-output "container_image" {
-  description = "Docker image used for n8n"
-  value       = docker_container.n8n.image
-}
-
-output "external_port" {
-  description = "External port for n8n service"
+output "n8n_port" {
+  description = "n8n service port"
   value       = var.n8n_port
 }
 
 output "database_name" {
-  description = "PostgreSQL database name for n8n"
+  description = "n8n database name"
   value       = var.database_name
 }
 
-output "database_user" {
-  description = "PostgreSQL user for n8n"
+output "service_user" {
+  description = "n8n database user"
   value       = var.service_user
-  sensitive   = true
 }
 
-output "network_name" {
-  description = "Docker network name for n8n"
-  value       = docker_network.n8n_network.name
+# Storage outputs
+output "pv_name" {
+  description = "n8n persistent volume name"
+  value       = var.use_external_storage ? kubernetes_persistent_volume.n8n_pv[0].metadata[0].name : null
 }
 
-output "volume_name" {
-  description = "Docker volume name for n8n data"
-  value       = docker_volume.n8n_data.name
+output "pvc_name" {
+  description = "n8n persistent volume claim name"
+  value       = var.use_external_storage ? kubernetes_persistent_volume_claim.n8n_pvc[0].metadata[0].name : null
+}
+
+output "storage_path" {
+  description = "External storage path for n8n data"
+  value       = var.use_external_storage ? "${var.external_storage_path}/n8n" : null
 }

@@ -1,71 +1,225 @@
-# n8n database initialization is handled by main.tf
+# n8n Kubernetes Helm Chart deployment
 
-# Create Docker network
-resource "docker_network" "n8n_network" {
-  name = "${var.project_name}-n8n-network"
+# Create persistent volume for n8n data
+resource "kubernetes_persistent_volume" "n8n_pv" {
+  count = var.use_external_storage ? 1 : 0
+
+  metadata {
+    name = "${var.project_name}-n8n-pv"
+    labels = {
+      app     = "n8n"
+      project = var.project_name
+    }
+  }
+
+  spec {
+    capacity = {
+      storage = var.storage_size
+    }
+    access_modes = ["ReadWriteOnce"]
+    storage_class_name = "manual"
+    
+    persistent_volume_source {
+      host_path {
+        path = "${var.external_storage_path}/n8n"
+        type = "DirectoryOrCreate"
+      }
+    }
+  }
 }
 
-# Create n8n data volume
-resource "docker_volume" "n8n_data" {
-  name = "${var.project_name}-n8n-data"
-  
-  driver = "local"
-  driver_opts = {
-    type   = "none"
-    o      = "bind"
-    device = "${var.external_storage_path}/n8n"
+# Create persistent volume claim for n8n data
+resource "kubernetes_persistent_volume_claim" "n8n_pvc" {
+  count = var.use_external_storage ? 1 : 0
+
+  metadata {
+    name      = "${var.project_name}-n8n-pvc"
+    namespace = var.namespace
+    labels = {
+      app     = "n8n"
+      project = var.project_name
+    }
+  }
+
+  spec {
+    access_modes = ["ReadWriteOnce"]
+    storage_class_name = "manual"
+    volume_name = kubernetes_persistent_volume.n8n_pv[0].metadata[0].name
+    
+    resources {
+      requests = {
+        storage = var.storage_size
+      }
+    }
+  }
+
+  depends_on = [kubernetes_persistent_volume.n8n_pv]
+}
+
+# Deploy n8n using Kubernetes manifests
+resource "kubernetes_deployment" "n8n" {
+  metadata {
+    name      = "${var.project_name}-n8n"
+    namespace = var.namespace
+    labels = {
+      app     = "n8n"
+      project = var.project_name
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        app     = "n8n"
+        project = var.project_name
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app     = "n8n"
+          project = var.project_name
+        }
+      }
+
+      spec {
+        container {
+          name  = "n8n"
+          image = "${var.n8n_image}:${var.n8n_version}"
+
+          port {
+            container_port = 5678
+            name          = "http"
+          }
+
+          env {
+            name  = "NODE_ENV"
+            value = "production"
+          }
+          
+          env {
+            name  = "DB_TYPE"
+            value = "sqlite"
+          }
+          
+          env {
+            name  = "N8N_ENCRYPTION_KEY"
+            value = var.encryption_key
+          }
+          
+          env {
+            name  = "N8N_HOST"
+            value = var.n8n_host
+          }
+          
+          env {
+            name  = "N8N_PORT"
+            value = "5678"
+          }
+          
+          env {
+            name  = "N8N_PROTOCOL"
+            value = "https"
+          }
+          
+          env {
+            name  = "WEBHOOK_URL"
+            value = "https://${var.n8n_host}"
+          }
+          
+          env {
+            name  = "GENERIC_TIMEZONE"
+            value = var.timezone
+          }
+
+          volume_mount {
+            name       = "n8n-data"
+            mount_path = "/home/node/.n8n"
+          }
+
+          resources {
+            limits = {
+              cpu    = var.cpu_limit
+              memory = "${var.memory_limit_mb}Mi"
+            }
+            requests = {
+              cpu    = "100m"
+              memory = "128Mi"
+            }
+          }
+
+          liveness_probe {
+            http_get {
+              path = "/healthz"
+              port = 5678
+            }
+            initial_delay_seconds = 60
+            period_seconds        = 30
+            timeout_seconds       = 10
+            failure_threshold     = 3
+          }
+
+          readiness_probe {
+            http_get {
+              path = "/healthz"
+              port = 5678
+            }
+            initial_delay_seconds = 30
+            period_seconds        = 10
+            timeout_seconds       = 5
+            failure_threshold     = 3
+          }
+        }
+
+        volume {
+          name = "n8n-data"
+          
+          dynamic "persistent_volume_claim" {
+            for_each = var.use_external_storage ? [1] : []
+            content {
+              claim_name = kubernetes_persistent_volume_claim.n8n_pvc[0].metadata[0].name
+            }
+          }
+          
+          dynamic "empty_dir" {
+            for_each = var.use_external_storage ? [] : [1]
+            content {
+              size_limit = var.storage_size
+            }
+          }
+        }
+      }
+    }
   }
 }
 
-# n8n Container
-resource "docker_container" "n8n" {
-  name  = "${var.project_name}-n8n"
-  image = "${var.n8n_image}:${var.n8n_version}"
-  
-  hostname = "${var.project_name}-n8n"
-  
-  ports {
-    internal = 5678
-    external = var.n8n_port
+# Create service for n8n
+resource "kubernetes_service" "n8n" {
+  metadata {
+    name      = "${var.project_name}-n8n"
+    namespace = var.namespace
+    labels = {
+      app     = "n8n"
+      project = var.project_name
+    }
   }
-  
-  volumes {
-    volume_name    = docker_volume.n8n_data.name
-    container_path = "/home/node/.n8n"
-  }
-  
-  networks_advanced {
-    name = docker_network.n8n_network.name
-  }
-  
-  env = [
-    "NODE_ENV=production",
-    "DB_TYPE=postgresdb",
-    "DB_POSTGRESDB_HOST=${var.postgres_host}",
-    "DB_POSTGRESDB_PORT=5432",
-    "DB_POSTGRESDB_DATABASE=${var.database_name}",
-    "DB_POSTGRESDB_USER=${var.service_user}",
-    "DB_POSTGRESDB_PASSWORD=${var.service_password}",
-    "N8N_ENCRYPTION_KEY=${var.encryption_key}",
-    "N8N_HOST=${var.n8n_host}",
-    "N8N_PORT=5678",
-    "N8N_PROTOCOL=https",
-    "WEBHOOK_URL=https://${var.n8n_host}",
-    "GENERIC_TIMEZONE=${var.timezone}"
-  ]
-  
-  memory = var.memory_limit_mb
-  
-  restart = "unless-stopped"
-  
-  # Database initialization handled externally
-  
-  # Health check
-  healthcheck {
-    test         = ["CMD", "curl", "-f", "http://localhost:5678/healthz"]
-    interval     = "30s"
-    timeout      = "10s"
-    retries      = 3
-    start_period = "60s"
+
+  spec {
+    selector = {
+      app     = "n8n"
+      project = var.project_name
+    }
+
+    port {
+      name        = "http"
+      port        = 5678
+      target_port = 5678
+      protocol    = "TCP"
+    }
+
+    type = "ClusterIP"
   }
 }

@@ -46,6 +46,8 @@ resource "helm_release" "minio" {
       # Persistence configuration  
       persistence = var.use_external_storage ? {
         enabled        = false  # Disable helm persistence when using external storage
+        existingClaim  = ""     # No existing claim
+        storageClass   = ""     # No storage class
       } : {
         enabled = var.enable_persistence
         size    = var.storage_size
