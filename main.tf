@@ -238,6 +238,24 @@ module "minio" {
   chart_version      = "5.2.0"
 }
 
+module "qdrant" {
+  source = "./modules/qdrant"
+  count  = var.enable_qdrant ? 1 : 0
+
+  project_name            = var.project_name
+  environment             = var.environment
+  namespace              = "homelab"
+  cpu_limit              = 1000  # Qdrant benefits from more CPU for vector operations
+  memory_limit           = 1024  # Higher memory for vector storage and computations
+  storage_size           = "50Gi" # Generous storage for vector collections
+  use_external_storage   = true
+  external_storage_path  = var.external_storage_path
+  enable_api_key         = true   # Security enabled by default
+  enable_dashboard       = true   # Enable web dashboard for management
+  disable_telemetry      = true   # Privacy-focused homelab setup
+  log_level             = "INFO"
+}
+
 # OpenSpeedTest moved to Raspberry Pi (external hosting)
 # Module kept in /modules for reference if needed
 

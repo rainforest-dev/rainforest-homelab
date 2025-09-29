@@ -121,6 +121,12 @@ variable "enable_docker_mcp_gateway" {
   default     = false
 }
 
+variable "enable_qdrant" {
+  description = "Enable Qdrant vector database"
+  type        = bool
+  default     = false
+}
+
 
 
 # Resource Sizing

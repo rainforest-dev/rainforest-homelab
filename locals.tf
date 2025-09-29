@@ -56,6 +56,15 @@ locals {
       }
     } : {},
 
+    var.enable_qdrant ? {
+      qdrant = {
+        hostname    = "qdrant"
+        service_url = "http://homelab-qdrant.homelab.svc.cluster.local:6333"
+        enable_auth = true
+        type        = "kubernetes"
+      }
+    } : {},
+
     var.enable_calibre_web ? {
       "calibre-web" = {
         hostname    = "calibre-web"
