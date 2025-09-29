@@ -63,3 +63,46 @@ variable "create_namespace" {
   type        = bool
   default     = true
 }
+
+# Database configuration
+variable "database_type" {
+  description = "Database type: sqlite or postgres"
+  type        = string
+  default     = "sqlite"
+}
+
+variable "database_host" {
+  description = "PostgreSQL database host"
+  type        = string
+  default     = ""
+}
+
+variable "database_port" {
+  description = "PostgreSQL database port"
+  type        = string
+  default     = "5432"
+}
+
+variable "database_name" {
+  description = "PostgreSQL database name"
+  type        = string
+  default     = ""
+}
+
+variable "database_user" {
+  description = "PostgreSQL database user"
+  type        = string
+  default     = ""
+}
+
+variable "database_secret_name" {
+  description = "Kubernetes secret name containing database password"
+  type        = string
+  default     = ""
+}
+
+variable "database_secret_key" {
+  description = "Key in the secret containing database password"
+  type        = string
+  default     = "postgres-password"
+}

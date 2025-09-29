@@ -25,6 +25,37 @@ resource "helm_release" "flowise" {
         enabled = var.enable_persistence
         size    = var.storage_size
       }
+
+      # Database configuration
+      env = var.database_type == "postgres" ? {
+        DATABASE_TYPE = "postgres"
+        DATABASE_HOST = var.database_host
+        DATABASE_PORT = var.database_port
+        DATABASE_NAME = var.database_name
+        DATABASE_USER = var.database_user
+      } : {}
+
+      # Database password from secret
+      envFrom = var.database_type == "postgres" && var.database_secret_name != "" ? [
+        {
+          secretRef = {
+            name = var.database_secret_name
+          }
+        }
+      ] : []
+
+      # Additional environment variables for PostgreSQL
+      extraEnvVars = var.database_type == "postgres" && var.database_secret_name != "" ? [
+        {
+          name = "DATABASE_PASSWORD"
+          valueFrom = {
+            secretKeyRef = {
+              name = var.database_secret_name
+              key  = var.database_secret_key
+            }
+          }
+        }
+      ] : []
     })
   ]
 }
