@@ -173,7 +173,7 @@ module "flowise_database" {
     COMMENT ON DATABASE flowise_db IS 'Flowise AI workflow automation database';
   SQL
   
-  force_recreate = "1"  # Initial creation
+  force_recreate = "2"  # Recreate after PostgreSQL password fix
   
   depends_on = [module.postgresql]
 }
@@ -224,6 +224,17 @@ module "flowise" {
   storage_size       = var.default_storage_size
   chart_repository   = "https://cowboysysop.github.io/charts"
   chart_version      = "6.0.0"
+
+  # PostgreSQL configuration
+  database_type        = length(module.postgresql) > 0 ? "postgres" : "sqlite"
+  database_host        = length(module.postgresql) > 0 ? module.postgresql[0].postgresql_host : ""
+  database_port        = "5432"
+  database_name        = "flowise_db"
+  database_user        = "postgres"
+  database_secret_name = length(module.postgresql) > 0 ? module.postgresql[0].postgresql_secret_name : ""
+  database_secret_key  = "postgres-password"
+
+  depends_on = [module.flowise_database]
 }
 
 
