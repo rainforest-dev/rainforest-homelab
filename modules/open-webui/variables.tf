@@ -76,3 +76,20 @@ variable "ollama_base_url" {
   default     = ""
 }
 
+variable "database_url" {
+  description = "PostgreSQL database URL for Open WebUI"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "deployment_type" {
+  description = "Deployment type: 'helm' for Kubernetes Helm chart or 'docker' for Docker container"
+  type        = string
+  default     = "helm"
+  validation {
+    condition     = contains(["helm", "docker"], var.deployment_type)
+    error_message = "Deployment type must be either 'helm' or 'docker'."
+  }
+}
+

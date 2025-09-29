@@ -43,11 +43,31 @@ resource "helm_release" "minio" {
         }
       }
 
-      # Persistence configuration
-      persistence = {
+      # Persistence configuration  
+      persistence = var.use_external_storage ? {
+        enabled        = false  # Disable helm persistence when using external storage
+      } : {
         enabled = var.enable_persistence
         size    = var.storage_size
       }
+
+      # External storage configuration
+      extraVolumes = var.use_external_storage ? [
+        {
+          name = "external-storage"
+          hostPath = {
+            path = "/Volumes/Samsung T7 Touch/homelab-data/minio"
+            type = "DirectoryOrCreate"
+          }
+        }
+      ] : []
+
+      extraVolumeMounts = var.use_external_storage ? [
+        {
+          name      = "external-storage"
+          mountPath = "/data"
+        }
+      ] : []
 
       # Service configuration for MinIO S3 API
       service = {
