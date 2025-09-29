@@ -57,9 +57,22 @@ variable "init_sql" {
 }
 
 variable "postgres_password" {
-  description = "PostgreSQL superuser password"
+  description = "PostgreSQL superuser password (deprecated - use postgres_secret_name instead)"
   type        = string
   sensitive   = true
+  default     = ""
+}
+
+variable "postgres_secret_name" {
+  description = "Name of Kubernetes secret containing PostgreSQL credentials"
+  type        = string
+  default     = ""
+}
+
+variable "postgres_secret_key" {
+  description = "Key within the secret containing the PostgreSQL password"
+  type        = string
+  default     = "postgres-password"
 }
 
 variable "force_recreate" {

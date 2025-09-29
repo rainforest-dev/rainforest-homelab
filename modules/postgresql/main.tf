@@ -55,6 +55,20 @@ resource "kubernetes_persistent_volume_claim" "postgresql_pvc" {
   }
 }
 
+# Create PostgreSQL credentials as Kubernetes secret first
+resource "kubernetes_secret" "postgresql_auth" {
+  metadata {
+    name      = "${var.project_name}-postgresql-auth"
+    namespace = var.namespace
+  }
+
+  data = {
+    postgres-password = random_password.postgres_password.result
+  }
+
+  type = "Opaque"
+}
+
 # PostgreSQL Helm Chart
 resource "helm_release" "postgresql" {
   name             = "${var.project_name}-postgresql"
@@ -70,8 +84,11 @@ resource "helm_release" "postgresql" {
       global = {
         postgresql = {
           auth = {
-            postgresPassword = random_password.postgres_password.result
-            database        = var.postgres_database
+            existingSecret = kubernetes_secret.postgresql_auth.metadata[0].name
+            secretKeys = {
+              adminPasswordKey = "postgres-password"
+            }
+            database = var.postgres_database
           }
         }
       }
@@ -162,7 +179,10 @@ resource "helm_release" "postgresql" {
     })
   ]
 
-  depends_on = [kubernetes_persistent_volume_claim.postgresql_pvc]
+  depends_on = [
+    kubernetes_persistent_volume_claim.postgresql_pvc,
+    kubernetes_secret.postgresql_auth
+  ]
 }
 
 # pgAdmin for GUI management (lean setup without external PVC)

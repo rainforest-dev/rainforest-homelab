@@ -41,6 +41,31 @@ variable "memory_limit_mb" {
   default     = 512
 }
 
+variable "cpu_limit" {
+  description = "CPU limit for n8n container"
+  type        = string
+  default     = "1000m"
+}
+
+# Kubernetes Configuration
+variable "namespace" {
+  description = "Kubernetes namespace for n8n deployment"
+  type        = string
+  default     = "homelab"
+}
+
+variable "use_external_storage" {
+  description = "Use external storage for persistence"
+  type        = bool
+  default     = true
+}
+
+variable "storage_size" {
+  description = "Storage size for n8n data"
+  type        = string
+  default     = "5Gi"
+}
+
 variable "timezone" {
   description = "Timezone for n8n"
   type        = string
