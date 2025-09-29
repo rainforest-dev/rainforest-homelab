@@ -187,6 +187,20 @@ variable "enable_homepage" {
   default     = true
 }
 
+variable "enable_n8n" {
+  description = "Enable n8n workflow automation"
+  type        = bool
+  default     = true
+}
+
+
+
+variable "external_storage_path" {
+  description = "Path to external storage for data persistence"
+  type        = string
+  default     = "/Volumes/Samsung T7 Touch/homelab-data"
+}
+
 # Open WebUI Configuration
 #
 #

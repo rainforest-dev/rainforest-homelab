@@ -1,56 +1,57 @@
 # Standard outputs
 output "resource_id" {
-  description = "The ID of the n8n Helm release"
-  value       = helm_release.n8n.id
+  description = "The ID of the n8n container"
+  value       = docker_container.n8n.id
 }
 
 output "service_url" {
   description = "Service URL for n8n"
-  value       = "https://n8n.k8s.orb.local"
+  value       = "https://${var.n8n_host}"
 }
 
 output "service_name" {
-  description = "Name of the n8n service"
-  value       = helm_release.n8n.name
+  description = "Name of the n8n container"
+  value       = docker_container.n8n.name
 }
 
-output "namespace" {
-  description = "Kubernetes namespace where n8n is deployed"
-  value       = helm_release.n8n.namespace
+output "container_ip" {
+  description = "IP address of the n8n container"
+  value       = docker_container.n8n.network_data[0].ip_address
 }
 
 # Service-specific outputs
-output "helm_release_name" {
-  description = "Helm release name for n8n"
-  value       = helm_release.n8n.name
+output "container_name" {
+  description = "Docker container name for n8n"
+  value       = docker_container.n8n.name
 }
 
-output "helm_chart" {
-  description = "Helm chart used for n8n"
-  value       = helm_release.n8n.chart
+output "container_image" {
+  description = "Docker image used for n8n"
+  value       = docker_container.n8n.image
 }
 
-output "helm_repository" {
-  description = "Helm repository URL for n8n chart"
-  value       = helm_release.n8n.repository
+output "external_port" {
+  description = "External port for n8n service"
+  value       = var.n8n_port
 }
 
-output "helm_version" {
-  description = "Helm chart version for n8n"
-  value       = helm_release.n8n.version
+output "database_name" {
+  description = "PostgreSQL database name for n8n"
+  value       = var.database_name
 }
 
-output "chart_repository" {
-  description = "Chart repository URL from variables"
-  value       = var.chart_repository
+output "database_user" {
+  description = "PostgreSQL user for n8n"
+  value       = var.service_user
+  sensitive   = true
 }
 
-output "chart_name" {
-  description = "Chart name from variables"
-  value       = var.chart_name
+output "network_name" {
+  description = "Docker network name for n8n"
+  value       = docker_network.n8n_network.name
 }
 
-output "chart_version" {
-  description = "Chart version from variables"
-  value       = var.chart_version
+output "volume_name" {
+  description = "Docker volume name for n8n data"
+  value       = docker_volume.n8n_data.name
 }

@@ -1,95 +1,87 @@
-# PostgreSQL Connection Information
-output "postgres_host" {
-  description = "PostgreSQL host for container-to-container communication"
-  value       = docker_container.postgres.name
+# Standard outputs
+output "resource_id" {
+  description = "The ID of the PostgreSQL Helm release"
+  value       = helm_release.postgresql.id
 }
 
-output "postgres_port" {
-  description = "PostgreSQL internal port"
+output "service_url" {
+  description = "Service URL for PostgreSQL"
+  value       = "postgresql://${var.project_name}-postgresql.${var.namespace}.svc.cluster.local:5432"
+}
+
+output "service_name" {
+  description = "Name of the PostgreSQL service"
+  value       = "${var.project_name}-postgresql"
+}
+
+output "namespace" {
+  description = "Kubernetes namespace where PostgreSQL is deployed"
+  value       = var.namespace
+}
+
+# PostgreSQL-specific outputs
+output "postgresql_host" {
+  description = "PostgreSQL service hostname"
+  value       = "${var.project_name}-postgresql.${var.namespace}.svc.cluster.local"
+}
+
+output "postgresql_port" {
+  description = "PostgreSQL service port"
   value       = 5432
 }
 
-output "postgres_external_port" {
-  description = "PostgreSQL external port (Tailscale access)"
-  value       = var.postgres_external_port
-}
-
-output "postgres_user" {
-  description = "PostgreSQL superuser username"
-  value       = var.postgres_user
-}
-
-output "postgres_password" {
-  description = "PostgreSQL superuser password"
-  value       = local.postgres_password
-  sensitive   = true
-}
-
-output "postgres_database" {
+output "postgresql_database" {
   description = "Default PostgreSQL database name"
   value       = var.postgres_database
 }
 
-# Database Connection Template for Services
-output "database_connection_template" {
-  description = "Template for services to build their own database connections"
-  value = {
-    host     = docker_container.postgres.name
-    port     = 5432
-    user     = var.postgres_user
-    password = local.postgres_password
-    # Services append their own database name: postgresql://user:pass@host:port/service_db
-  }
-  sensitive = true
+output "postgresql_username" {
+  description = "PostgreSQL admin username"
+  value       = "postgres"
 }
 
-# pgAdmin Access Information
-output "pgadmin_url" {
-  description = "pgAdmin access URL (via Tailscale)"
-  value       = "http://100.86.67.66:${var.pgadmin_external_port}"
-}
-
-output "pgadmin_email" {
-  description = "pgAdmin admin email"
-  value       = var.pgadmin_email
-}
-
-output "pgadmin_password" {
-  description = "pgAdmin admin password"
-  value       = local.pgadmin_password
+output "postgresql_connection_string" {
+  description = "PostgreSQL connection string template"
+  value       = "postgresql://postgres:${random_password.postgres_password.result}@${var.project_name}-postgresql.${var.namespace}.svc.cluster.local:5432/${var.postgres_database}"
   sensitive   = true
 }
 
-# Storage Information
-output "postgres_storage_path" {
-  description = "PostgreSQL data storage path on external disk"
-  value       = "${local.external_storage_base}/postgresql"
+# Password outputs (sensitive)
+output "postgres_password" {
+  description = "PostgreSQL admin password"
+  value       = random_password.postgres_password.result
+  sensitive   = true
 }
 
-output "pgadmin_storage_path" {
-  description = "pgAdmin data storage path on external disk"
-  value       = "${local.external_storage_base}/pgadmin"
+output "pgadmin_password" {
+  description = "pgAdmin login password"
+  value       = var.enable_pgadmin ? random_password.pgadmin_password.result : null
+  sensitive   = true
 }
 
-# Network Information
-output "postgres_network_name" {
-  description = "Docker network name for PostgreSQL stack"
-  value       = docker_network.postgres_network.name
+# pgAdmin outputs
+output "pgadmin_service_name" {
+  description = "pgAdmin service name"
+  value       = var.enable_pgadmin ? "${var.project_name}-pgadmin-pgadmin4" : null
 }
 
-# Container Information
-output "postgres_container_id" {
-  description = "PostgreSQL container ID"
-  value       = docker_container.postgres.id
+output "pgadmin_url" {
+  description = "pgAdmin service URL"
+  value       = var.enable_pgadmin ? "http://${var.project_name}-pgadmin-pgadmin4.${var.namespace}.svc.cluster.local" : null
 }
 
-output "pgadmin_container_id" {
-  description = "pgAdmin container ID"
-  value       = docker_container.pgadmin.id
+# Storage outputs
+output "pv_name" {
+  description = "PostgreSQL persistent volume name"
+  value       = kubernetes_persistent_volume.postgresql_pv.metadata[0].name
 }
 
-# Database Management
-output "postgres_container_name" {
-  description = "PostgreSQL container name for service database initialization"
-  value       = docker_container.postgres.name
+output "pvc_name" {
+  description = "PostgreSQL persistent volume claim name"
+  value       = kubernetes_persistent_volume_claim.postgresql_pvc.metadata[0].name
+}
+
+output "storage_path" {
+  description = "External storage path for PostgreSQL data"
+  value       = "${var.external_storage_path}/postgresql"
 }
