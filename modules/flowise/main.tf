@@ -26,36 +26,42 @@ resource "helm_release" "flowise" {
         size    = var.storage_size
       }
 
-      # Database configuration
-      env = var.database_type == "postgres" ? {
-        DATABASE_TYPE = "postgres"
-        DATABASE_HOST = var.database_host
-        DATABASE_PORT = var.database_port
-        DATABASE_NAME = var.database_name
-        DATABASE_USER = var.database_user
-      } : {}
-
-      # Database password from secret
-      envFrom = var.database_type == "postgres" && var.database_secret_name != "" ? [
-        {
-          secretRef = {
-            name = var.database_secret_name
+      # Database configuration and CORS setup
+      extraEnvVars = concat(
+        var.database_type == "postgres" ? [
+          {
+            name  = "DATABASE_TYPE"
+            value = "postgres"
+          },
+          {
+            name  = "DATABASE_HOST"
+            value = var.database_host
+          },
+          {
+            name  = "DATABASE_PORT"
+            value = var.database_port
+          },
+          {
+            name  = "DATABASE_NAME"
+            value = var.database_name
+          },
+          {
+            name  = "DATABASE_USER"
+            value = var.database_user
           }
-        }
-      ] : []
-
-      # Additional environment variables for PostgreSQL
-      extraEnvVars = var.database_type == "postgres" && var.database_secret_name != "" ? [
-        {
-          name = "DATABASE_PASSWORD"
-          valueFrom = {
-            secretKeyRef = {
-              name = var.database_secret_name
-              key  = var.database_secret_key
+        ] : [],
+        var.database_type == "postgres" && var.database_secret_name != "" ? [
+          {
+            name = "DATABASE_PASSWORD"
+            valueFrom = {
+              secretKeyRef = {
+                name = var.database_secret_name
+                key  = var.database_secret_key
+              }
             }
           }
-        }
-      ] : []
+        ] : []
+      )
     })
   ]
 }
