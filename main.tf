@@ -322,7 +322,7 @@ module "whisper" {
 
   project_name         = var.project_name
   environment          = var.environment
-  model_size           = "small"  # Upgraded for better long-audio quality
+  model_size           = "base"  # Optimal for Mac CPU: fast (36x), low memory, good quality
   external_port        = 9000
   enable_gpu           = false  # Set true if GPU available
   use_external_storage = true

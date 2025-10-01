@@ -444,21 +444,37 @@ docker logs -f homelab-whisper
 
 ### **Model Selection**
 
-Configure in [main.tf](main.tf):
+**Default Configuration** (optimized for Mac CPU):
 ```hcl
 module "whisper" {
-  model_size = "base"  # Options: tiny, base, small, medium, large, large-v3
+  model_size = "base"  # Fast, low-memory, good quality
+  enable_gpu = false   # Set true for PC with GPU
 }
 ```
 
-**Model Performance Comparison (CPU):**
-| Model | Size | Speed | Quality | Use Case |
-|-------|------|-------|---------|----------|
-| tiny | 39MB | ~10x realtime | Good | Testing, fast transcription |
-| **base** | **74MB** | **~5x realtime** | **Better** | **Recommended for homelab** |
-| small | 244MB | ~3x realtime | Great | High accuracy needed |
-| medium | 769MB | ~2x realtime | Excellent | Production quality |
-| large-v3 | 1.5GB | ~1x realtime | Best | Maximum accuracy |
+**Model Performance Comparison** (Tested on Mac CPU):
+| Model | Size | Speed (39min audio) | CPU | Memory | Quality | Use Case |
+|-------|------|---------------------|-----|--------|---------|----------|
+| tiny | 39MB | 61s (38x) | 606% | 500MB | 96% conf | Ultra-fast drafts |
+| **base** | **74MB** | **65s (36x)** | **606%** | **750MB** | **97% conf** | **✓ Recommended for Mac** |
+| small | 244MB | 312s (7.5x) | 476% | 1.5GB | 99% conf | Important meetings |
+| medium | 769MB | ~600s (4x) | 500% | 2GB | 99% conf | Production quality |
+| large-v3 | 1.5GB | ~900s (2.5x) | 500% | 3GB | 99% conf | Maximum accuracy |
+
+**Recommendations:**
+- **Mac (Dev)**: Use `base` - Fast processing, low resource usage, good for iteration
+- **PC with RTX 5070**: Use `medium` or `large-v3` with GPU - 10-20x faster than CPU
+
+### **Dynamic Model Selection** (New Feature)
+
+Override default model per request:
+```bash
+curl -X POST "https://whisper.yourdomain.com/v1/audio/transcriptions" \
+  -F "file=@audio.mp3" \
+  -F "whisper_model=small"  # Use specific model for this request
+```
+
+Available models: `tiny`, `base`, `small`, `medium`, `large-v2`, `large-v3`
 
 ### **API Usage**
 
