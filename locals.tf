@@ -84,6 +84,15 @@ locals {
       }
     } : {},
 
+    var.enable_whisper ? {
+      whisper = {
+        hostname    = "whisper"
+        service_url = "http://host.docker.internal:9000"
+        enable_auth = true  # Protect with Zero Trust
+        type        = "docker"
+      }
+    } : {},
+
   )
 
   # Extract service lists for Cloudflare resources
