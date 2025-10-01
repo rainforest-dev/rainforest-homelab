@@ -19,9 +19,10 @@ This is a Terraform-based homelab infrastructure repository that deploys various
 ### Module Structure
 Each service is organized as a Terraform module in `modules/`:
 - `cloudflare-tunnel/`: Cloudflare Tunnel for secure external access with SSL certificates
-- `postgresql/`: Database service for applications that need persistent storage  
+- `postgresql/`: Database service for applications that need persistent storage
 - `volume-management/`: Docker volume management for persistent storage
-- Application modules: `calibre-web/`, `flowise/`, `n8n/`, `open-webui/`, `homepage/`
+- Application modules: `calibre-web/`, `flowise/`, `n8n/`, `open-webui/`, `homepage/`, `whisper/`
+- AI/ML services: `whisper/` (Speech-to-Text API using faster-whisper)
 - External services: `openspeedtest/` (moved to Raspberry Pi)
 - Legacy modules: `traefik/` (removed - replaced by pure Cloudflare Tunnel), `coredns/` (DNS - replaced by Cloudflare), `nfs-persistence/` (storage)
 
@@ -136,10 +137,11 @@ Services are available at (using `rainforest.tools` domain):
 
 **All Services (via Cloudflare Tunnel with HTTPS):**
 - `https://homepage.yourdomain.com` - Homepage dashboard with all services
-- `https://open-webui.yourdomain.com` - Open WebUI AI interface  
+- `https://open-webui.yourdomain.com` - Open WebUI AI interface
 - `https://flowise.yourdomain.com` - Flowise AI workflows
 - `https://n8n.yourdomain.com` - n8n automation platform
 - `https://calibre-web.yourdomain.com` - Calibre Web ebook server
+- `https://whisper.yourdomain.com` - Whisper STT (Speech-to-Text) API
 - `https://docker-mcp.yourdomain.com` - Docker MCP Gateway (port 3100)
 
 **Local Development Access:**
@@ -403,6 +405,152 @@ curl -X POST "https://docker-mcp.rainforest.tools/register" \
   -d '{"client_name": "My Client", "redirect_uris": ["https://example.com/callback"]}'
 ```
 
+## Whisper Speech-to-Text Service
+
+The homelab includes a self-hosted **Whisper STT API** for speech-to-text transcription using OpenAI's Whisper model.
+
+### **Architecture**
+- **Deployment**: Docker container (simple, like Calibre Web)
+- **Engine**: faster-whisper (4-5x faster than vanilla Whisper)
+- **API**: OpenAI-compatible endpoint (`/v1/audio/transcriptions`)
+- **Model Cache**: Persistent Docker volume (~1-2GB)
+- **Access**: HTTPS via Cloudflare Tunnel with optional Zero Trust auth
+
+### **Features**
+- ✅ **OpenAI API Compatible** - Works with n8n, Flowise, Open WebUI
+- ✅ **Fast CPU Performance** - Optimized for Docker Desktop (no GPU required)
+- ✅ **GPU Ready** - Set `enable_gpu = true` if GPU available later
+- ✅ **Automatic Language Detection** - Supports 99+ languages
+- ✅ **Voice Activity Detection** - Filters silence for better accuracy
+- ✅ **Built with UV** - Fast Python package management
+
+### **Enabling Whisper**
+
+**1. Enable in `terraform.tfvars`:**
+```hcl
+enable_whisper = true
+```
+
+**2. Deploy:**
+```bash
+terraform apply
+```
+
+**3. First run downloads model (~150MB for 'base'):**
+```bash
+# Check logs to see model download progress
+docker logs -f homelab-whisper
+```
+
+### **Model Selection**
+
+Configure in [main.tf](main.tf):
+```hcl
+module "whisper" {
+  model_size = "base"  # Options: tiny, base, small, medium, large, large-v3
+}
+```
+
+**Model Performance Comparison (CPU):**
+| Model | Size | Speed | Quality | Use Case |
+|-------|------|-------|---------|----------|
+| tiny | 39MB | ~10x realtime | Good | Testing, fast transcription |
+| **base** | **74MB** | **~5x realtime** | **Better** | **Recommended for homelab** |
+| small | 244MB | ~3x realtime | Great | High accuracy needed |
+| medium | 769MB | ~2x realtime | Excellent | Production quality |
+| large-v3 | 1.5GB | ~1x realtime | Best | Maximum accuracy |
+
+### **API Usage**
+
+**Direct API call:**
+```bash
+curl -X POST "https://whisper.yourdomain.com/v1/audio/transcriptions" \
+  -F "file=@audio.mp3" \
+  -F "model=whisper-1"
+```
+
+**Response:**
+```json
+{
+  "text": "This is the transcribed text from your audio file.",
+  "language": "en",
+  "duration": 12.5,
+  "language_probability": 0.98
+}
+```
+
+### **Service Integration**
+
+**Open WebUI** (Automatic):
+- Whisper STT automatically configured when `enable_whisper = true`
+- Click microphone icon in chat to use voice input
+- Transcription happens via `https://whisper.yourdomain.com`
+
+**n8n** (Manual configuration):
+1. Add OpenAI node to workflow
+2. Set custom base URL: `https://whisper.yourdomain.com/v1`
+3. Use "Create Transcription" operation
+4. Upload audio file via workflow
+
+**Flowise** (Manual configuration):
+1. Add "OpenAI Whisper" node to flow
+2. Configure custom endpoint: `https://whisper.yourdomain.com/v1`
+3. Connect to your workflow
+
+### **Local Development**
+
+**Test without Cloudflare Tunnel:**
+```bash
+# Internal URL (no auth required)
+curl -X POST "http://localhost:9000/v1/audio/transcriptions" \
+  -F "file=@test.mp3"
+```
+
+**Health check:**
+```bash
+curl http://localhost:9000/health
+# {"status": "healthy", "model": "base", "device": "cpu"}
+```
+
+### **Performance Optimization**
+
+**CPU (Current Setup):**
+- Model: `base` (~5x realtime speed)
+- Memory: ~1GB during transcription
+- Typical: 30-second audio transcribed in ~6 seconds
+
+**GPU (Future):**
+```hcl
+module "whisper" {
+  enable_gpu = true  # Requires NVIDIA GPU + drivers
+  model_size = "large-v3"  # Can use larger models
+}
+```
+
+### **Troubleshooting**
+
+**View logs:**
+```bash
+docker logs -f homelab-whisper
+```
+
+**Rebuild after code changes:**
+```bash
+terraform taint module.whisper[0].docker_image.whisper
+terraform apply
+```
+
+**Clear model cache:**
+```bash
+docker volume rm homelab-whisper-models-data
+terraform apply  # Will re-download models
+```
+
+**Check container status:**
+```bash
+docker ps --filter "name=homelab-whisper"
+```
+
 ## Security Considerations
 
 - **Cloudflare API Credentials**: The `cloudflare_api_token` and `cloudflare_account_id` variables are marked as sensitive in Terraform
@@ -411,3 +559,4 @@ curl -X POST "https://docker-mcp.rainforest.tools/register" \
 - **HTTPS Everywhere**: All traffic encrypted end-to-end through Cloudflare tunnels with automatic SSL termination
 - **Zero Trust Ready**: Optional email authentication for additional security layers
 - **DDoS Protection**: Enterprise-grade protection via Cloudflare's global network
+- **Whisper API Access**: Protected by Cloudflare Zero Trust authentication (recommended for production)
