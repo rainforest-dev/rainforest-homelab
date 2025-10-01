@@ -21,7 +21,11 @@ locals {
       "ENABLE_WEBSOCKET=true"
     ],
     var.ollama_base_url != "" ? ["OLLAMA_BASE_URL=${var.ollama_base_url}"] : [],
-    var.database_url != "" ? ["DATABASE_URL=${var.database_url}"] : []
+    var.database_url != "" ? ["DATABASE_URL=${var.database_url}"] : [],
+    var.whisper_stt_url != "" ? [
+      "AUDIO_STT_ENGINE=openai",
+      "AUDIO_STT_OPENAI_API_BASE_URL=${var.whisper_stt_url}/v1"
+    ] : []
   )
 }
 
@@ -154,6 +158,16 @@ resource "helm_release" "open-webui" {
           {
             name  = "DATABASE_URL"
             value = var.database_url
+          }
+        ] : [],
+        var.whisper_stt_url != "" ? [
+          {
+            name  = "AUDIO_STT_ENGINE"
+            value = "openai"
+          },
+          {
+            name  = "AUDIO_STT_OPENAI_API_BASE_URL"
+            value = "${var.whisper_stt_url}/v1"
           }
         ] : []
       )

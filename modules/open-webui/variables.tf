@@ -93,3 +93,15 @@ variable "deployment_type" {
   }
 }
 
+variable "whisper_stt_url" {
+  description = "Whisper STT API URL for speech-to-text functionality"
+  type        = string
+  default     = ""
+}
+
+variable "domain_suffix" {
+  description = "Domain suffix for external access"
+  type        = string
+  default     = ""
+}
+
