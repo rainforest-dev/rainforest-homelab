@@ -193,6 +193,12 @@ variable "enable_n8n" {
   default     = true
 }
 
+variable "enable_whisper" {
+  description = "Enable Whisper STT (Speech-to-Text) service"
+  type        = bool
+  default     = false
+}
+
 
 
 variable "external_storage_path" {

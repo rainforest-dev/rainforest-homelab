@@ -127,7 +127,7 @@ module "open-webui" {
 
   project_name       = var.project_name
   environment        = var.environment
-  cpu_limit          = "2"      # Generous CPU for smooth web search and AI processing  
+  cpu_limit          = "2"      # Generous CPU for smooth web search and AI processing
   memory_limit       = "4Gi"    # High memory to prevent OOM during web search operations
   enable_persistence = var.enable_persistence
   storage_size       = var.default_storage_size
@@ -135,11 +135,15 @@ module "open-webui" {
   ollama_base_url    = var.ollama_base_url
   chart_repository   = "https://helm.openwebui.com/"
   chart_version      = "8.7.0" # Latest version with clean database
-  
+
   # Switch to Helm deployment with PostgreSQL database
   deployment_type  = "helm"
   database_url     = ""  # Use SQLite (default) instead of PostgreSQL to avoid migration bugs
-  
+
+  # Whisper STT integration
+  whisper_stt_url  = var.enable_whisper ? "https://whisper.${var.domain_suffix}" : ""
+  domain_suffix    = var.domain_suffix
+
   # No longer depends on PostgreSQL database - using SQLite
 }
 
@@ -310,6 +314,20 @@ module "homepage" {
   storage_size       = var.default_storage_size
   chart_repository   = "https://jameswynn.github.io/helm-charts"
   domain_suffix      = var.domain_suffix
+}
+
+module "whisper" {
+  source = "./modules/whisper"
+  count  = var.enable_whisper ? 1 : 0
+
+  project_name         = var.project_name
+  environment          = var.environment
+  model_size           = "small"  # Upgraded for better long-audio quality
+  external_port        = 9000
+  enable_gpu           = false  # Set true if GPU available
+  use_external_storage = true
+  image_tag            = "latest"
+  domain_suffix        = var.domain_suffix
 }
 
 module "metrics_server" {
