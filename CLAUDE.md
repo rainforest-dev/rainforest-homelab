@@ -176,37 +176,50 @@ Note: Domain suffix is configurable via `domain_suffix` variable in `terraform.t
 Note: New services automatically get SSL certificates and DNS records via Cloudflare
 
 ### Cloudflare Tunnel Configuration
-When adding new services, update three sections in `modules/cloudflare-tunnel/main.tf`:
 
-1. **Tunnel Ingress Rules** in `cloudflare_tunnel_config`:
+**IMPORTANT**: The repository uses a **centralized service configuration pattern** via `locals.tf`. All service configurations are defined in one place and automatically propagate to tunnel ingress, DNS records, and Zero Trust policies.
+
+**To add a new service:**
+
+1. **Add service configuration to `locals.tf`**:
 ```hcl
-ingress_rule {
-  hostname = "[service-name].${var.domain_suffix}"
-  service  = "http://[service-name].homelab.svc.cluster.local:[port]"
-}
+services = merge(
+  # ... existing services ...
+
+  var.enable_my_service ? {
+    "my-service" = {
+      hostname    = "my-service"
+      service_url = "http://my-service.homelab.svc.cluster.local:8080"
+      enable_auth = true  # Enable Zero Trust authentication
+      type        = "kubernetes"  # or "docker" for Docker containers
+    }
+  } : {},
+)
 ```
 
-2. **DNS Records** in `cloudflare_record.services`:
+2. **The `cloudflare-tunnel` module automatically creates**:
+   - Tunnel ingress rules (from `service_url`)
+   - DNS CNAME records (from `hostname`)
+   - Zero Trust applications (when `enable_auth = true` and email domains configured)
+
+**Service Configuration Options:**
+- `hostname`: Subdomain for the service (e.g., "my-service" → "my-service.yourdomain.com")
+- `service_url`: Internal service URL (Kubernetes service or Docker host)
+- `enable_auth`: Enable/disable Zero Trust authentication
+- `type`: "kubernetes" or "docker" (for documentation)
+- `internal`: Set to `true` to skip DNS record creation (for OAuth Worker proxy pattern)
+
+**For Docker containers**, use `host.docker.internal` to route to Docker host:
 ```hcl
-for_each = toset([
-  "homepage",
-  "open-webui", 
-  "flowise",
-  "n8n",
-  "[new-service]"  # Add new service here
-])
+service_url = "http://host.docker.internal:8083"  # For Docker containers
 ```
 
-3. **Zero Trust Applications** (optional) in `cloudflare_access_application.services`:
+**For Kubernetes services**, use the internal DNS format:
 ```hcl
-for_each = length(var.allowed_email_domains) > 0 ? toset([
-  "homepage",
-  "open-webui",
-  "flowise", 
-  "n8n",
-  "[new-service]"  # Add new service here
-]) : toset([])
+service_url = "http://service-name.homelab.svc.cluster.local:port"
 ```
+
+This pattern ensures consistency and eliminates the need to update multiple locations when adding services.
 
 **Cloudflare Tunnel Features:**
 - **Automatic SSL**: Real certificates from Cloudflare for all services
