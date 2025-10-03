@@ -105,3 +105,14 @@ variable "domain_suffix" {
   default     = ""
 }
 
+variable "use_external_storage" {
+  description = "Use external storage (Samsung T7 Touch) instead of Kubernetes PVC"
+  type        = bool
+  default     = true
+}
+
+variable "external_storage_path" {
+  description = "Path to external storage directory"
+  type        = string
+  default     = "/Volumes/Samsung T7 Touch/homelab-data"
+}

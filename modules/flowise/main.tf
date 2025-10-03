@@ -21,10 +21,33 @@ resource "helm_release" "flowise" {
         }
       }
 
-      persistence = {
+      # Persistence configuration
+      persistence = var.use_external_storage ? {
+        enabled       = false  # Disable helm persistence when using external storage
+        existingClaim = ""     # No existing claim
+        storageClass  = ""     # No storage class
+      } : {
         enabled = var.enable_persistence
         size    = var.storage_size
       }
+
+      # External storage configuration
+      extraVolumes = var.use_external_storage ? [
+        {
+          name = "external-storage"
+          hostPath = {
+            path = "${var.external_storage_path}/flowise"
+            type = "DirectoryOrCreate"
+          }
+        }
+      ] : []
+
+      extraVolumeMounts = var.use_external_storage ? [
+        {
+          name      = "external-storage"
+          mountPath = "/root/.flowise"
+        }
+      ] : []
 
       # Database configuration and CORS setup
       extraEnvVars = concat(
