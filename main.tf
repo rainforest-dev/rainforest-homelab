@@ -140,6 +140,10 @@ module "open-webui" {
   deployment_type  = "helm"
   database_url     = ""  # Use SQLite (default) instead of PostgreSQL to avoid migration bugs
 
+  # External storage configuration
+  use_external_storage  = true
+  external_storage_path = var.external_storage_path
+
   # Whisper STT integration
   whisper_stt_url  = var.enable_whisper ? "https://whisper.${var.domain_suffix}" : ""
   domain_suffix    = var.domain_suffix
@@ -229,6 +233,10 @@ module "flowise" {
   chart_repository   = "https://cowboysysop.github.io/charts"
   chart_version      = "6.0.0"
 
+  # External storage configuration
+  use_external_storage  = true
+  external_storage_path = var.external_storage_path
+
   # PostgreSQL configuration
   database_type        = length(module.postgresql) > 0 ? "postgres" : "sqlite"
   database_host        = length(module.postgresql) > 0 ? module.postgresql[0].postgresql_host : ""
@@ -246,14 +254,15 @@ module "minio" {
   source = "./modules/minio"
   count  = var.enable_minio ? 1 : 0
 
-  project_name       = var.project_name
-  environment        = var.environment
-  enable_persistence = var.enable_persistence
-  storage_size       = var.minio_storage_size
-  cpu_limit          = var.default_cpu_limit
-  memory_limit       = var.default_memory_limit
-  chart_repository   = "https://charts.min.io/"
-  chart_version      = "5.2.0"
+  project_name         = var.project_name
+  environment          = var.environment
+  enable_persistence   = var.enable_persistence
+  storage_size         = var.minio_storage_size
+  cpu_limit            = var.default_cpu_limit
+  memory_limit         = var.default_memory_limit
+  chart_repository     = "https://charts.min.io/"
+  chart_version        = "5.2.0"
+  use_external_storage = true  # Enable external storage on Samsung T7
 }
 
 # OpenSpeedTest moved to Raspberry Pi (external hosting)
