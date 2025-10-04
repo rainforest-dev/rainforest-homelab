@@ -52,50 +52,67 @@ resource "helm_release" "homepage" {
               {
                 "Open WebUI" = {
                   href        = "https://open-webui.${var.domain_suffix}"
-                  description = "AI Chat Interface"
+                  description = "AI Chat Interface with Claude & OpenAI"
                   icon        = "open-webui.png"
                 }
               },
               {
                 "Flowise" = {
                   href        = "https://flowise.${var.domain_suffix}"
-                  description = "AI Workflow Builder"
+                  description = "Low-code AI Workflow Builder"
                   icon        = "flowise.png"
                 }
-
               },
               {
                 "n8n" = {
                   href        = "https://n8n.${var.domain_suffix}"
-                  description = "Workflow Automation"
+                  description = "Workflow Automation Platform"
                   icon        = "n8n.png"
                 }
-
+              },
+              {
+                "Whisper STT" = {
+                  href        = "https://whisper.${var.domain_suffix}"
+                  description = "Speech-to-Text API Service"
+                  icon        = "whisper.png"
+                }
               }
             ]
           },
           {
-            "Media & Files" = [
+            "Storage & Files" = [
               {
                 "Calibre Web" = {
-                  href        = "http://${var.domain_suffix}:8083"
-                  description = "Ebook Server"
+                  href        = "https://calibre-web.${var.domain_suffix}"
+                  description = "Ebook Library & Reader"
                   icon        = "calibre-web.png"
                   server      = "docker-desktop"
                   container   = "homelab-calibre-web"
                 }
+              },
+              {
+                "MinIO Console" = {
+                  href        = "https://minio.${var.domain_suffix}"
+                  description = "S3-Compatible Object Storage"
+                  icon        = "minio.png"
+                }
+              },
+              {
+                "MinIO S3 API" = {
+                  href        = "https://s3.${var.domain_suffix}"
+                  description = "S3 API Endpoint"
+                  icon        = "minio.png"
+                }
               }
             ]
           },
           {
-            "Utilities" = [
+            "Database & Admin" = [
               {
-                "OpenSpeedTest" = {
-                  href        = "http://${var.domain_suffix}:3333"
-                  description = "Network Speed Test"
-                  icon        = "openspeedtest.png"
-                  server      = "docker-desktop"
-                  container   = "openspeedtest"
+                "pgAdmin" = {
+                  href        = "https://pgadmin.${var.domain_suffix}"
+                  description = "PostgreSQL Database Admin"
+                  icon        = "pgadmin.png"
                 }
               }
             ]

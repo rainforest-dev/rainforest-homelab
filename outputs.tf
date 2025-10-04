@@ -29,10 +29,10 @@ output "postgresql_admin_password" {
 output "pgadmin_access_info" {
   description = "pgAdmin access information"
   value = {
-    email             = "contact@rainforest.tools"
-    internal_url      = module.postgresql.pgadmin_url
-    service_name      = module.postgresql.pgadmin_service_name
-    port_forward_cmd  = "kubectl port-forward -n homelab svc/${module.postgresql.pgadmin_service_name} 8080:80"
+    email            = "contact@rainforest.tools"
+    internal_url     = module.postgresql.pgadmin_url
+    service_name     = module.postgresql.pgadmin_service_name
+    port_forward_cmd = "kubectl port-forward -n homelab svc/${module.postgresql.pgadmin_service_name} 8080:80"
   }
 }
 
@@ -42,15 +42,7 @@ output "pgadmin_password" {
   sensitive   = true
 }
 
-output "homepage_id" {
-  description = "The ID of the homepage resource."
-  value       = module.homepage.resource_id
-}
-
-output "homepage_url" {
-  description = "URL to access homepage dashboard"
-  value       = module.homepage.service_url
-}
+# Homepage outputs removed - homepage moved to rainforest-iot folder
 
 output "minio_connection_info" {
   description = "MinIO connection information"

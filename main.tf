@@ -35,14 +35,14 @@ module "postgresql" {
 
   # PostgreSQL configuration
   postgres_database     = "homelab"
-  cpu_limit            = 1000
-  memory_limit         = 512
-  storage_size         = "20Gi"
+  cpu_limit             = 1000
+  memory_limit          = 512
+  storage_size          = "20Gi"
   external_storage_path = var.external_storage_path
 
   # pgAdmin configuration
-  enable_pgadmin       = true
-  pgadmin_email        = "contact@rainforest.tools"
+  enable_pgadmin = true
+  pgadmin_email  = "contact@rainforest.tools"
 
   # Monitoring
   enable_metrics = false
@@ -125,8 +125,8 @@ module "open-webui" {
 
   project_name       = var.project_name
   environment        = var.environment
-  cpu_limit          = "2"      # Generous CPU for smooth web search and AI processing
-  memory_limit       = "4Gi"    # High memory to prevent OOM during web search operations
+  cpu_limit          = "2"   # Generous CPU for smooth web search and AI processing
+  memory_limit       = "4Gi" # High memory to prevent OOM during web search operations
   enable_persistence = var.enable_persistence
   storage_size       = var.default_storage_size
   ollama_enabled     = false
@@ -135,16 +135,16 @@ module "open-webui" {
   chart_version      = "8.7.0" # Latest version with clean database
 
   # Switch to Helm deployment with PostgreSQL database
-  deployment_type  = "helm"
-  database_url     = ""  # Use SQLite (default) instead of PostgreSQL to avoid migration bugs
+  deployment_type = "helm"
+  database_url    = "" # Use SQLite (default) instead of PostgreSQL to avoid migration bugs
 
   # External storage configuration
   use_external_storage  = true
   external_storage_path = var.external_storage_path
 
   # Whisper STT integration
-  whisper_stt_url  = "https://whisper.${var.domain_suffix}"
-  domain_suffix    = var.domain_suffix
+  whisper_stt_url = "https://whisper.${var.domain_suffix}"
+  domain_suffix   = var.domain_suffix
 
   # No longer depends on PostgreSQL database - using SQLite
 }
@@ -152,19 +152,19 @@ module "open-webui" {
 # Flowise Database Self-Registration
 module "flowise_database" {
   source = "./modules/database-init"
-  
-  service_name          = "flowise"
-  database_name         = "flowise_db"
-  postgres_host         = module.postgresql.postgresql_host
-  postgres_user         = module.postgresql.postgresql_username
-  postgres_secret_name  = module.postgresql.postgresql_secret_name
-  postgres_secret_key   = "postgres-password"
-  namespace             = "homelab"
-  
+
+  service_name         = "flowise"
+  database_name        = "flowise_db"
+  postgres_host        = module.postgresql.postgresql_host
+  postgres_user        = module.postgresql.postgresql_username
+  postgres_secret_name = module.postgresql.postgresql_secret_name
+  postgres_secret_key  = "postgres-password"
+  namespace            = "homelab"
+
   # Create service-specific user for better security
   service_user     = "flowise_user"
   service_password = random_password.flowise_password.result
-  
+
   # Custom initialization SQL for Flowise
   init_sql = <<-SQL
     -- Create extensions for Flowise
@@ -176,28 +176,28 @@ module "flowise_database" {
     -- Comment on database
     COMMENT ON DATABASE flowise_db IS 'Flowise AI workflow automation database';
   SQL
-  
-  force_recreate = "2"  # Recreate after PostgreSQL password fix
-  
+
+  force_recreate = "2" # Recreate after PostgreSQL password fix
+
   depends_on = [module.postgresql]
 }
 
 # n8n Database Self-Registration
 module "n8n_database" {
   source = "./modules/database-init"
-  
-  service_name          = "n8n"
-  database_name         = "n8n_db"
-  postgres_host         = module.postgresql.postgresql_host
-  postgres_user         = module.postgresql.postgresql_username
-  postgres_secret_name  = module.postgresql.postgresql_secret_name
-  postgres_secret_key   = "postgres-password"
-  namespace             = "homelab"
-  
+
+  service_name         = "n8n"
+  database_name        = "n8n_db"
+  postgres_host        = module.postgresql.postgresql_host
+  postgres_user        = module.postgresql.postgresql_username
+  postgres_secret_name = module.postgresql.postgresql_secret_name
+  postgres_secret_key  = "postgres-password"
+  namespace            = "homelab"
+
   # Create service-specific user for better security
   service_user     = "n8n_user"
   service_password = random_password.n8n_password.result
-  
+
   # Custom initialization SQL for n8n
   init_sql = <<-SQL
     -- Create extensions for n8n
@@ -209,9 +209,9 @@ module "n8n_database" {
     -- Comment on database
     COMMENT ON DATABASE n8n_db IS 'n8n workflow automation database';
   SQL
-  
-  force_recreate = "1"  # Initial creation
-  
+
+  force_recreate = "1" # Initial creation
+
   depends_on = [module.postgresql]
 }
 
@@ -255,7 +255,7 @@ module "minio" {
   memory_limit         = var.default_memory_limit
   chart_repository     = "https://charts.min.io/"
   chart_version        = "5.2.0"
-  use_external_storage = true  # Enable external storage on Samsung T7
+  use_external_storage = true # Enable external storage on Samsung T7
 }
 
 # OpenSpeedTest moved to Raspberry Pi (external hosting)
@@ -275,56 +275,46 @@ module "calibre-web" {
 
 module "n8n" {
   source = "./modules/n8n"
-  
+
   project_name          = var.project_name
   environment           = var.environment
   namespace             = "homelab"
   external_storage_path = var.external_storage_path
-  
+
   # Kubernetes Configuration
   use_external_storage = true
   storage_size         = "5Gi"
-  cpu_limit           = "1000m"
-  
+  cpu_limit            = "1000m"
+
   # n8n Configuration
   n8n_host        = "n8n.${var.domain_suffix}"
   n8n_port        = 5678
   memory_limit_mb = 512
-  
+
   # Database Configuration
   database_name    = "n8n_db"
   service_user     = "n8n_user"
   service_password = random_password.n8n_password.result
   postgres_host    = module.postgresql.postgresql_host
   postgres_user    = module.postgresql.postgresql_username
-  
+
   # Encryption
   encryption_key = "n8n-homelab-encryption-key-2024"
-  
+
   depends_on = [module.postgresql, module.n8n_database]
 }
 
-module "homepage" {
-  source = "./modules/homepage"
-
-  project_name       = var.project_name
-  environment        = var.environment
-  cpu_limit          = var.default_cpu_limit
-  memory_limit       = var.default_memory_limit
-  enable_persistence = var.enable_persistence
-  storage_size       = var.default_storage_size
-  chart_repository   = "https://jameswynn.github.io/helm-charts"
-  domain_suffix      = var.domain_suffix
-}
+# Homepage moved to rainforest-iot folder
+# module "homepage" removed from this homelab configuration
 
 module "whisper" {
   source = "./modules/whisper"
 
   project_name         = var.project_name
   environment          = var.environment
-  model_size           = "base"  # Optimal for Mac CPU: fast (36x), low memory, good quality
+  model_size           = "base" # Optimal for Mac CPU: fast (36x), low memory, good quality
   external_port        = 9000
-  enable_gpu           = false  # Set true if GPU available
+  enable_gpu           = false # Set true if GPU available
   use_external_storage = true
   image_tag            = "latest"
   domain_suffix        = var.domain_suffix

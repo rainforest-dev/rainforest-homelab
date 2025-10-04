@@ -1,15 +1,8 @@
 locals {
   # Collect service configurations from all enabled modules
   services = merge(
+    # Homepage moved to rainforest-iot folder
     # Kubernetes services
-    {
-      homepage = {
-        hostname    = "homepage"
-        service_url = "http://homelab-homepage.homelab.svc.cluster.local:3000"
-        enable_auth = true
-        type        = "kubernetes"
-      }
-    },
 
     {
       "open-webui" = {
@@ -69,9 +62,9 @@ locals {
       "docker-mcp-internal" = {
         hostname    = "docker-mcp-internal"
         service_url = module.docker_mcp_gateway.tunnel_service_url
-        enable_auth = false  # No auth needed for internal proxy route
+        enable_auth = false # No auth needed for internal proxy route
         type        = "docker"
-        internal    = true  # Skip DNS record creation - OAuth Worker handles the domain
+        internal    = true # Skip DNS record creation - OAuth Worker handles the domain
       }
     },
 
@@ -79,7 +72,7 @@ locals {
       whisper = {
         hostname    = "whisper"
         service_url = "http://host.docker.internal:9000"
-        enable_auth = true  # Protect with Zero Trust
+        enable_auth = true # Protect with Zero Trust
         type        = "docker"
       }
     },
