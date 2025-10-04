@@ -2,14 +2,14 @@ locals {
   # Collect service configurations from all enabled modules
   services = merge(
     # Kubernetes services
-    var.enable_homepage ? {
+    {
       homepage = {
         hostname    = "homepage"
         service_url = "http://homelab-homepage.homelab.svc.cluster.local:3000"
         enable_auth = true
         type        = "kubernetes"
       }
-    } : {},
+    },
 
     {
       "open-webui" = {
@@ -29,69 +29,61 @@ locals {
       }
     },
 
-    var.enable_n8n ? {
+    {
       n8n = {
         hostname    = "n8n"
         service_url = "http://homelab-n8n.homelab.svc.cluster.local:5678"
         enable_auth = true
         type        = "kubernetes"
       }
-    } : {},
+    },
 
-    var.enable_minio ? {
+    {
       minio = {
         hostname    = "minio"
         service_url = "http://homelab-minio-console.homelab.svc.cluster.local:9001"
         enable_auth = true
         type        = "kubernetes"
       }
-    } : {},
+    },
 
-    var.enable_minio ? {
+    {
       s3 = {
         hostname    = "s3"
         service_url = "http://homelab-minio.homelab.svc.cluster.local:9000"
         enable_auth = false # S3 API doesn't need Zero Trust auth
         type        = "kubernetes"
       }
-    } : {},
+    },
 
-    var.enable_calibre_web ? {
+    {
       "calibre-web" = {
         hostname    = "calibre-web"
         service_url = "http://host.docker.internal:8083"
         enable_auth = true
         type        = "docker"
       }
-    } : {},
+    },
 
-    var.enable_postgresql ? {
-      pgadmin = {
-        hostname    = "pgadmin"
-        service_url = "http://homelab-pgadmin-pgadmin4.homelab.svc.cluster.local:80"
-        enable_auth = true
-        type        = "kubernetes"
-      }
-    } : {},
-
-    var.enable_docker_mcp_gateway ? {
+    {
       "docker-mcp-internal" = {
         hostname    = "docker-mcp-internal"
-        service_url = module.docker_mcp_gateway[0].tunnel_service_url
+        service_url = module.docker_mcp_gateway.tunnel_service_url
         enable_auth = false  # No auth needed for internal proxy route
         type        = "docker"
         internal    = true  # Skip DNS record creation - OAuth Worker handles the domain
       }
-    } : {},
+    },
 
-    var.enable_whisper ? {
+    {
       whisper = {
         hostname    = "whisper"
         service_url = "http://host.docker.internal:9000"
         enable_auth = true  # Protect with Zero Trust
         type        = "docker"
       }
-    } : {},
+    },
+
 
   )
 

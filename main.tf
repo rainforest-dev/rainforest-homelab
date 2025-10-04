@@ -28,7 +28,6 @@ resource "kubernetes_namespace" "homelab" {
 # PostgreSQL Helm Chart with External Storage
 module "postgresql" {
   source = "./modules/postgresql"
-  count  = var.enable_postgresql ? 1 : 0
 
   project_name = var.project_name
   environment  = var.environment
@@ -51,7 +50,6 @@ module "postgresql" {
 
 module "docker_mcp_gateway" {
   source = "./modules/docker-mcp-gateway"
-  count  = var.enable_docker_mcp_gateway ? 1 : 0
 
   project_name = var.project_name
   environment  = var.environment
@@ -60,7 +58,7 @@ module "docker_mcp_gateway" {
   memory_limit = var.default_memory_limit
 
   # External access configuration
-  enable_cloudflare_tunnel = var.enable_cloudflare_tunnel
+  enable_cloudflare_tunnel = true
   tunnel_hostname          = "docker-mcp"
   domain_suffix            = var.domain_suffix
   docker_host_address      = "host.docker.internal" # Configurable for platform compatibility
@@ -72,12 +70,12 @@ module "docker_mcp_gateway" {
 # OAuth Worker for Docker MCP Gateway
 module "oauth_worker" {
   source = "./modules/oauth-worker"
-  count  = var.enable_docker_mcp_gateway && var.oauth_client_id != "" ? 1 : 0
+  count  = var.oauth_client_id != "" ? 1 : 0
 
   project_name          = var.project_name
   environment           = var.environment
   cloudflare_account_id = var.cloudflare_account_id
-  cloudflare_zone_id    = var.enable_cloudflare_tunnel ? module.cloudflare_tunnel[0].zone_id : ""
+  cloudflare_zone_id    = module.cloudflare_tunnel.zone_id
   cloudflare_team_name  = var.cloudflare_team_name
   domain_suffix         = var.domain_suffix
   oauth_client_id       = var.oauth_client_id
@@ -145,7 +143,7 @@ module "open-webui" {
   external_storage_path = var.external_storage_path
 
   # Whisper STT integration
-  whisper_stt_url  = var.enable_whisper ? "https://whisper.${var.domain_suffix}" : ""
+  whisper_stt_url  = "https://whisper.${var.domain_suffix}"
   domain_suffix    = var.domain_suffix
 
   # No longer depends on PostgreSQL database - using SQLite
@@ -153,15 +151,13 @@ module "open-webui" {
 
 # Flowise Database Self-Registration
 module "flowise_database" {
-  count = length(module.postgresql) > 0 ? 1 : 0
-  
   source = "./modules/database-init"
   
   service_name          = "flowise"
   database_name         = "flowise_db"
-  postgres_host         = module.postgresql[0].postgresql_host
-  postgres_user         = module.postgresql[0].postgresql_username
-  postgres_secret_name  = module.postgresql[0].postgresql_secret_name
+  postgres_host         = module.postgresql.postgresql_host
+  postgres_user         = module.postgresql.postgresql_username
+  postgres_secret_name  = module.postgresql.postgresql_secret_name
   postgres_secret_key   = "postgres-password"
   namespace             = "homelab"
   
@@ -188,15 +184,13 @@ module "flowise_database" {
 
 # n8n Database Self-Registration
 module "n8n_database" {
-  count = length(module.postgresql) > 0 ? 1 : 0
-  
   source = "./modules/database-init"
   
   service_name          = "n8n"
   database_name         = "n8n_db"
-  postgres_host         = module.postgresql[0].postgresql_host
-  postgres_user         = module.postgresql[0].postgresql_username
-  postgres_secret_name  = module.postgresql[0].postgresql_secret_name
+  postgres_host         = module.postgresql.postgresql_host
+  postgres_user         = module.postgresql.postgresql_username
+  postgres_secret_name  = module.postgresql.postgresql_secret_name
   postgres_secret_key   = "postgres-password"
   namespace             = "homelab"
   
@@ -238,12 +232,12 @@ module "flowise" {
   external_storage_path = var.external_storage_path
 
   # PostgreSQL configuration
-  database_type        = length(module.postgresql) > 0 ? "postgres" : "sqlite"
-  database_host        = length(module.postgresql) > 0 ? module.postgresql[0].postgresql_host : ""
+  database_type        = "postgres"
+  database_host        = module.postgresql.postgresql_host
   database_port        = "5432"
   database_name        = "flowise_db"
   database_user        = "postgres"
-  database_secret_name = length(module.postgresql) > 0 ? module.postgresql[0].postgresql_secret_name : ""
+  database_secret_name = module.postgresql.postgresql_secret_name
   database_secret_key  = "postgres-password"
 
   depends_on = [module.flowise_database]
@@ -252,7 +246,6 @@ module "flowise" {
 
 module "minio" {
   source = "./modules/minio"
-  count  = var.enable_minio ? 1 : 0
 
   project_name         = var.project_name
   environment          = var.environment
@@ -282,7 +275,6 @@ module "calibre-web" {
 
 module "n8n" {
   source = "./modules/n8n"
-  count  = var.enable_n8n ? 1 : 0
   
   project_name          = var.project_name
   environment           = var.environment
@@ -303,8 +295,8 @@ module "n8n" {
   database_name    = "n8n_db"
   service_user     = "n8n_user"
   service_password = random_password.n8n_password.result
-  postgres_host    = length(module.postgresql) > 0 ? module.postgresql[0].postgresql_host : ""
-  postgres_user    = length(module.postgresql) > 0 ? module.postgresql[0].postgresql_username : ""
+  postgres_host    = module.postgresql.postgresql_host
+  postgres_user    = module.postgresql.postgresql_username
   
   # Encryption
   encryption_key = "n8n-homelab-encryption-key-2024"
@@ -327,7 +319,6 @@ module "homepage" {
 
 module "whisper" {
   source = "./modules/whisper"
-  count  = var.enable_whisper ? 1 : 0
 
   project_name         = var.project_name
   environment          = var.environment
@@ -354,7 +345,6 @@ module "metrics_server" {
 
 module "cloudflare_tunnel" {
   source = "./modules/cloudflare-tunnel"
-  count  = var.enable_cloudflare_tunnel ? 1 : 0
 
   project_name          = var.project_name
   domain_suffix         = var.domain_suffix
