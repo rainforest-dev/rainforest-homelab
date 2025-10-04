@@ -96,30 +96,6 @@ variable "oauth_client_secret" {
 }
 
 # Feature Flags
-variable "enable_postgresql" {
-  description = "Enable PostgreSQL Docker stack with pgAdmin and automated backups"
-  type        = bool
-  default     = true
-}
-
-
-variable "enable_minio" {
-  description = "Enable MinIO S3-compatible object storage"
-  type        = bool
-  default     = true
-}
-
-variable "enable_cloudflare_tunnel" {
-  description = "Enable Cloudflare Tunnel for secure external access"
-  type        = bool
-  default     = true
-}
-
-variable "enable_docker_mcp_gateway" {
-  description = "Enable Docker MCP Gateway for remote Docker operations"
-  type        = bool
-  default     = false
-}
 
 
 
@@ -168,36 +144,8 @@ variable "service_token_ids" {
   sensitive   = true
 }
 
-# Service Feature Flags (moved from terraform.tfvars)
-variable "enable_calibre_web" {
-  description = "Enable Calibre Web ebook server"
-  type        = bool
-  default     = true
-}
-
-variable "enable_openspeedtest" {
-  description = "Enable OpenSpeedTest network testing (moved to Pi)"
-  type        = bool
-  default     = false
-}
-
-variable "enable_homepage" {
-  description = "Enable Homepage dashboard"
-  type        = bool
-  default     = true
-}
-
-variable "enable_n8n" {
-  description = "Enable n8n workflow automation"
-  type        = bool
-  default     = true
-}
-
-variable "enable_whisper" {
-  description = "Enable Whisper STT (Speech-to-Text) service"
-  type        = bool
-  default     = false
-}
+# Core feature flags
+# Most services are now always-on since they're core to the homelab
 
 
 
