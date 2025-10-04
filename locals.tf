@@ -77,6 +77,15 @@ locals {
       }
     },
 
+    {
+      pgadmin = {
+        hostname    = "pgadmin"
+        service_url = "http://homelab-pgadmin-pgadmin4.homelab.svc.cluster.local"
+        enable_auth = true # Protect with Zero Trust
+        type        = "kubernetes"
+      }
+    },
+
 
   )
 
