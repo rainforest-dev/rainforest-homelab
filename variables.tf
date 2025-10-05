@@ -155,6 +155,19 @@ variable "external_storage_path" {
   default     = "/Volumes/Samsung T7 Touch/homelab-data"
 }
 
+# Monitoring Configuration (Raspberry Pi Integration)
+variable "raspberry_pi_ip" {
+  description = "Raspberry Pi IP address for Loki/Prometheus endpoints"
+  type        = string
+  default     = "192.168.0.134"
+}
+
+variable "loki_port" {
+  description = "Loki service port on Raspberry Pi"
+  type        = number
+  default     = 30100
+}
+
 # Open WebUI Configuration
 #
 #

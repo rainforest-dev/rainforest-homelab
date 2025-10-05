@@ -329,6 +329,17 @@ module "metrics_server" {
   memory_limit = var.default_memory_limit
 }
 
+# Promtail for log aggregation to Raspberry Pi Loki
+module "promtail" {
+  source = "./modules/promtail"
+
+  project_name = var.project_name
+  namespace    = "homelab"
+  loki_url     = "http://${var.raspberry_pi_ip}:${var.loki_port}/loki/api/v1/push"
+
+  depends_on = [kubernetes_namespace.homelab]
+}
+
 # CoreDNS removed - using Cloudflare Tunnel for external DNS
 # Legacy module kept in /modules for reference
 
