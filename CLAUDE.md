@@ -605,6 +605,18 @@ The homelab services integrate with the Raspberry Pi 5 monitoring stack (rainfor
 - Scrape interval: 30s
 - Metrics: storage usage, API requests, network I/O, bucket statistics
 
+**HTTP Health Checks** (Blackbox Exporter on Pi):
+- Monitors all Cloudflare Tunnel endpoints
+- Services: Open WebUI, Flowise, n8n, Calibre Web, Whisper, MinIO, pgAdmin, S3
+- Check interval: 30s
+- Metrics: HTTP response time, SSL certificate validity, service availability
+
+**Log Aggregation** ([main.tf:333](/Users/rainforest/Repositories/rainforest-homelab/main.tf#L333)):
+- Promtail DaemonSet: Ships all K8s logs to Pi Loki
+- Loki endpoint: `http://192.168.0.134:30100/loki/api/v1/push`
+- Logs: All pods in `homelab` namespace
+- Retention: 7 days (configured on Pi Loki)
+
 ### **Deployment Steps**
 
 **1. Deploy monitoring changes to homelab (Mac Mini)**:
