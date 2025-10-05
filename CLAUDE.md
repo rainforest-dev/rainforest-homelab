@@ -580,6 +580,111 @@ terraform apply  # Will re-download models
 docker ps --filter "name=homelab-whisper"
 ```
 
+## Monitoring Integration with Raspberry Pi
+
+The homelab services integrate with the Raspberry Pi 5 monitoring stack (rainforest-iot) for centralized observability.
+
+### **Architecture**
+
+**Mac Mini (homelab)** → **Raspberry Pi (monitoring)**
+- Mac Mini: Runs workload services (Open WebUI, Flowise, n8n, PostgreSQL, MinIO, etc.)
+- Raspberry Pi: Runs monitoring stack (Prometheus, Grafana, Loki, AlertManager)
+- Connection: Direct LAN connectivity (Mac: 192.168.0.30, Pi: 192.168.0.134)
+
+### **Enabled Metrics**
+
+**PostgreSQL** ([main.tf:48](/Users/rainforest/Repositories/rainforest-homelab/main.tf#L48)):
+- Metrics endpoint: `http://192.168.0.30:30432/metrics`
+- Exporter: postgres_exporter (Bitnami chart built-in)
+- Scrape interval: 30s
+- Metrics: connections, transactions, queries, locks, database sizes
+
+**MinIO** ([modules/minio/main.tf:99](/Users/rainforest/Repositories/rainforest-homelab/modules/minio/main.tf#L99)):
+- Metrics endpoint: `http://192.168.0.30:30900/minio/v2/metrics/cluster`
+- Auth: Public (MINIO_PROMETHEUS_AUTH_TYPE = "public")
+- Scrape interval: 30s
+- Metrics: storage usage, API requests, network I/O, bucket statistics
+
+### **Deployment Steps**
+
+**1. Deploy monitoring changes to homelab (Mac Mini)**:
+```bash
+cd /Users/rainforest/Repositories/rainforest-homelab
+terraform plan  # Review PostgreSQL metrics enable + NodePort services
+terraform apply # Deploy changes
+```
+
+**2. Deploy scrape configs to IoT monitoring (Raspberry Pi)**:
+```bash
+cd /Users/rainforest/Repositories/rainforest-iot
+terraform plan  # Review new Mac Mini scrape targets
+terraform apply # Update Prometheus configuration
+```
+
+**3. Verify metrics collection**:
+```bash
+# Check metrics endpoints are accessible from Pi
+curl http://192.168.0.30:30432/metrics  # PostgreSQL
+curl http://192.168.0.30:30900/minio/v2/metrics/cluster  # MinIO
+
+# Access Grafana (from browser)
+open http://raspberrypi-5.local:30080  # Login: admin/admin123
+
+# Check Prometheus targets
+open http://raspberrypi-5.local:30090/targets
+```
+
+### **Grafana Dashboards**
+
+**Available dashboards**:
+- **Homelab Overview**: Unified view of Mac Mini + Pi services
+- **Kubernetes Cluster**: K3s cluster metrics (Pi) + Docker Desktop metrics (Mac)
+- **PostgreSQL**: Database performance, connections, query statistics
+- **MinIO**: Storage capacity, API requests, bucket usage
+
+**Import additional dashboards**:
+1. Navigate to Grafana → Dashboards → Import
+2. Use dashboard IDs:
+   - PostgreSQL: `9628` (official PostgreSQL dashboard)
+   - MinIO: `13502` (MinIO metrics dashboard)
+   - Docker: `1229` (Docker container metrics)
+
+### **Troubleshooting**
+
+**Metrics not showing in Prometheus**:
+```bash
+# Verify NodePort services are running
+kubectl get svc -n homelab | grep metrics
+
+# Check if ports are exposed
+kubectl get svc homelab-postgresql-metrics -n homelab
+kubectl get svc homelab-minio-metrics -n homelab
+
+# Test from Mac Mini
+curl localhost:30432/metrics  # PostgreSQL
+curl localhost:30900/minio/v2/metrics/cluster  # MinIO
+```
+
+**Prometheus scrape errors**:
+```bash
+# SSH to Raspberry Pi and test connectivity
+ssh rainforest@raspberrypi-5.local
+curl http://192.168.0.30:30432/metrics  # Should return metrics
+
+# Check Prometheus logs
+kubectl logs -n monitoring deployment/prometheus-server --tail=100
+```
+
+**Network connectivity issues**:
+```bash
+# Verify LAN connectivity
+ping 192.168.0.30  # Mac Mini
+ping 192.168.0.134  # Raspberry Pi
+
+# Check firewall (macOS)
+sudo pfctl -s rules  # Verify no blocking rules
+```
+
 ## Security Considerations
 
 - **Cloudflare API Credentials**: The `cloudflare_api_token` and `cloudflare_account_id` variables are marked as sensitive in Terraform
@@ -589,3 +694,4 @@ docker ps --filter "name=homelab-whisper"
 - **Zero Trust Ready**: Optional email authentication for additional security layers
 - **DDoS Protection**: Enterprise-grade protection via Cloudflare's global network
 - **Whisper API Access**: Protected by Cloudflare Zero Trust authentication (recommended for production)
+- **Metrics Security**: NodePort services only accessible on local LAN (not exposed via Cloudflare Tunnel)
