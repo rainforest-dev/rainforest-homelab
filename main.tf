@@ -45,7 +45,7 @@ module "postgresql" {
   pgadmin_email  = "contact@rainforest.tools"
 
   # Monitoring
-  enable_metrics = false
+  enable_metrics = true
 }
 
 module "docker_mcp_gateway" {

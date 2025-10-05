@@ -117,3 +117,32 @@ resource "helm_release" "minio" {
 
   depends_on = []
 }
+
+# NodePort service to expose MinIO metrics externally
+resource "kubernetes_service" "minio_metrics" {
+  metadata {
+    name      = "${var.project_name}-minio-metrics"
+    namespace = var.namespace
+    labels = {
+      app = "minio-metrics"
+    }
+  }
+
+  spec {
+    type = "NodePort"
+
+    port {
+      name        = "metrics"
+      port        = 9000
+      target_port = 9000
+      node_port   = 30900
+    }
+
+    selector = {
+      app     = "minio"
+      release = "${var.project_name}-minio"
+    }
+  }
+
+  depends_on = [helm_release.minio]
+}

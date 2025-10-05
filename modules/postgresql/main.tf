@@ -192,6 +192,37 @@ resource "helm_release" "postgresql" {
   ]
 }
 
+# NodePort service to expose PostgreSQL metrics externally
+resource "kubernetes_service" "postgresql_metrics" {
+  count = var.enable_metrics ? 1 : 0
+
+  metadata {
+    name      = "${var.project_name}-postgresql-metrics"
+    namespace = var.namespace
+    labels = {
+      app = "postgresql-metrics"
+    }
+  }
+
+  spec {
+    type = "NodePort"
+
+    port {
+      name        = "metrics"
+      port        = 9187
+      target_port = 9187
+      node_port   = 30432
+    }
+
+    selector = {
+      "app.kubernetes.io/name"     = "postgresql"
+      "app.kubernetes.io/instance" = "${var.project_name}-postgresql"
+    }
+  }
+
+  depends_on = [helm_release.postgresql]
+}
+
 # pgAdmin for GUI management (lean setup without external PVC)
 resource "helm_release" "pgadmin" {
   count = var.enable_pgadmin ? 1 : 0
