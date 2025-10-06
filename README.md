@@ -276,6 +276,69 @@ The Terraform deployment automatically creates and configures:
 - **Authentication**: Automatic OAuth flow with Cloudflare Access
 - **Configuration**: Centrally managed via `terraform.tfvars`
 
+### Internal Security Architecture (Service Tokens)
+
+The Docker MCP Gateway uses a **multi-layer security architecture** with Cloudflare Access Service Tokens:
+
+```
+Client → GitHub OAuth → docker-mcp.rainforest.tools (Public)
+           ↓ Service Token Headers
+         docker-mcp-internal.rainforest.tools (Protected)
+           ↓ Cloudflare Tunnel
+         host.docker.internal:3100 (Docker MCP Gateway)
+```
+
+**Security Layers:**
+1. **Public Endpoint** (`docker-mcp.rainforest.tools`):
+   - GitHub OAuth authentication for end users
+   - OAuth Worker validates user identity
+
+2. **Internal Endpoint** (`docker-mcp-internal.rainforest.tools`):
+   - Protected by Zero Trust service token authentication
+   - DNS record exists (required for Worker-to-Worker communication)
+   - Only accessible with valid service token headers
+   - Blocks all public internet access
+
+3. **Network Isolation**:
+   - Docker MCP Gateway only reachable via Cloudflare Tunnel
+   - No direct internet exposure
+
+**Service Token Setup** (One-Time):
+
+1. **Create Service Token**:
+   ```bash
+   # Navigate to: https://dash.cloudflare.com/ → Zero Trust → Access → Service Auth → Service Tokens
+   # Click "Create Service Token"
+   # Name: "OAuth Worker - Docker MCP Internal"
+   # Copy Client ID and Client Secret immediately
+   ```
+
+2. **Configure Terraform** (`terraform.tfvars`):
+   ```hcl
+   service_token_ids = ["your-client-id.access"]
+   oauth_worker_service_token_client_id = "your-client-id.access"
+   oauth_worker_service_token_client_secret = "your-client-secret"
+   ```
+
+3. **Deploy Infrastructure**:
+   ```bash
+   terraform apply  # Creates DNS, Access Application, and Worker secrets
+   ```
+
+4. **Create Access Policy** (Manual - Cloudflare API limitation):
+   - Go to: Zero Trust → Access → Applications → "Docker-Mcp-Internal - homelab"
+   - Policies → Add policy → Action: "Service Auth"
+   - Include → Service Token → Select your token
+   - Save policy
+
+**Why This Architecture?**
+- **Zero Trust**: Internal endpoint requires service token authentication
+- **Defense in Depth**: Multiple security layers (OAuth + Service Token + Network Isolation)
+- **Credential Isolation**: Service tokens created manually (not in Terraform state)
+- **Automatic Secret Management**: Terraform configures Worker secrets from terraform.tfvars
+
+See `CLAUDE.md` for complete service token setup guide.
+
 ### Security Considerations
 
 ⚠️ **Docker Socket Access**: The Docker MCP Gateway requires Docker socket access, providing significant privileges:
