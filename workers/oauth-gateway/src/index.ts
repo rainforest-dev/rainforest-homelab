@@ -35,14 +35,37 @@ const dockerMCPHandler = {
 			headers.set('X-GitHub-Token', props.accessToken);
 			headers.delete('Authorization'); // Remove OAuth headers before proxying
 
-			console.log(`[Docker MCP Proxy] Proxying ${request.method} ${url.pathname} to ${backendUrl.toString()}`);
-			console.log(`[Docker MCP Proxy] User: ${props.login} (${props.email})`);
+			// Add service token headers for Cloudflare Access authentication
+			if (env.SERVICE_TOKEN_ID && env.SERVICE_TOKEN_SECRET) {
+				headers.set('CF-Access-Client-Id', env.SERVICE_TOKEN_ID);
+				headers.set('CF-Access-Client-Secret', env.SERVICE_TOKEN_SECRET);
+			} else {
+				console.warn(`[Docker MCP Proxy] WARNING: Service token credentials missing - authentication will fail`);
+			}
+
+			// Buffer the request body to handle potential redirects
+			let body = null;
+			if (request.body && request.method !== 'GET' && request.method !== 'HEAD') {
+				body = await request.arrayBuffer();
+			}
 
 			const response = await fetch(backendUrl.toString(), {
 				method: request.method,
 				headers,
-				body: request.body,
+				body: body,
+				redirect: 'manual', // Handle redirects manually to avoid body replay issues
 			});
+
+			// If we get a redirect, log it and return error (service token should prevent redirects)
+			if (response.status >= 300 && response.status < 400) {
+				const location = response.headers.get('Location');
+				console.error(`[Docker MCP Proxy] Unexpected redirect to: ${location}`);
+				console.error(`[Docker MCP Proxy] This means service token authentication failed!`);
+				return new Response(`Service token authentication failed. Got redirect to: ${location}`, {
+					status: 502,
+					headers: { 'Content-Type': 'text/plain' }
+				});
+			}
 
 			return response;
 

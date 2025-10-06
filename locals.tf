@@ -62,9 +62,9 @@ locals {
       "docker-mcp-internal" = {
         hostname    = "docker-mcp-internal"
         service_url = module.docker_mcp_gateway.tunnel_service_url
-        enable_auth = false # No auth needed for internal proxy route
+        enable_auth = true # Protected by service token authentication
         type        = "docker"
-        internal    = true # Skip DNS record creation - OAuth Worker handles the domain
+        internal    = false # DNS record needed for Worker-to-Worker communication via tunnel
       }
     },
 

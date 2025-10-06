@@ -46,6 +46,29 @@ allowed_emails        = []                  # Add specific emails if needed
 # allowed_email_domains = []  # No authentication
 # allowed_emails        = []  # No authentication
 
-# Service Tokens for MCP Clients (requires creating tokens in Cloudflare dashboard)
-# Access → Service Auth → Service Tokens → Create Service Token
-service_token_ids = []  # Add service token IDs here for programmatic access
+# Service Tokens for OAuth Worker ↔ Docker MCP Gateway Authentication
+#
+# STEP 1: Create service token in Cloudflare Dashboard
+#   Navigate to: https://dash.cloudflare.com/ → Zero Trust → Access → Service Auth → Service Tokens
+#   Click "Create Service Token"
+#   Name: "OAuth Worker - Docker MCP Internal"
+#   Duration: Leave empty (never expires)
+#
+#   IMPORTANT: Copy BOTH values immediately (Client Secret cannot be viewed again!)
+#   - Client ID: Looks like "2d0a0192257027201e709f8bb7144785.access"
+#   - Client Secret: Looks like "7125b65e4cff771b41a95b45419b63f07cfc51bac9e2acd5e2df933c6607725a"
+#
+# STEP 2: Add credentials below
+#   - service_token_ids: List with Client ID (for Zero Trust policy)
+#   - oauth_worker_service_token_client_id: Client ID (for Worker secrets)
+#   - oauth_worker_service_token_client_secret: Client Secret (for Worker secrets)
+#
+# STEP 3: Run terraform apply
+#   Terraform will automatically:
+#   - Create DNS record for docker-mcp-internal.rainforest.tools
+#   - Update Zero Trust policy to allow service token
+#   - Configure OAuth Worker secrets (SERVICE_TOKEN_ID, SERVICE_TOKEN_SECRET)
+
+service_token_ids                        = []  # Add your Client ID here: ["abc123...def.access"]
+oauth_worker_service_token_client_id     = ""  # Your Client ID (CF-Access-Client-Id)
+oauth_worker_service_token_client_secret = ""  # Your Client Secret (CF-Access-Client-Secret)
