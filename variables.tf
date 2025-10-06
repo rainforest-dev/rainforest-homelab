@@ -138,9 +138,23 @@ variable "allowed_emails" {
 }
 
 variable "service_token_ids" {
-  description = "List of Cloudflare Access Service Token IDs for programmatic access"
+  description = "List of Cloudflare Access Service Token IDs for programmatic access (manually created in Dashboard)"
   type        = list(string)
   default     = []
+  sensitive   = true
+}
+
+variable "oauth_worker_service_token_client_id" {
+  description = "OAuth Worker service token Client ID (create manually in Cloudflare Dashboard)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "oauth_worker_service_token_client_secret" {
+  description = "OAuth Worker service token Client Secret (create manually in Cloudflare Dashboard)"
+  type        = string
+  default     = ""
   sensitive   = true
 }
 

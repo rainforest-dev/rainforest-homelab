@@ -81,6 +81,10 @@ module "oauth_worker" {
   oauth_client_id       = var.oauth_client_id
   oauth_client_secret   = var.oauth_client_secret
 
+  # Service token for docker-mcp-internal authentication (manually created)
+  service_token_client_id     = var.oauth_worker_service_token_client_id
+  service_token_client_secret = var.oauth_worker_service_token_client_secret
+
   depends_on = [module.docker_mcp_gateway]
 }
 

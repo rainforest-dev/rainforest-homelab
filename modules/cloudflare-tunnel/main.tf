@@ -116,7 +116,7 @@ resource "cloudflare_zero_trust_access_policy" "email_policy" {
   precedence     = 1
   decision       = "allow"
 
-  # Email domain restriction
+  # Email domain restriction (combines with other includes via OR logic)
   dynamic "include" {
     for_each = length(var.allowed_email_domains) > 0 ? [1] : []
     content {
@@ -129,6 +129,14 @@ resource "cloudflare_zero_trust_access_policy" "email_policy" {
     for_each = length(var.allowed_emails) > 0 ? [1] : []
     content {
       email = var.allowed_emails
+    }
+  }
+
+  # Service token authentication (for OAuth Worker and other programmatic access)
+  dynamic "include" {
+    for_each = length(var.service_token_ids) > 0 ? [1] : []
+    content {
+      service_token = var.service_token_ids
     }
   }
 

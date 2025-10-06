@@ -342,9 +342,245 @@ This pattern ensures consistency and eliminates the need to update multiple loca
 
 **Service Token Benefits:**
 - **Programmatic Access**: No browser interaction required
-- **Secure**: Scoped to specific applications  
+- **Secure**: Scoped to specific applications
 - **Rotatable**: Can be regenerated/revoked anytime
 - **Auditable**: All access logged in Cloudflare Analytics
+
+## OAuth Worker ↔ Docker MCP Gateway Architecture (Internal)
+
+The OAuth Worker uses **Cloudflare Access Service Tokens** to securely communicate with the Docker MCP Gateway through an internal tunnel route.
+
+### **Architecture Overview**
+
+```
+Client (Claude Code)
+  ↓ OAuth 2.0 (GitHub authentication)
+docker-mcp.rainforest.tools (OAuth Worker - Public)
+  ↓ Cloudflare Tunnel + Service Token Headers
+docker-mcp-internal.rainforest.tools (Protected - DNS exists but auth required)
+  ↓ Tunnel routing
+host.docker.internal:3100 (Docker MCP Gateway)
+```
+
+### **Security Layers**
+
+1. **Public Endpoint** (`docker-mcp.rainforest.tools`):
+   - GitHub OAuth authentication for end users
+   - OAuth Worker validates user identity
+   - Managed by Cloudflare Worker
+
+2. **Internal Endpoint** (`docker-mcp-internal.rainforest.tools`):
+   - DNS record exists (required for Worker-to-Worker communication)
+   - Protected by Zero Trust service token authentication
+   - Only accessible with valid service token headers
+   - Blocks all public internet access
+   - Optional: Also accessible via your email domain (for debugging)
+
+3. **Network Isolation**:
+   - Docker MCP Gateway only reachable via Cloudflare Tunnel
+   - No direct internet exposure
+
+### **Setup (Hybrid Manual + Automated)**
+
+**Step 1: Create Service Token (One-Time Manual Setup)**
+
+```bash
+# 1. Navigate to Cloudflare Dashboard:
+#    https://dash.cloudflare.com/ → Zero Trust → Access → Service Auth → Service Tokens
+
+# 2. Click "Create Service Token"
+#    Name: "OAuth Worker - Docker MCP Internal"
+#    Duration: Leave empty (token never expires)
+
+# 3. Copy BOTH values immediately (you can't view Client Secret later!):
+#    - Client ID (e.g., "a1b2c3d4e5f6...")
+#    - Client Secret (e.g., "x1y2z3...")
+```
+
+**Step 2: Configure Terraform (One-Time)**
+
+Add to `terraform.tfvars`:
+
+```hcl
+# Add service token ID to the list (for Zero Trust policy)
+service_token_ids = ["a1b2c3d4e5f6..."]  # Your Client ID from Step 1
+
+# Add OAuth Worker credentials (for Worker secrets automation)
+oauth_worker_service_token_client_id     = "a1b2c3d4e5f6..."  # Client ID
+oauth_worker_service_token_client_secret = "x1y2z3..."        # Client Secret
+```
+
+**Step 3: Deploy Infrastructure**
+
+```bash
+terraform plan   # Review DNS and Worker secrets changes
+terraform apply  # Terraform automatically:
+                 # - Creates DNS record for docker-mcp-internal
+                 # - Creates Zero Trust Access Application
+                 # - Configures OAuth Worker secrets (SERVICE_TOKEN_ID, SERVICE_TOKEN_SECRET)
+```
+
+**Step 4: Create Access Policy Manually** (Required)
+
+Cloudflare API limitations require manual policy creation in the Dashboard:
+
+```bash
+# 1. Navigate to: Zero Trust → Access → Applications
+# 2. Find "Docker-Mcp-Internal - homelab" → Click "Edit"
+# 3. Go to "Policies" tab → Click "Add a policy"
+# 4. Configure:
+#    - Name: "OAuth Worker Service Token"
+#    - Action: "Service Auth" (NOT "Allow")
+#    - Configure rules → Add include → Service Token → Select your token
+# 5. Save policy → Save application
+```
+
+**What Terraform Automates:**
+- ✅ DNS record for `docker-mcp-internal.rainforest.tools`
+- ✅ Zero Trust Access Application creation
+- ✅ Worker secrets configured automatically
+- ✅ Tunnel routing to Docker MCP Gateway
+
+**What You Do Once:**
+- ✅ Create service token in Dashboard (more secure - not in Terraform state)
+- ✅ Add credentials to `terraform.tfvars` (gitignored)
+- ✅ Create Access Policy manually (Cloudflare API limitation)
+
+**Verify Setup:**
+
+```bash
+# 1. DNS record exists
+dig docker-mcp-internal.rainforest.tools
+# Should return: CNAME to *.cfargotunnel.com
+
+# 2. Zero Trust authentication active
+curl -I https://docker-mcp-internal.rainforest.tools/sse
+# Should return: HTTP/2 302 (redirect to login)
+
+# 3. Worker secrets configured
+# Cloudflare Dashboard → Workers & Pages → homelab-oauth-gateway → Settings → Variables
+# Should see: SERVICE_TOKEN_ID, SERVICE_TOKEN_SECRET
+```
+
+### **OAuth Worker Code Implementation**
+
+The OAuth Worker includes service token headers when proxying to `docker-mcp-internal`:
+
+```typescript
+// After OAuth authentication succeeds
+const upstreamRequest = new Request(
+  `https://docker-mcp-internal.${env.DOMAIN_SUFFIX}${new URL(request.url).pathname}`,
+  {
+    method: request.method,
+    headers: {
+      ...Object.fromEntries(request.headers),
+      // Add service token headers for Zero Trust authentication
+      'CF-Access-Client-Id': env.SERVICE_TOKEN_ID,
+      'CF-Access-Client-Secret': env.SERVICE_TOKEN_SECRET,
+    },
+    body: request.body,
+  }
+);
+
+return fetch(upstreamRequest);
+```
+
+### **Testing & Verification**
+
+**Test 1: Direct access should be blocked**
+```bash
+curl https://docker-mcp-internal.rainforest.tools/sse
+# Expected: 403 Forbidden or Zero Trust login page
+```
+
+**Test 2: Access with service token (simulate OAuth Worker)**
+```bash
+curl https://docker-mcp-internal.rainforest.tools/sse \
+  -H "CF-Access-Client-Id: <your-client-id>" \
+  -H "CF-Access-Client-Secret: <your-client-secret>"
+# Expected: 200 OK or appropriate response from MCP Gateway
+```
+
+**Test 3: End-to-end OAuth flow**
+```bash
+# Use MCP client with OAuth configuration
+# Should successfully authenticate and connect through OAuth Worker
+```
+
+**Monitor Access Logs:**
+```bash
+# Cloudflare Dashboard → Zero Trust → Logs → Access
+# Filter by application: "Docker MCP Internal"
+# Should see OAuth Worker requests with service token authentication
+```
+
+### **Service Token Management**
+
+**Token Properties:**
+- ✅ **Never Expires** (when created without duration)
+- ✅ **Stored Securely** (Cloudflare Worker secrets are encrypted)
+- ✅ **Never Leaves Cloudflare Network** (Worker-to-Tunnel communication stays internal)
+- ✅ **Auditable** (All requests logged in Access Logs)
+
+**Rotation (if needed):**
+```bash
+# Terraform manages token lifecycle - just taint and reapply
+terraform taint module.cloudflare_tunnel.cloudflare_zero_trust_access_service_token.oauth_worker
+terraform apply
+
+# Terraform will:
+# 1. Create new service token
+# 2. Update Worker secrets automatically
+# 3. Update Zero Trust policy
+# 4. Delete old token
+# Zero downtime - Workers update automatically
+```
+
+**Security Best Practices:**
+- ✅ Service token credentials managed entirely by Terraform
+- ✅ Credentials stored securely in Terraform state (encrypted at rest)
+- ✅ Worker secrets updated automatically
+- ✅ No manual credential handling required
+- ✅ Regularly review Access Logs for unusual activity
+- ✅ Token rotation via `terraform taint` if compromised
+
+### **Troubleshooting**
+
+**530 Error (Tunnel cannot reach upstream):**
+```bash
+# Verify Docker MCP Gateway is running
+docker ps --filter "name=homelab-docker-mcp-gateway"
+
+# Check tunnel can reach host.docker.internal
+kubectl run test-host --rm -it --restart=Never --image=curlimages/curl -- \
+  curl -I http://host.docker.internal:3100
+```
+
+**403 Forbidden:**
+```bash
+# Check service token exists in Cloudflare
+# Dashboard → Zero Trust → Access → Service Auth → Service Tokens
+# Should see: "homelab-oauth-worker-service-token"
+
+# Verify Worker secrets were created
+# Dashboard → Workers & Pages → homelab-oauth-gateway → Settings → Variables
+# Should show: SERVICE_TOKEN_ID, SERVICE_TOKEN_SECRET
+
+# Force recreation if needed
+terraform taint module.oauth_worker[0].cloudflare_workers_secret.service_token_id
+terraform taint module.oauth_worker[0].cloudflare_workers_secret.service_token_secret
+terraform apply
+```
+
+**DNS Resolution Failure:**
+```bash
+# Verify DNS record was created
+dig docker-mcp-internal.rainforest.tools
+# Should return CNAME pointing to tunnel
+
+# Check Cloudflare Dashboard → DNS → Records
+# Should see: docker-mcp-internal CNAME <tunnel-id>.cfargotunnel.com
+```
 
 ## Persistent OAuth Setup (Recommended)
 

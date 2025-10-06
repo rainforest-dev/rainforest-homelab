@@ -43,3 +43,17 @@ variable "oauth_client_secret" {
 
 # OAuth client credentials are automatically registered via null_resource
 # No manual configuration needed - Terraform will register and manage the client
+
+variable "service_token_client_id" {
+  description = "Service token Client ID for docker-mcp-internal authentication (manually created)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "service_token_client_secret" {
+  description = "Service token Client Secret for docker-mcp-internal authentication (manually created)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
