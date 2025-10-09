@@ -67,7 +67,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
 resource "cloudflare_record" "services" {
   for_each = {
     for name, config in var.services : name => config
-    if !lookup(config, "internal", false)  # Skip services marked as internal
+    if !lookup(config, "internal", false) # Skip services marked as internal
   }
 
   zone_id = local.zone_id
@@ -103,7 +103,7 @@ resource "cloudflare_zero_trust_access_application" "services" {
   }
 }
 
-# Create Zero Trust Access Policy - Email verification (only if applications exist)
+# Create Zero Trust Access Policy - Email and Service Token verification
 resource "cloudflare_zero_trust_access_policy" "email_policy" {
   for_each = length(var.allowed_email_domains) > 0 ? {
     for name, config in var.services : name => config
@@ -116,30 +116,70 @@ resource "cloudflare_zero_trust_access_policy" "email_policy" {
   precedence     = 1
   decision       = "allow"
 
-  # Email domain restriction (combines with other includes via OR logic)
-  dynamic "include" {
-    for_each = length(var.allowed_email_domains) > 0 ? [1] : []
-    content {
-      email_domain = var.allowed_email_domains
-    }
+  # Single include block with email authentication methods
+  # Arrays create OR logic within the block - any email from domain OR any individual email
+  include {
+    email_domain = length(var.allowed_email_domains) > 0 ? var.allowed_email_domains : null
+    email        = length(var.allowed_emails) > 0 ? var.allowed_emails : null
   }
 
-  # Optional: Add email list for specific users
-  dynamic "include" {
-    for_each = length(var.allowed_emails) > 0 ? [1] : []
-    content {
-      email = var.allowed_emails
-    }
-  }
+}
 
-  # Service token authentication (for OAuth Worker and other programmatic access)
-  dynamic "include" {
-    for_each = length(var.service_token_ids) > 0 ? [1] : []
-    content {
-      service_token = var.service_token_ids
-    }
-  }
+# Fetch all policies for the docker-mcp-internal application to check for service token policy
+data "external" "docker_mcp_internal_policies" {
+  count = length(var.allowed_email_domains) > 0 && contains(keys(var.services), "docker-mcp-internal") ? 1 : 0
 
+  program = ["bash", "-c", <<-EOT
+    set -e
+    APP_ID="${cloudflare_zero_trust_access_application.services["docker-mcp-internal"].id}"
+    ACCOUNT_ID="${var.cloudflare_account_id}"
+
+    # Fetch policies from Cloudflare API
+    RESPONSE=$(curl -s "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies" \
+      -H "Authorization: Bearer ${var.cloudflare_api_token}")
+
+    # Check if response is valid
+    if [ -z "$RESPONSE" ] || [ "$RESPONSE" = "null" ]; then
+      echo '{"total_policies":"0","has_service_token_policy":"false","error":"API returned null or empty response"}'
+      exit 0
+    fi
+
+    # Check for API errors
+    SUCCESS=$(echo "$RESPONSE" | jq -r '.success // false')
+    if [ "$SUCCESS" != "true" ]; then
+      ERROR_MSG=$(echo "$RESPONSE" | jq -r '.errors[0].message // "Unknown API error"')
+      echo "{\"total_policies\":\"0\",\"has_service_token_policy\":\"false\",\"error\":\"$ERROR_MSG\"}"
+      exit 0
+    fi
+
+    # Extract policy count and check for service token policy
+    TOTAL=$(echo "$RESPONSE" | jq -r '.result | length // 0')
+    HAS_SERVICE_TOKEN=$(echo "$RESPONSE" | jq -r '[.result[] | select(.decision == "non_identity")] | length > 0')
+
+    # Return as JSON for Terraform
+    echo "{\"total_policies\":\"$TOTAL\",\"has_service_token_policy\":\"$HAS_SERVICE_TOKEN\"}"
+  EOT
+  ]
+
+  depends_on = [
+    cloudflare_zero_trust_access_policy.email_policy
+  ]
+}
+
+# Check if service token policy exists
+locals {
+  policy_check_result = length(var.allowed_email_domains) > 0 && contains(keys(var.services), "docker-mcp-internal") ? (
+    data.external.docker_mcp_internal_policies[0].result
+  ) : { total_policies = "0", has_service_token_policy = "false" }
+
+  has_service_token_policy = local.policy_check_result.has_service_token_policy == "true"
+
+  # Determine if manual setup warning should be shown
+  needs_manual_policy_setup = (
+    length(var.allowed_email_domains) > 0 &&
+    contains(keys(var.services), "docker-mcp-internal") &&
+    !local.has_service_token_policy
+  )
 }
 
 # Create Kubernetes secret for tunnel credentials

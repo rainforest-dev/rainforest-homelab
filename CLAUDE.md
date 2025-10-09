@@ -449,18 +449,34 @@ Cloudflare API limitations require manual policy creation in the Dashboard:
 **Verify Setup:**
 
 ```bash
-# 1. DNS record exists
+# 1. Check Terraform outputs for policy validation
+terraform output cloudflare_policy_check
+# Should show: has_service_token_policy = true, total_policies = "2"
+
+# 2. Check for manual setup warnings
+terraform output manual_setup_warning
+# Should return: null (if policy exists) or show warning instructions
+
+# 3. DNS record exists
 dig docker-mcp-internal.rainforest.tools
 # Should return: CNAME to *.cfargotunnel.com
 
-# 2. Zero Trust authentication active
+# 4. Zero Trust authentication active
 curl -I https://docker-mcp-internal.rainforest.tools/sse
 # Should return: HTTP/2 302 (redirect to login)
 
-# 3. Worker secrets configured
+# 5. Worker secrets configured
 # Cloudflare Dashboard → Workers & Pages → homelab-oauth-gateway → Settings → Variables
 # Should see: SERVICE_TOKEN_ID, SERVICE_TOKEN_SECRET
 ```
+
+**Automated Policy Detection:**
+
+Terraform now automatically detects if the service token policy is missing:
+- ✅ **Automatic Validation**: Checks Cloudflare API for service token policy after every apply
+- ✅ **Clear Warnings**: Shows detailed setup instructions if policy is missing
+- ✅ **Status Output**: `terraform output cloudflare_policy_check` shows policy status
+- ✅ **No More Silent Failures**: 502 errors are prevented by detecting missing policies
 
 ### **OAuth Worker Code Implementation**
 

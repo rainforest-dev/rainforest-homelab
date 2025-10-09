@@ -45,3 +45,40 @@ output "dns_records" {
     for k, v in cloudflare_record.services : k => v.id
   }
 }
+
+output "manual_setup_required" {
+  description = "WARNING: Manual setup required for service token policy"
+  value = local.needs_manual_policy_setup ? {
+    warning = "⚠️  MANUAL SETUP REQUIRED: Service token policy missing for docker-mcp-internal"
+    application_id = try(cloudflare_zero_trust_access_application.services["docker-mcp-internal"].id, "N/A")
+    instructions = <<-EOT
+
+    🚨 ACTION REQUIRED: Create Service Token Policy
+
+    The docker-mcp-internal Access Application exists but is missing the service token policy.
+    This will cause 502 errors when the OAuth Worker tries to access the MCP Gateway.
+
+    Steps to fix:
+    1. Go to: https://dash.cloudflare.com/ → Zero Trust → Access → Applications
+    2. Find: "Docker-Mcp-Internal - homelab" → Click "Edit"
+    3. Go to: "Policies" tab → Click "Add a policy"
+    4. Configure:
+       - Name: "OAuth Worker Service Token"
+       - Action: "Service Auth" (NOT "Allow")
+       - Configure rules → Add include → Service Token
+       - Select: "homelab-oauth-worker-service-token"
+    5. Save policy → Save application
+
+    After completing these steps, run 'terraform refresh' to update the state.
+
+    EOT
+  } : null
+}
+
+output "policy_check_status" {
+  description = "Service token policy validation status"
+  value = contains(keys(var.services), "docker-mcp-internal") && length(var.allowed_email_domains) > 0 ? {
+    has_service_token_policy = local.has_service_token_policy
+    total_policies           = local.policy_check_result.total_policies
+  } : null
+}
