@@ -79,3 +79,14 @@ output "claude_oauth_client_secret" {
   value       = var.oauth_client_id != "" ? module.oauth_worker[0].claude_client_secret : null
   sensitive   = true
 }
+
+# Policy validation warnings
+output "cloudflare_policy_check" {
+  description = "Cloudflare Access policy validation status"
+  value       = module.cloudflare_tunnel.policy_check_status
+}
+
+output "manual_setup_warning" {
+  description = "⚠️  MANUAL SETUP REQUIRED if not null"
+  value       = module.cloudflare_tunnel.manual_setup_required
+}
