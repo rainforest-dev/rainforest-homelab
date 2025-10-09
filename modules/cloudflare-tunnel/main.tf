@@ -103,7 +103,7 @@ resource "cloudflare_zero_trust_access_application" "services" {
   }
 }
 
-# Create Zero Trust Access Policy - Email and Service Token verification
+# Create Zero Trust Access Policy - Email authentication
 resource "cloudflare_zero_trust_access_policy" "email_policy" {
   for_each = length(var.allowed_email_domains) > 0 ? {
     for name, config in var.services : name => config
@@ -124,6 +124,23 @@ resource "cloudflare_zero_trust_access_policy" "email_policy" {
   }
 
 }
+
+# NOTE: Service Token policies for docker-mcp-internal CANNOT be automated
+#
+# Cloudflare Limitations:
+# 1. Service token policies use Cloudflare's "reusable policy" system
+# 2. Reusable policies cannot be created/managed via standard API endpoints
+# 3. Terraform provider doesn't support service_token in include blocks (returns error 12130)
+#
+# Manual Setup Required (One-Time):
+# - Create policy in Dashboard: Zero Trust → Access → Applications → docker-mcp-internal
+# - Policy Type: "Service Auth" (decision: non_identity)
+# - Include: Select your service token
+#
+# Benefits of Manual Setup:
+# ✅ Reusable policy survives Access Application recreation
+# ✅ Terraform validation below detects if policy is missing
+# ✅ Once created, persists across all infrastructure changes
 
 # Fetch all policies for the docker-mcp-internal application to check for service token policy
 data "external" "docker_mcp_internal_policies" {

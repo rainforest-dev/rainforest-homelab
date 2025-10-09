@@ -420,9 +420,11 @@ terraform apply  # Terraform automatically:
                  # - Configures OAuth Worker secrets (SERVICE_TOKEN_ID, SERVICE_TOKEN_SECRET)
 ```
 
-**Step 4: Create Access Policy Manually** (Required)
+**Step 4: Create Access Policy Manually** (Required - Cannot be automated)
 
-Cloudflare API limitations require manual policy creation in the Dashboard:
+**Why Manual?** Cloudflare uses "reusable service token policies" which cannot be managed through the standard Terraform provider or API endpoints. This is a Cloudflare platform limitation, not a Terraform limitation.
+
+Create the policy in the Dashboard:
 
 ```bash
 # 1. Navigate to: Zero Trust → Access → Applications
@@ -444,7 +446,14 @@ Cloudflare API limitations require manual policy creation in the Dashboard:
 **What You Do Once:**
 - ✅ Create service token in Dashboard (more secure - not in Terraform state)
 - ✅ Add credentials to `terraform.tfvars` (gitignored)
-- ✅ Create Access Policy manually (Cloudflare API limitation)
+- ✅ Create Access Policy manually (Cloudflare platform limitation - cannot be automated)
+
+**Important Notes:**
+- 🔒 The service token policy uses Cloudflare's "reusable policy" system
+- 🔒 Reusable policies cannot be created/updated via standard API endpoints
+- 🔒 If the Access Application is recreated, the policy survives (it's reusable!)
+- ✅ Terraform automatically detects if policy is missing and shows setup instructions
+- ✅ Once created, the policy persists across infrastructure changes
 
 **Verify Setup:**
 
