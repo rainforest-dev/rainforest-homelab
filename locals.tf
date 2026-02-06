@@ -86,6 +86,15 @@ locals {
       }
     },
 
+    var.enable_teleport ? {
+      teleport = {
+        hostname    = "teleport"
+        service_url = "http://homelab-teleport-web.homelab.svc.cluster.local:3080"
+        enable_auth = true # Protect with Zero Trust
+        type        = "kubernetes"
+      }
+    } : {},
+
 
   )
 
