@@ -226,19 +226,35 @@ Users from your GitHub organization can now login with GitHub!
 ## Security
 
 ### Authentication
-- **Local Auth**: Username/password (default)
-- **GitHub OAuth**: Single Sign-On via GitHub (optional)
-- **Cloudflare Zero Trust**: Email verification via Cloudflare (automatic)
+
+**Important**: Teleport does NOT use Cloudflare Zero Trust authentication. This is intentional!
+
+**Why?**
+- **Teleport is the authentication gateway**: It has its own robust auth system
+- **Protocol compatibility**: `tsh` CLI requires direct access to Teleport's auth endpoints
+- **Avoiding double auth**: Cloudflare Access + Teleport would create confusing double authentication
+- **Feature-rich**: Teleport's auth is more powerful than Cloudflare Access
+
+**Available Authentication Methods:**
+- **Local Auth**: Username/password with optional 2FA (OTP/WebAuthn)
+- **GitHub OAuth**: Single Sign-On via GitHub (configured in this module)
+- **Google OAuth**: SSO with Google Workspace (Enterprise)
+- **SAML/OIDC**: Integration with Okta, Azure AD, etc. (Enterprise)
+- **Hardware Keys**: U2F/WebAuthn support for MFA
+
+**Network Security:**
+While Teleport handles authentication, Cloudflare Tunnel still provides:
+- ✅ **HTTPS/SSL**: Automatic SSL certificates from Cloudflare
+- ✅ **Hidden IP**: Your home IP address is never exposed
+- ✅ **DDoS Protection**: Enterprise-grade protection via Cloudflare
+- ✅ **CDN**: Fast global access through Cloudflare's network
 
 ### Authorization
 - **Role-Based Access Control (RBAC)**: Fine-grained permissions
 - **Just-in-Time Access**: Temporary elevated privileges
 - **Session Recording**: All sessions recorded for audit
-
-### Network Security
-- **Cloudflare Tunnel**: Home IP address never exposed
-- **TLS Encryption**: All traffic encrypted end-to-end
-- **Certificate Auth**: Short-lived certificates instead of passwords
+- **Certificate-Based Auth**: Short-lived certificates instead of static credentials
+- **Principle of Least Privilege**: Users get exactly the access they need
 
 ## Troubleshooting
 
