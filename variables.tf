@@ -96,8 +96,17 @@ variable "oauth_client_secret" {
 }
 
 # Feature Flags
+variable "enable_teleport" {
+  description = "Enable Teleport for secure access to homelab resources"
+  type        = bool
+  default     = false
+}
 
-
+variable "enable_postgresql" {
+  description = "Enable PostgreSQL database service"
+  type        = bool
+  default     = true
+}
 
 # Resource Sizing
 variable "default_cpu_limit" {
@@ -159,3 +168,24 @@ variable "external_storage_path" {
 #
 #
 #
+
+# Teleport Configuration
+variable "teleport_github_client_id" {
+  description = "GitHub OAuth client ID for Teleport SSO (optional)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "teleport_github_client_secret" {
+  description = "GitHub OAuth client secret for Teleport SSO (optional)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "teleport_github_organizations" {
+  description = "List of GitHub organizations allowed to access Teleport"
+  type        = list(string)
+  default     = []
+}
