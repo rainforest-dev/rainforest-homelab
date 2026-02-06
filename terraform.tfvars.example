@@ -26,6 +26,7 @@ enable_docker_mcp_gateway = false # Enable Docker MCP Gateway for remote Docker 
 enable_calibre_web       = true   # Enable Calibre Web ebook server
 enable_homepage          = true   # Enable Homepage dashboard
 enable_openspeedtest     = false  # Enable OpenSpeedTest (can run on separate machine)
+enable_teleport          = false  # Enable Teleport for secure SSH, Kubernetes, and database access
 
 # Resource Sizing
 default_cpu_limit    = "500m"
@@ -49,3 +50,10 @@ allowed_emails        = []                  # Add specific emails if needed
 # Service Tokens for MCP Clients (requires creating tokens in Cloudflare dashboard)
 # Access → Service Auth → Service Tokens → Create Service Token
 service_token_ids = []  # Add service token IDs here for programmatic access
+
+# Teleport Configuration (optional - for GitHub SSO)
+# Create a GitHub OAuth app at: https://github.com/settings/developers
+# Authorization callback URL: https://teleport.yourdomain.com/v1/webapi/github/callback
+# teleport_github_client_id     = ""  # GitHub OAuth App Client ID
+# teleport_github_client_secret = ""  # GitHub OAuth App Client Secret
+# teleport_github_organizations = ["your-github-org"]  # GitHub orgs allowed to access
