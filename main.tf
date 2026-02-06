@@ -132,7 +132,7 @@ module "open-webui" {
   ollama_enabled     = false
   ollama_base_url    = var.ollama_base_url
   chart_repository   = "https://helm.openwebui.com/"
-  chart_version      = "8.7.0" # Latest version with clean database
+  chart_version      = "10.2.1" # Updated to latest version
 
   # Switch to Helm deployment with PostgreSQL database
   deployment_type = "helm"
@@ -254,7 +254,7 @@ module "minio" {
   cpu_limit            = var.default_cpu_limit
   memory_limit         = var.default_memory_limit
   chart_repository     = "https://charts.min.io/"
-  chart_version        = "5.2.0"
+  chart_version        = "5.4.0"
   use_external_storage = true # Enable external storage on Samsung T7
 }
 

@@ -20,7 +20,7 @@ variable "namespace" {
 variable "chart_version" {
   description = "PostgreSQL Helm chart version"
   type        = string
-  default     = "15.2.5"  # Keep current stable version for now
+  default     = "15.2.5"  # PostgreSQL 16.2.0 - keep current stable version
 }
 
 variable "postgres_password" {

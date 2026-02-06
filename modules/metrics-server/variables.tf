@@ -31,7 +31,7 @@ variable "memory_limit" {
 variable "chart_version" {
   description = "Helm chart version"
   type        = string
-  default     = "3.11.0"
+  default     = "3.13.0"
 }
 
 variable "create_namespace" {
