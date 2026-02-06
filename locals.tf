@@ -87,9 +87,9 @@ locals {
     },
 
     var.enable_teleport ? {
-      teleport = {
-        hostname    = "teleport"
-        service_url = "http://homelab-teleport-web.homelab.svc.cluster.local:3080"
+      tp = {
+        hostname    = "tp"
+        service_url = "https://homelab-teleport.homelab.svc.cluster.local:443"
         enable_auth = true # Protect with Zero Trust
         type        = "kubernetes"
       }

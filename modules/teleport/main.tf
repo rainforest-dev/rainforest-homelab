@@ -73,157 +73,76 @@ resource "helm_release" "teleport" {
 
   values = [
     yamlencode({
-      clusterName = var.cluster_name
+      # Required: cluster name must be the public FQDN
+      clusterName = var.public_hostname
 
-      # Teleport authentication server configuration
-      auth = {
-        enabled = true
-        replicas = 1
-        resources = {
-          limits = {
-            cpu    = var.cpu_limit
-            memory = var.memory_limit
-          }
-          requests = {
-            cpu    = "100m"
-            memory = "256Mi"
-          }
-        }
+      # Kubernetes cluster name for tsh kube access
+      kubeClusterName = var.kubernetes_cluster_name
+
+      # Multiplex all protocols on one port (required for Cloudflare Tunnel)
+      proxyListenerMode = "multiplex"
+
+      # Authentication configuration
+      authentication = {
+        type         = "local"
+        secondFactor = "off" # Can be "otp", "webauthn", or "on" for production
       }
 
-      # Teleport proxy server configuration (handles web UI and connections)
-      proxy = {
-        enabled = true
-        replicas = 1
-        service = {
-          type = "ClusterIP"
-          ports = {
-            https = {
-              port       = 443
-              targetPort = 3080
-              protocol   = "TCP"
-            }
-            sshproxy = {
-              port       = 3023
-              targetPort = 3023
-              protocol   = "TCP"
-            }
-            k8s = {
-              port       = 3026
-              targetPort = 3026
-              protocol   = "TCP"
-            }
-            mysql = {
-              port       = 3036
-              targetPort = 3036
-              protocol   = "TCP"
-            }
-            postgres = {
-              port       = 5432
-              targetPort = 5432
-              protocol   = "TCP"
-            }
-          }
-        }
-        resources = {
-          limits = {
-            cpu    = var.cpu_limit
-            memory = var.memory_limit
-          }
-          requests = {
-            cpu    = "100m"
-            memory = "256Mi"
-          }
-        }
+      # ClusterIP service since Cloudflare Tunnel handles external access
+      service = {
+        type = "ClusterIP"
       }
 
       # Persistence configuration
       persistence = {
-        enabled      = var.use_external_storage
-        existingClaim = var.use_external_storage ? kubernetes_persistent_volume_claim.teleport_pvc[0].metadata[0].name : null
-        size         = var.use_external_storage ? null : var.storage_size
+        enabled           = true
+        existingClaimName = var.use_external_storage ? kubernetes_persistent_volume_claim.teleport_pvc[0].metadata[0].name : ""
+        volumeSize        = var.storage_size
       }
 
-      # Teleport configuration
-      teleportConfig = {
-        teleport = {
-          log = {
-            severity = "INFO"
-            output   = "stderr"
-          }
-          data_dir = "/var/lib/teleport"
-          storage = {
-            type = "dir"
-            path = "/var/lib/teleport/backend"
-          }
+      # Resource limits
+      resources = {
+        requests = {
+          cpu    = "100m"
+          memory = "256Mi"
         }
-
-        auth_service = {
-          enabled = true
-          cluster_name = var.cluster_name
-
-          # Authentication configuration
-          authentication = {
-            type          = "local"
-            second_factor = "off"  # Can be "otp", "webauthn", or "on" for production
-          }
-
-          # Session recording
-          session_recording = "node"  # Record sessions at the node level
-
-          # Proxy listener
-          proxy_listener_mode = "multiplex"
-        }
-
-        proxy_service = {
-          enabled = true
-
-          # Public address (will be accessed via Cloudflare Tunnel)
-          public_addr = ["${var.public_hostname}:443"]
-
-          # Kubernetes proxy
-          kube_listen_addr = "0.0.0.0:3026"
-          kube_public_addr = ["${var.public_hostname}:3026"]
-
-          # Web interface
-          web_listen_addr = "0.0.0.0:3080"
-
-          # SSH proxy
-          ssh_public_addr = ["${var.public_hostname}:3023"]
-
-          # Tunnel public address (for reverse tunnels)
-          tunnel_public_addr = "${var.public_hostname}:3024"
-
-          # PostgreSQL and MySQL proxies
-          postgres_public_addr = ["${var.public_hostname}:5432"]
-          mysql_public_addr    = ["${var.public_hostname}:3036"]
-        }
-
-        ssh_service = {
-          enabled = false  # We'll enable this when adding SSH nodes
+        limits = {
+          memory = var.memory_limit
         }
       }
 
-      # High availability (disabled for homelab single-node setup)
+      # Single replica for homelab
       highAvailability = {
-        replicaCount     = 1
+        replicaCount        = 1
         requireAntiAffinity = false
       }
 
-      # Operator is not needed for standalone deployment
+      # Operator not needed for standalone deployment
       operator = {
         enabled = false
       }
 
-      # Service account
-      serviceAccount = {
-        create = true
-        name   = "${var.project_name}-teleport"
+      # Pod security policy not needed for Docker Desktop
+      podSecurityPolicy = {
+        enabled = false
       }
 
-      # Pod security
-      podSecurityPolicy = {
-        enabled = false  # Not needed for Docker Desktop
+      # Auth service overrides
+      auth = {
+        teleportConfig = {
+          auth_service = {
+            session_recording = "node"
+          }
+        }
+      }
+
+      # Proxy service overrides
+      proxy = {
+        teleportConfig = {
+          proxy_service = {
+            web_listen_addr = "0.0.0.0:3080"
+          }
+        }
       }
     })
   ]
@@ -232,7 +151,7 @@ resource "helm_release" "teleport" {
   wait    = true
   timeout = 600
 
-  depends_on = var.use_external_storage ? [kubernetes_persistent_volume_claim.teleport_pvc[0]] : []
+  depends_on = [kubernetes_persistent_volume_claim.teleport_pvc]
 }
 
 # Create Kubernetes service for Teleport web UI (for Cloudflare Tunnel)
@@ -249,9 +168,8 @@ resource "kubernetes_service" "teleport_web" {
 
   spec {
     selector = {
-      "app.kubernetes.io/name"      = "teleport-cluster"
-      "app.kubernetes.io/component" = "proxy"
-      "app.kubernetes.io/instance"  = "${var.project_name}-teleport"
+      "app.kubernetes.io/name"     = "teleport-cluster"
+      "app.kubernetes.io/instance" = "${var.project_name}-teleport"
     }
 
     port {
@@ -262,37 +180,6 @@ resource "kubernetes_service" "teleport_web" {
     }
 
     type = "ClusterIP"
-  }
-
-  depends_on = [helm_release.teleport]
-}
-
-# Create ConfigMap with Kubernetes access configuration
-resource "kubernetes_config_map" "teleport_kubernetes" {
-  metadata {
-    name      = "${var.project_name}-teleport-kubernetes"
-    namespace = var.namespace
-    labels = {
-      app     = "teleport"
-      project = var.project_name
-    }
-  }
-
-  data = {
-    "kubernetes.yaml" = yamlencode({
-      kind    = "kube_cluster"
-      version = "v3"
-      metadata = {
-        name = var.kubernetes_cluster_name
-      }
-      spec = {
-        # Kubernetes API server address (internal cluster DNS)
-        kubernetes = {
-          # For Docker Desktop, use the host's Kubernetes API
-          kube_cluster_name = var.kubernetes_cluster_name
-        }
-      }
-    })
   }
 
   depends_on = [helm_release.teleport]

@@ -53,6 +53,13 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
       content {
         hostname = "${ingress_rule.value.hostname}.${var.domain_suffix}"
         service  = ingress_rule.value.service_url
+
+        dynamic "origin_request" {
+          for_each = startswith(ingress_rule.value.service_url, "https://") ? [1] : []
+          content {
+            no_tls_verify = true
+          }
+        }
       }
     }
 
@@ -236,6 +243,10 @@ data:
 %{for name, config in var.services~}
       - hostname: ${config.hostname}.${var.domain_suffix}
         service: ${config.service_url}
+%{if startswith(config.service_url, "https://")~}
+        originRequest:
+          noTLSVerify: true
+%{endif~}
 %{endfor~}
       - service: http_status:404
 YAML

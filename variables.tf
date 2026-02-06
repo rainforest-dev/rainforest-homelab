@@ -169,23 +169,3 @@ variable "external_storage_path" {
 #
 #
 
-# Teleport Configuration
-variable "teleport_github_client_id" {
-  description = "GitHub OAuth client ID for Teleport SSO (optional)"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "teleport_github_client_secret" {
-  description = "GitHub OAuth client secret for Teleport SSO (optional)"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "teleport_github_organizations" {
-  description = "List of GitHub organizations allowed to access Teleport"
-  type        = list(string)
-  default     = []
-}
