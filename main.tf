@@ -336,24 +336,17 @@ module "teleport" {
   count  = var.enable_teleport ? 1 : 0
   source = "./modules/teleport"
 
-  project_name              = var.project_name
-  namespace                 = "homelab"
-  cluster_name              = var.project_name
-  public_hostname           = "teleport.${var.domain_suffix}"
-  kubernetes_cluster_name   = var.kubernetes_context
-  teleport_version          = "15.4.22"
-  cpu_limit                 = "1000m"
-  memory_limit              = "1Gi"
-  storage_size              = "10Gi"
-  use_external_storage      = var.enable_persistence
-  external_storage_path     = var.external_storage_path
-  postgres_host             = var.enable_postgresql ? module.postgresql.postgresql_host : ""
-  postgres_port             = "5432"
-  github_client_id          = var.teleport_github_client_id
-  github_client_secret      = var.teleport_github_client_secret
-  allowed_github_organizations = var.teleport_github_organizations
+  project_name            = var.project_name
+  namespace               = "homelab"
+  public_hostname         = "tp.${var.domain_suffix}"
+  kubernetes_cluster_name = var.kubernetes_context
+  teleport_version        = "15.4.22"
+  memory_limit            = "1Gi"
+  storage_size            = "10Gi"
+  use_external_storage    = var.enable_persistence
+  external_storage_path   = var.external_storage_path
 
-  depends_on = [kubernetes_namespace.homelab, module.postgresql]
+  depends_on = [kubernetes_namespace.homelab]
 }
 
 module "cloudflare_tunnel" {

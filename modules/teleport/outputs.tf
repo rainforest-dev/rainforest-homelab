@@ -26,7 +26,7 @@ output "admin_token" {
 
 output "cluster_name" {
   description = "Teleport cluster name"
-  value       = var.cluster_name
+  value       = var.public_hostname
 }
 
 output "kubernetes_cluster_name" {
@@ -41,28 +41,16 @@ output "connection_instructions" {
 
     1. Web UI: https://${var.public_hostname}
     2. Create admin user:
-       tctl users add admin --roles=editor,access --logins=root
+       kubectl exec -n ${var.namespace} -it deploy/${var.project_name}-teleport-auth -- tctl users add admin --roles=editor,access --logins=root
 
     3. Install tsh client:
-       # macOS
        brew install teleport
-
-       # Linux
-       curl https://get.gravitational.com/teleport-v15.4.22-linux-amd64-bin.tar.gz | tar -xz
 
     4. Login via CLI:
        tsh login --proxy=${var.public_hostname}:443 --user=admin
 
     5. Access Kubernetes:
        tsh kube login ${var.kubernetes_cluster_name}
-       kubectl get pods --all-namespaces
-
-    6. SSH to nodes (when configured):
-       tsh ssh root@hostname
-
-    7. Database access (PostgreSQL):
-       tsh db login --db-user=postgres --db-name=postgres homelab-postgres
-       tsh db connect homelab-postgres
 
     For more info: https://goteleport.com/docs/
   EOT
