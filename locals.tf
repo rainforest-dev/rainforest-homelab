@@ -90,7 +90,7 @@ locals {
       tp = {
         hostname    = "tp"
         service_url = "https://homelab-teleport.homelab.svc.cluster.local:443"
-        enable_auth = true # Protect with Zero Trust
+        enable_auth = false # Teleport handles its own authentication
         type        = "kubernetes"
       }
     } : {},

@@ -123,6 +123,12 @@ kubectl exec -n homelab -it deploy/homelab-teleport-auth -- \
   tctl status
 ```
 
+## Security
+
+Teleport does **not** use Cloudflare Zero Trust authentication. This is intentional — Teleport is itself an authentication gateway with its own auth system. Placing Zero Trust in front would cause double authentication, break `tsh` CLI flows, and interrupt OAuth/SAML.
+
+Cloudflare Tunnel still provides HTTPS/SSL, hidden IP, DDoS protection, and CDN access.
+
 ## Troubleshooting
 
 ```bash
