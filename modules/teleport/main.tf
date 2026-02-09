@@ -85,7 +85,10 @@ resource "helm_release" "teleport" {
       # Authentication configuration
       authentication = {
         type         = "local"
-        secondFactor = "off" # Can be "otp", "webauthn", or "on" for production
+        secondFactor = "webauthn"
+        webauthn = {
+          rp_id = var.public_hostname
+        }
       }
 
       # ClusterIP service since Cloudflare Tunnel handles external access
@@ -144,6 +147,7 @@ resource "helm_release" "teleport" {
           }
         }
       }
+
     })
   ]
 
