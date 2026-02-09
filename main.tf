@@ -340,10 +340,10 @@ module "teleport" {
   namespace               = "homelab"
   public_hostname         = "tp.${var.domain_suffix}"
   kubernetes_cluster_name = var.kubernetes_context
-  teleport_version        = "15.4.22"
+  teleport_version        = "15.5.4"
   memory_limit            = "1Gi"
   storage_size            = "10Gi"
-  use_external_storage    = var.enable_persistence
+  use_external_storage    = false # exFAT on Samsung T7 doesn't support Unix sockets needed by Teleport v15.5+
   external_storage_path   = var.external_storage_path
 
   depends_on = [kubernetes_namespace.homelab]
