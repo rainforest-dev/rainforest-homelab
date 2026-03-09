@@ -10,6 +10,10 @@ resource "helm_release" "flowise" {
     yamlencode({
       fullnameOverride = "${var.project_name}-flowise"
 
+      image = {
+        tag = "3.0.13"
+      }
+
       resources = {
         limits = {
           cpu    = var.cpu_limit

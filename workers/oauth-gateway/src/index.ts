@@ -59,8 +59,9 @@ const dockerMCPHandler = {
 export default new OAuthProvider({
 	// Direct proxy to Docker MCP Gateway via Cloudflare Tunnel
 	apiHandlers: {
-		"/sse": dockerMCPHandler, // SSE protocol for Claude compatibility
-		"/mcp": dockerMCPHandler, // Streamable-HTTP protocol (current standard)
+		"/sse": dockerMCPHandler,      // SSE transport: establish connection
+		"/messages": dockerMCPHandler, // SSE transport: send messages (POST /messages?sessionId=xxx)
+		"/mcp": dockerMCPHandler,      // Streamable-HTTP transport (current standard)
 	},
 	authorizeEndpoint: "/authorize",
 	clientRegistrationEndpoint: "/register",

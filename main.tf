@@ -68,9 +68,9 @@ module "docker_mcp_gateway" {
 }
 
 # OAuth Worker for Docker MCP Gateway
+# Clients (Claude.ai, Claude Code) auto-register via RFC 7591 Dynamic Client Registration
 module "oauth_worker" {
   source = "./modules/oauth-worker"
-  count  = var.oauth_client_id != "" ? 1 : 0
 
   project_name          = var.project_name
   environment           = var.environment
@@ -78,8 +78,6 @@ module "oauth_worker" {
   cloudflare_zone_id    = module.cloudflare_tunnel.zone_id
   cloudflare_team_name  = var.cloudflare_team_name
   domain_suffix         = var.domain_suffix
-  oauth_client_id       = var.oauth_client_id
-  oauth_client_secret   = var.oauth_client_secret
 
   depends_on = [module.docker_mcp_gateway]
 }
@@ -287,6 +285,7 @@ module "n8n" {
   cpu_limit            = "1000m"
 
   # n8n Configuration
+  n8n_version     = "2.9.3"
   n8n_host        = "n8n.${var.domain_suffix}"
   n8n_port        = 5678
   memory_limit_mb = 512
