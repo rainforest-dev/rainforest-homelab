@@ -82,14 +82,7 @@ resource "helm_release" "teleport" {
       # Multiplex all protocols on one port (required for Cloudflare Tunnel)
       proxyListenerMode = "multiplex"
 
-      # Authentication configuration
-      authentication = {
-        type         = "local"
-        secondFactor = "webauthn"
-        webauthn = {
-          rp_id = var.public_hostname
-        }
-      }
+      # Authentication configured via auth.teleportConfig below
 
       # ClusterIP service since Cloudflare Tunnel handles external access
       service = {
@@ -135,6 +128,13 @@ resource "helm_release" "teleport" {
         teleportConfig = {
           auth_service = {
             session_recording = "node"
+            authentication = {
+              type          = "local"
+              second_factor = "webauthn"
+              webauthn = {
+                rp_id = var.public_hostname
+              }
+            }
           }
         }
       }

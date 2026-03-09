@@ -28,18 +28,3 @@ variable "domain_suffix" {
   description = "Domain suffix for the OAuth worker"
   type        = string
 }
-
-variable "oauth_client_id" {
-  description = "OAuth client ID from Cloudflare Access"
-  type        = string
-  sensitive   = true
-}
-
-variable "oauth_client_secret" {
-  description = "OAuth client secret from Cloudflare Access"
-  type        = string
-  sensitive   = true
-}
-
-# OAuth client credentials are automatically registered via null_resource
-# No manual configuration needed - Terraform will register and manage the client

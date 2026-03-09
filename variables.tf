@@ -80,21 +80,6 @@ variable "cloudflare_team_name" {
   default     = ""
 }
 
-# OAuth Configuration
-variable "oauth_client_id" {
-  description = "Cloudflare Access SaaS Application Client ID for OAuth Worker"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "oauth_client_secret" {
-  description = "Cloudflare Access SaaS Application Client Secret for OAuth Worker"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
 # Feature Flags
 variable "enable_teleport" {
   description = "Enable Teleport for secure access to homelab resources"
