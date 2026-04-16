@@ -44,6 +44,7 @@ module "postgresql" {
 }
 
 module "obsidian_mcp" {
+  count  = var.obsidian_api_key != "" ? 1 : 0
   source = "./modules/obsidian-mcp"
 
   project_name        = var.project_name

@@ -5,13 +5,14 @@ instead of stdio, enabling remote access via HTTP.
 """
 
 import os
-import asyncio
 import logging
 
 from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
-from starlette.routing import Route
+from starlette.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+from starlette.routing import Mount, Route
 import uvicorn
 
 # Import triggers tool registration and env var validation
@@ -20,7 +21,8 @@ from mcp_obsidian.server import app
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("obsidian-sse")
 
-sse = SseServerTransport("/message")
+# Path must match the Mount path below so clients POST to the right endpoint
+sse = SseServerTransport("/messages")
 
 
 async def handle_sse(request):
@@ -32,10 +34,6 @@ async def handle_health(request):
     return JSONResponse({"status": "healthy", "server": "mcp-obsidian", "transport": "sse"})
 
 
-from starlette.middleware import Middleware
-from starlette.middleware.base import BaseHTTPMiddleware
-
-
 class JsonNotFoundMiddleware(BaseHTTPMiddleware):
     """Return JSON for 404/405 responses (prevents OAuth discovery parse errors)."""
     async def dispatch(self, request, call_next):
@@ -45,15 +43,13 @@ class JsonNotFoundMiddleware(BaseHTTPMiddleware):
         return response
 
 
-async def handle_message(request):
-    return await sse.handle_post_message(request.scope, request.receive, request._send)
-
-
 starlette_app = Starlette(
     routes=[
         Route("/health", endpoint=handle_health),
         Route("/sse", endpoint=handle_sse),
-        Route("/message", endpoint=handle_message, methods=["POST"]),
+        # Mount as a raw ASGI app — handle_post_message already has the (scope, receive, send)
+        # signature so no Starlette Request wrapper (and no _send private attribute) is needed.
+        Mount("/messages", app=sse.handle_post_message),
     ],
     middleware=[Middleware(JsonNotFoundMiddleware)],
 )
