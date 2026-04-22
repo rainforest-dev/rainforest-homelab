@@ -65,6 +65,20 @@ module "docker_mcp_gateway" {
 
   # Logging configuration
   log_level = "info"
+
+  # Obsidian REST API access
+  obsidian_api_key = var.obsidian_api_key
+}
+
+# Obsidian MCP Server - standalone SSE transport with Zero Trust auth
+module "obsidian_mcp" {
+  source = "./modules/obsidian-mcp"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  obsidian_api_key    = var.obsidian_api_key
+  memory_limit        = var.default_memory_limit
+  docker_host_address = "host.docker.internal"
 }
 
 # OAuth Worker for Docker MCP Gateway
@@ -269,6 +283,16 @@ module "calibre-web" {
   cpu_limit            = var.default_cpu_limit
   memory_limit         = var.default_memory_limit
   use_external_storage = true
+}
+
+module "personal-calibre" {
+  source = "./modules/personal-calibre"
+
+  project_name         = var.project_name
+  environment          = var.environment
+  image                = var.personal_calibre_image
+  external_port        = 8082
+  calibre_library_path = var.calibre_library_path
 }
 
 module "n8n" {
