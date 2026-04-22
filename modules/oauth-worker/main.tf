@@ -2,10 +2,24 @@
 # It has its own KV namespace and secrets configured via Wrangler
 # We just need to create the custom domain binding
 
-# Custom domain for the OAuth Worker
+# Custom domains for the OAuth Worker
 resource "cloudflare_workers_domain" "oauth_gateway" {
   account_id = var.cloudflare_account_id
   hostname   = "docker-mcp.${var.domain_suffix}"
+  service    = "${var.project_name}-oauth-gateway"
+  zone_id    = var.cloudflare_zone_id
+}
+
+resource "cloudflare_workers_domain" "obsidian_gateway" {
+  account_id = var.cloudflare_account_id
+  hostname   = "obsidian.${var.domain_suffix}"
+  service    = "${var.project_name}-oauth-gateway"
+  zone_id    = var.cloudflare_zone_id
+}
+
+resource "cloudflare_workers_domain" "personal_calibre_gateway" {
+  account_id = var.cloudflare_account_id
+  hostname   = "personal-calibre.${var.domain_suffix}"
   service    = "${var.project_name}-oauth-gateway"
   zone_id    = var.cloudflare_zone_id
 }

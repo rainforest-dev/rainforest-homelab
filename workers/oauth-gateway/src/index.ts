@@ -9,34 +9,49 @@ type Props = {
 	accessToken: string;
 };
 
-const BACKEND_URL = "https://docker-mcp-internal.rainforest.tools";
+// Backend routing: hostname-based first, then ?backend= query param fallback
+const HOSTNAME_BACKENDS: Record<string, string> = {
+	"obsidian": "https://obsidian-internal.rainforest.tools",
+	"personal-calibre": "https://personal-calibre-internal.rainforest.tools",
+};
+const DEFAULT_BACKEND = "https://docker-mcp-internal.rainforest.tools";
 
-// Docker MCP Proxy Handler
-const dockerMCPHandler = {
+function getBackendUrl(hostname: string, searchParams: URLSearchParams): string {
+	// 1. Check hostname prefix (e.g. obsidian.rainforest.tools → "obsidian")
+	const subdomain = hostname.split(".")[0];
+	if (HOSTNAME_BACKENDS[subdomain]) {
+		return HOSTNAME_BACKENDS[subdomain];
+	}
+	// 2. Check ?backend= query param (e.g. ?backend=obsidian)
+	const backend = searchParams.get("backend");
+	if (backend && HOSTNAME_BACKENDS[backend]) {
+		return HOSTNAME_BACKENDS[backend];
+	}
+	return DEFAULT_BACKEND;
+}
+
+// MCP Proxy Handler
+const mcpProxyHandler = {
 	async fetch(request: Request, env: any, ctx: ExecutionContext): Promise<Response> {
-		// The user props should be available via some mechanism from OAuthProvider
-		// For now, we'll extract them from the context or use a different approach
 		const props = (ctx as any).props as Props;
-		
+
 		if (!props) {
 			return new Response('Unauthorized - No user context', { status: 401 });
 		}
 
 		try {
-			// Build backend URL maintaining the original path structure
 			const url = new URL(request.url);
-			const backendUrl = new URL(url.pathname + url.search, BACKEND_URL);
+			const backendBase = getBackendUrl(url.hostname, url.searchParams);
+			const backendUrl = new URL(url.pathname + url.search, backendBase);
 
-			// Copy headers and add user information
 			const headers = new Headers(request.headers);
 			headers.set('X-Forwarded-User', props.email);
 			headers.set('X-Forwarded-Login', props.login);
 			headers.set('X-GitHub-User', props.login);
 			headers.set('X-GitHub-Token', props.accessToken);
-			headers.delete('Authorization'); // Remove OAuth headers before proxying
+			headers.delete('Authorization');
 
-			console.log(`[Docker MCP Proxy] Proxying ${request.method} ${url.pathname} to ${backendUrl.toString()}`);
-			console.log(`[Docker MCP Proxy] User: ${props.login} (${props.email})`);
+			console.log(`[MCP Proxy] ${request.method} ${url.hostname}${url.pathname} → ${backendUrl.toString()} (user: ${props.login})`);
 
 			const response = await fetch(backendUrl.toString(), {
 				method: request.method,
@@ -47,8 +62,8 @@ const dockerMCPHandler = {
 			return response;
 
 		} catch (error) {
-			console.error('[Docker MCP Proxy] Error proxying request:', error);
-			return new Response(`Proxy error: ${error instanceof Error ? error.message : String(error)}`, { 
+			console.error('[MCP Proxy] Error:', error);
+			return new Response(`Proxy error: ${error instanceof Error ? error.message : String(error)}`, {
 				status: 502,
 				headers: { 'Content-Type': 'text/plain' }
 			});
@@ -57,11 +72,11 @@ const dockerMCPHandler = {
 };
 
 export default new OAuthProvider({
-	// Direct proxy to Docker MCP Gateway via Cloudflare Tunnel
 	apiHandlers: {
-		"/sse": dockerMCPHandler,      // SSE transport: establish connection
-		"/messages": dockerMCPHandler, // SSE transport: send messages (POST /messages?sessionId=xxx)
-		"/mcp": dockerMCPHandler,      // Streamable-HTTP transport (current standard)
+		"/sse": mcpProxyHandler,
+		"/messages": mcpProxyHandler,
+		"/message": mcpProxyHandler,
+		"/mcp": mcpProxyHandler,
 	},
 	authorizeEndpoint: "/authorize",
 	clientRegistrationEndpoint: "/register",
