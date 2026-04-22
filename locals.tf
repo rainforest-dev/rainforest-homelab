@@ -59,11 +59,12 @@ locals {
     },
 
     {
-      "personal-calibre" = {
-        hostname    = "personal-calibre"
+      "personal-calibre-internal" = {
+        hostname    = "personal-calibre-internal"
         service_url = module.personal-calibre.tunnel_service_url
-        enable_auth = true
+        enable_auth = false # Auth handled by OAuth Worker layer
         type        = "docker"
+        internal    = true  # DNS record skipped; only reachable via Cloudflare Tunnel
       }
     },
 
