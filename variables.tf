@@ -143,10 +143,41 @@ variable "service_token_ids" {
 
 
 
+variable "obsidian_api_key" {
+  description = "API key for Obsidian Local REST API"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "external_storage_path" {
   description = "Path to external storage for data persistence"
   type        = string
   default     = "/Volumes/Samsung T7 Touch/homelab-data"
+}
+
+variable "raspberry_pi_ip" {
+  description = "LAN IP address of the Raspberry Pi (used to route IoT services through the Cloudflare Tunnel)"
+  type        = string
+  default     = "192.168.0.134"
+}
+
+variable "enable_homeassistant" {
+  description = "Expose Home Assistant externally via Cloudflare Zero Trust (only enable when running on the Pi)"
+  type        = bool
+  default     = false
+}
+
+variable "personal_calibre_image" {
+  description = "Docker image for personal-calibre (e.g. ghcr.io/rainforest-dev/rainforest-monorepo/personal-calibre:latest)"
+  type        = string
+  default     = "ghcr.io/rainforest-dev/rainforest-monorepo/personal-calibre:latest"
+}
+
+variable "calibre_library_path" {
+  description = "Host path to the Calibre library directory (contains metadata.db and book subdirs)"
+  type        = string
+  default     = "/Users/rainforest/Library/CloudStorage/SynologyDrive-CalibreLibrary"
 }
 
 # Open WebUI Configuration

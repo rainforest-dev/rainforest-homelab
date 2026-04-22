@@ -59,6 +59,15 @@ locals {
     },
 
     {
+      "personal-calibre" = {
+        hostname    = "personal-calibre"
+        service_url = module.personal-calibre.tunnel_service_url
+        enable_auth = true
+        type        = "docker"
+      }
+    },
+
+    {
       "docker-mcp-internal" = {
         hostname    = "docker-mcp-internal"
         service_url = module.docker_mcp_gateway.tunnel_service_url
@@ -85,6 +94,15 @@ locals {
       }
     },
 
+    {
+      "obsidian-internal" = {
+        hostname    = "obsidian-internal"
+        service_url = module.obsidian_mcp.service_url
+        enable_auth = false # Auth handled by OAuth Worker layer
+        type        = "docker"
+      }
+    },
+
     var.enable_teleport ? {
       tp = {
         hostname    = "tp"
@@ -94,6 +112,17 @@ locals {
       }
     } : {},
 
+    # IoT / Raspberry Pi services — routed over LAN by the Mac Mini cloudflared.
+    # Only expose services with genuine remote-access use cases.
+    # Admin-only UIs (Pi-hole, Homebridge) stay internal; use Teleport SSH for those.
+    var.enable_homeassistant ? {
+      "homeassistant" = {
+        hostname    = "homeassistant"
+        service_url = "http://${var.raspberry_pi_ip}:8123"
+        enable_auth = true # Zero Trust email auth + HA's own auth = two layers
+        type        = "iot"
+      }
+    } : {},
 
   )
 
