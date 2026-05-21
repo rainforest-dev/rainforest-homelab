@@ -5,11 +5,6 @@
 #   special = true
 # }
 
-resource "random_password" "flowise_password" {
-  length  = 24
-  special = true
-}
-
 resource "random_password" "n8n_password" {
   length  = 24
   special = true
@@ -164,39 +159,6 @@ module "open-webui" {
   # No longer depends on PostgreSQL database - using SQLite
 }
 
-# Flowise Database Self-Registration
-module "flowise_database" {
-  source = "./modules/database-init"
-
-  service_name         = "flowise"
-  database_name        = "flowise_db"
-  postgres_host        = module.postgresql.postgresql_host
-  postgres_user        = module.postgresql.postgresql_username
-  postgres_secret_name = module.postgresql.postgresql_secret_name
-  postgres_secret_key  = "postgres-password"
-  namespace            = "homelab"
-
-  # Create service-specific user for better security
-  service_user     = "flowise_user"
-  service_password = random_password.flowise_password.result
-
-  # Custom initialization SQL for Flowise
-  init_sql = <<-SQL
-    -- Create extensions for Flowise
-    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-    
-    -- Grant permissions for application operations
-    GRANT ALL ON SCHEMA public TO flowise_user;
-    
-    -- Comment on database
-    COMMENT ON DATABASE flowise_db IS 'Flowise AI workflow automation database';
-  SQL
-
-  force_recreate = "2" # Recreate after PostgreSQL password fix
-
-  depends_on = [module.postgresql]
-}
-
 # n8n Database Self-Registration
 module "n8n_database" {
   source = "./modules/database-init"
@@ -229,35 +191,6 @@ module "n8n_database" {
 
   depends_on = [module.postgresql]
 }
-
-module "flowise" {
-  source = "./modules/flowise"
-
-  project_name       = var.project_name
-  environment        = var.environment
-  cpu_limit          = var.default_cpu_limit
-  memory_limit       = var.default_memory_limit
-  enable_persistence = var.enable_persistence
-  storage_size       = var.default_storage_size
-  chart_repository   = "https://cowboysysop.github.io/charts"
-  chart_version      = "6.0.0"
-
-  # External storage configuration
-  use_external_storage  = true
-  external_storage_path = var.external_storage_path
-
-  # PostgreSQL configuration
-  database_type        = "postgres"
-  database_host        = module.postgresql.postgresql_host
-  database_port        = "5432"
-  database_name        = "flowise_db"
-  database_user        = "postgres"
-  database_secret_name = module.postgresql.postgresql_secret_name
-  database_secret_key  = "postgres-password"
-
-  depends_on = [module.flowise_database]
-}
-
 
 module "minio" {
   source = "./modules/minio"
