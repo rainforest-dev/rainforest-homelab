@@ -193,3 +193,21 @@ variable "cloudflared_version" {
   default     = "2026.5.0"
 }
 
+variable "grafana_alloy_version" {
+  description = "Grafana Alloy Docker image version"
+  type        = string
+  default     = "v1.8.2"
+}
+
+variable "rpi_prometheus_url" {
+  description = "RPi Prometheus remote_write URL for Alloy push"
+  type        = string
+  default     = "http://raspberrypi-5.local:30090/api/v1/write"
+}
+
+variable "rpi_loki_url" {
+  description = "RPi Loki push URL for Alloy"
+  type        = string
+  default     = "http://raspberrypi-5.local:30100/loki/api/v1/push"
+}
+
