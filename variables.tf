@@ -180,8 +180,16 @@ variable "calibre_library_path" {
   default     = "/Users/rainforest/Library/CloudStorage/SynologyDrive-CalibreLibrary"
 }
 
-# Open WebUI Configuration
-#
-#
-#
+# Image Version Pinning
+variable "open_webui_image_version" {
+  description = "Open WebUI Docker image version"
+  type        = string
+  default     = "v0.9.5"
+}
+
+variable "cloudflared_version" {
+  description = "cloudflared Docker image version"
+  type        = string
+  default     = "2026.5.0"
+}
 
