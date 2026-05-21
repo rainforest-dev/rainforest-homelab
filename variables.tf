@@ -211,3 +211,22 @@ variable "rpi_loki_url" {
   default     = "http://raspberrypi-5.local:30100/loki/api/v1/push"
 }
 
+variable "grafana_mcp_version" {
+  description = "Grafana MCP server Docker image version"
+  type        = string
+  default     = "latest"
+}
+
+variable "grafana_mcp_api_key" {
+  description = "Grafana read-only service account token for MCP server"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "rpi_grafana_port" {
+  description = "RPi Grafana NodePort"
+  type        = number
+  default     = 30080
+}
+

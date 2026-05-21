@@ -402,6 +402,16 @@ module "grafana_alloy" {
   log_opts                    = {}
 }
 
+module "grafana_mcp" {
+  source = "./modules/grafana-mcp"
+
+  project_name    = var.project_name
+  image_version   = var.grafana_mcp_version
+  grafana_url     = "http://raspberrypi-5.local:${var.rpi_grafana_port}"
+  grafana_api_key = var.grafana_mcp_api_key
+  log_opts        = {}
+}
+
 resource "docker_container" "dockerproxy" {
   image   = "ghcr.io/tecnativa/docker-socket-proxy:latest"
   name    = "dockerproxy"

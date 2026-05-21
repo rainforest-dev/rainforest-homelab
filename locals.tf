@@ -86,6 +86,15 @@ locals {
       }
     },
 
+    var.grafana_mcp_api_key != "" ? {
+      "grafana-mcp" = {
+        hostname    = "grafana-mcp"
+        service_url = "http://host.docker.internal:8765"
+        enable_auth = true
+        type        = "docker"
+      }
+    } : {},
+
     {
       pgadmin = {
         hostname    = "pgadmin"
