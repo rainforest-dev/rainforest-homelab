@@ -25,7 +25,7 @@ variable "grafana_api_key" {
 variable "mcp_port" {
   description = "Port for the MCP SSE server"
   type        = number
-  default     = 8765
+  default     = 8000
 }
 
 variable "log_opts" {
