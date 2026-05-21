@@ -27,7 +27,7 @@ resource "docker_container" "grafana_mcp" {
   log_opts   = var.log_opts
 
   healthcheck {
-    test         = ["CMD", "wget", "-qO-", "http://localhost:${var.mcp_port}/health"]
+    test         = ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/8000"]
     interval     = "30s"
     timeout      = "10s"
     retries      = 3
