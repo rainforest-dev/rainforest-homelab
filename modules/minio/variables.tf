@@ -92,3 +92,9 @@ variable "use_external_storage" {
   type        = bool
   default     = true
 }
+
+variable "synology_drive_path" {
+  description = "Host path for Synology Drive sync — MinIO velero bucket data will land here"
+  type        = string
+  default     = ""
+}

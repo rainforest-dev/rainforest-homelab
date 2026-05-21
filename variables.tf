@@ -230,3 +230,9 @@ variable "rpi_grafana_port" {
   default     = 30080
 }
 
+variable "synology_drive_path" {
+  description = "Path to Synology Drive sync folder for Velero backups (empty = disabled)"
+  type        = string
+  default     = ""
+}
+
