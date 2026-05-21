@@ -158,6 +158,9 @@ module "open-webui" {
   whisper_stt_url = "https://whisper.${var.domain_suffix}"
   domain_suffix   = var.domain_suffix
 
+  # Pinned image version (used by docker deployment_type)
+  image_version = var.open_webui_image_version
+
   # No longer depends on PostgreSQL database - using SQLite
 }
 
@@ -384,6 +387,7 @@ module "cloudflare_tunnel" {
   allowed_emails        = var.allowed_emails
   service_token_ids     = var.service_token_ids
   services              = local.services
+  cloudflared_version   = var.cloudflared_version
 
   depends_on = [kubernetes_namespace.homelab]
 }

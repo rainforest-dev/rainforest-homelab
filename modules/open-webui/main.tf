@@ -58,7 +58,7 @@ module "open_webui_data_volume" {
 resource "docker_container" "open_webui" {
   count = var.deployment_type == "docker" ? 1 : 0
   
-  image   = "ghcr.io/open-webui/open-webui:main"
+  image   = "ghcr.io/open-webui/open-webui:${var.image_version}"
   name    = "${var.project_name}-open-webui"
   restart = "unless-stopped"
 
