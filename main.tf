@@ -204,6 +204,7 @@ module "minio" {
   chart_repository     = "https://charts.min.io/"
   chart_version        = "5.4.0"
   use_external_storage = true # Enable external storage on Samsung T7
+  synology_drive_path  = var.synology_drive_path
 }
 
 # OpenSpeedTest moved to Raspberry Pi (external hosting)
