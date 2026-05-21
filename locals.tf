@@ -14,15 +14,6 @@ locals {
     },
 
     {
-      flowise = {
-        hostname    = "flowise"
-        service_url = "http://homelab-flowise.homelab.svc.cluster.local:3000"
-        enable_auth = true
-        type        = "kubernetes"
-      }
-    },
-
-    {
       n8n = {
         hostname    = "n8n"
         service_url = "http://homelab-n8n.homelab.svc.cluster.local:5678"
