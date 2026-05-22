@@ -156,6 +156,12 @@ variable "external_storage_path" {
   default     = "/Volumes/Samsung T7 Touch/homelab-data"
 }
 
+variable "teleport_storage_path" {
+  description = "Host path for Teleport data persistence. Must be on a filesystem that supports Unix sockets (APFS/ext4). Cannot use the Samsung T7 (exFAT) because Teleport v15.5+ SQLite WAL mode requires Unix socket support."
+  type        = string
+  default     = "/Users/rainforest/.homelab"
+}
+
 variable "raspberry_pi_ip" {
   description = "LAN IP address of the Raspberry Pi (used to route IoT services through the Cloudflare Tunnel)"
   type        = string

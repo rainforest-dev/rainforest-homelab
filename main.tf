@@ -303,8 +303,11 @@ module "teleport" {
   teleport_version        = "15.5.4"
   memory_limit            = "1Gi"
   storage_size            = "10Gi"
-  use_external_storage    = false # exFAT on Samsung T7 doesn't support Unix sockets needed by Teleport v15.5+
-  external_storage_path   = var.external_storage_path
+  # Use internal SSD path (APFS), not the Samsung T7 (exFAT).
+  # Teleport v15.5+ SQLite WAL mode requires Unix socket support — exFAT doesn't provide it.
+  # /Users is mounted into the Docker Desktop VM, so this path resolves to macOS APFS.
+  use_external_storage    = true
+  external_storage_path   = var.teleport_storage_path
 
   depends_on = [kubernetes_namespace.homelab]
 }
