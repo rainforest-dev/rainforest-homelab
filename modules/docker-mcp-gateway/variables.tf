@@ -62,6 +62,13 @@ variable "domain_suffix" {
   default     = ""
 }
 
+variable "obsidian_api_key" {
+  description = "API key for Obsidian Local REST API"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "docker_host_address" {
   description = "Address for accessing Docker containers from Cloudflare Tunnel (use 'host.docker.internal' for Docker Desktop, 'localhost' for Linux)"
   type        = string
