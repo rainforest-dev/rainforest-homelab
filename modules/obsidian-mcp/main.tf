@@ -2,6 +2,15 @@
 # Wraps mcp-obsidian (stdio) with SSE transport for remote access
 # Uses the existing mcp/obsidian Docker image with a mounted SSE wrapper script
 
+locals {
+  memory_numeric    = parseint(regex("([0-9]+)", var.memory_limit)[0], 10)
+  memory_multiplier = (
+    can(regex("Gi", var.memory_limit)) ? 1073741824 :
+    can(regex("Mi", var.memory_limit)) ? 1048576 : 1
+  )
+  memory_bytes = local.memory_numeric * local.memory_multiplier
+}
+
 resource "docker_container" "obsidian_mcp" {
   image   = "mcp/obsidian:latest"
   name    = "${var.project_name}-obsidian-mcp"
@@ -29,14 +38,11 @@ resource "docker_container" "obsidian_mcp" {
     read_only      = true
   }
 
-  # Resource limits
-  memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (
-    can(regex("Gi", var.memory_limit)) ? 1024 * 1024 * 1024 :
-    can(regex("Mi", var.memory_limit)) ? 1024 * 1024 : 1
-  )
+  memory = local.memory_bytes
 
   healthcheck {
-    test         = ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:${var.port}/health')\" || exit 1"]
+    # CMD array avoids shell parsing — urllib raises on connection failure/non-2xx
+    test         = ["CMD", "/app/.venv/bin/python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:${var.port}/health')"]
     interval     = "30s"
     timeout      = "10s"
     retries      = 3

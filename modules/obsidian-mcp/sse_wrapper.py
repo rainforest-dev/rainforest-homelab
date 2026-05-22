@@ -38,8 +38,10 @@ class JsonNotFoundMiddleware(BaseHTTPMiddleware):
     """Return JSON for 404/405 responses (prevents OAuth discovery parse errors)."""
     async def dispatch(self, request, call_next):
         response = await call_next(request)
-        if response.status_code in (404, 405):
+        if response.status_code == 404:
             return JSONResponse({"error": "not_found"}, status_code=404)
+        if response.status_code == 405:
+            return JSONResponse({"error": "method_not_allowed"}, status_code=405)
         return response
 
 
