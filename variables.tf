@@ -156,6 +156,12 @@ variable "external_storage_path" {
   default     = "/Volumes/Samsung T7 Touch/homelab-data"
 }
 
+variable "teleport_storage_path" {
+  description = "Host path for Teleport data persistence. Must be on a filesystem that supports Unix sockets (APFS/ext4). Cannot use the Samsung T7 (exFAT) because Teleport v15.5+ SQLite WAL mode requires Unix socket support."
+  type        = string
+  default     = "/Users/rainforest/.homelab"
+}
+
 variable "raspberry_pi_ip" {
   description = "LAN IP address of the Raspberry Pi (used to route IoT services through the Cloudflare Tunnel)"
   type        = string
@@ -180,8 +186,59 @@ variable "calibre_library_path" {
   default     = "/Users/rainforest/Library/CloudStorage/SynologyDrive-CalibreLibrary"
 }
 
-# Open WebUI Configuration
-#
-#
-#
+# Image Version Pinning
+variable "open_webui_image_version" {
+  description = "Open WebUI Docker image version"
+  type        = string
+  default     = "v0.9.5"
+}
+
+variable "cloudflared_version" {
+  description = "cloudflared Docker image version"
+  type        = string
+  default     = "2026.5.0"
+}
+
+variable "grafana_alloy_version" {
+  description = "Grafana Alloy Docker image version"
+  type        = string
+  default     = "v1.8.2"
+}
+
+variable "rpi_prometheus_url" {
+  description = "RPi Prometheus remote_write URL for Alloy push"
+  type        = string
+  default     = "http://raspberrypi-5.local:30090/api/v1/write"
+}
+
+variable "rpi_loki_url" {
+  description = "RPi Loki push URL for Alloy"
+  type        = string
+  default     = "http://raspberrypi-5.local:30100/loki/api/v1/push"
+}
+
+variable "grafana_mcp_version" {
+  description = "Grafana MCP server Docker image version"
+  type        = string
+  default     = "0.5.0"
+}
+
+variable "grafana_mcp_api_key" {
+  description = "Grafana read-only service account token for MCP server"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "rpi_grafana_port" {
+  description = "RPi Grafana NodePort"
+  type        = number
+  default     = 30080
+}
+
+variable "synology_drive_path" {
+  description = "Path to Synology Drive sync folder for Velero backups (empty = disabled)"
+  type        = string
+  default     = ""
+}
 

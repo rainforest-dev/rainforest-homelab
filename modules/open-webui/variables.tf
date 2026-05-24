@@ -116,3 +116,9 @@ variable "external_storage_path" {
   type        = string
   default     = "/Volumes/Samsung T7 Touch/homelab-data"
 }
+
+variable "image_version" {
+  description = "Open WebUI Docker image version"
+  type        = string
+  default     = "v0.9.5"
+}

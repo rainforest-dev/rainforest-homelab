@@ -1,0 +1,60 @@
+// ─── Prometheus: Mac Mini system metrics ────────────────────────────────────
+
+prometheus.exporter.unix "mac_mini" {
+  // Equivalent to node_exporter — CPU, memory, disk, network
+}
+
+prometheus.scrape "unix" {
+  targets    = prometheus.exporter.unix.mac_mini.targets
+  forward_to = [prometheus.remote_write.rpi.receiver]
+
+  scrape_interval = "30s"
+  job_name        = "mac-mini-node"
+}
+
+// ─── Prometheus: Docker container metrics ───────────────────────────────────
+
+prometheus.exporter.cadvisor "containers" {
+  docker_host = "unix:///var/run/docker.sock"
+}
+
+prometheus.scrape "cadvisor" {
+  targets    = prometheus.exporter.cadvisor.containers.targets
+  forward_to = [prometheus.remote_write.rpi.receiver]
+
+  scrape_interval = "30s"
+  job_name        = "mac-mini-cadvisor"
+}
+
+// ─── Prometheus: Push to RPi ────────────────────────────────────────────────
+
+prometheus.remote_write "rpi" {
+  endpoint {
+    url = env("PROMETHEUS_REMOTE_WRITE_URL")
+
+    queue_config {
+      max_samples_per_send = 1000
+      batch_send_deadline  = "5s"
+    }
+  }
+}
+
+// ─── Loki: Docker container logs ────────────────────────────────────────────
+
+discovery.docker "running" {
+  host = "unix:///var/run/docker.sock"
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.running.targets
+  forward_to = [loki.write.rpi.receiver]
+}
+
+// ─── Loki: Push to RPi ──────────────────────────────────────────────────────
+
+loki.write "rpi" {
+  endpoint {
+    url = env("LOKI_PUSH_URL")
+  }
+}

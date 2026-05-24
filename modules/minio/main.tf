@@ -54,22 +54,41 @@ resource "helm_release" "minio" {
       }
 
       # External storage configuration
-      extraVolumes = var.use_external_storage ? [
-        {
-          name = "external-storage"
-          hostPath = {
-            path = "/Volumes/Samsung T7 Touch/homelab-data/minio"
-            type = "DirectoryOrCreate"
+      extraVolumes = concat(
+        var.use_external_storage ? [
+          {
+            name = "external-storage"
+            hostPath = {
+              path = "/Volumes/Samsung T7 Touch/homelab-data/minio"
+              type = "DirectoryOrCreate"
+            }
           }
-        }
-      ] : []
+        ] : [],
+        var.synology_drive_path != "" ? [
+          {
+            name = "synology-velero"
+            hostPath = {
+              path = var.synology_drive_path
+              type = "DirectoryOrCreate"
+            }
+          }
+        ] : []
+      )
 
-      extraVolumeMounts = var.use_external_storage ? [
-        {
-          name      = "external-storage"
-          mountPath = "/data"
-        }
-      ] : []
+      extraVolumeMounts = concat(
+        var.use_external_storage ? [
+          {
+            name      = "external-storage"
+            mountPath = "/data"
+          }
+        ] : [],
+        var.synology_drive_path != "" ? [
+          {
+            name      = "synology-velero"
+            mountPath = "/data/velero"
+          }
+        ] : []
+      )
 
       # Service configuration for MinIO S3 API
       service = {
