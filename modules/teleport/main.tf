@@ -123,6 +123,20 @@ resource "helm_release" "teleport" {
         enabled = false
       }
 
+      # Remove stale debug.sock on every pod start.
+      # macOS APFS via Docker Desktop virtiofs can't rebind a Unix socket left by
+      # a previous process, causing crash-loops on restart.
+      # Must be top-level `initContainers` — the chart silently ignores
+      # `auth.extraInitContainers`. The chart auto-mounts the `data` volume
+      # into every init container, so no explicit volumeMounts are needed.
+      initContainers = [
+        {
+          name    = "remove-stale-socket"
+          image   = "busybox:1.36"
+          command = ["sh", "-c", "rm -f /var/lib/teleport/debug.sock"]
+        }
+      ]
+
       # Auth service overrides
       auth = {
         teleportConfig = {
@@ -130,7 +144,7 @@ resource "helm_release" "teleport" {
             session_recording = "node"
             authentication = {
               type          = "local"
-              second_factor = "webauthn"
+              second_factor = "on" # supports both TOTP (Google Authenticator) and WebAuthn (passkeys)
               webauthn = {
                 rp_id = var.public_hostname
               }

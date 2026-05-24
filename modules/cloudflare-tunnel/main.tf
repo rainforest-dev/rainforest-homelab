@@ -184,7 +184,7 @@ spec:
     spec:
       containers:
       - name: cloudflared
-        image: cloudflare/cloudflared:latest
+        image: cloudflare/cloudflared:${var.cloudflared_version}
         args:
         - tunnel
         - --config

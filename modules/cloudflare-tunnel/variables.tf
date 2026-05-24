@@ -57,3 +57,9 @@ variable "services" {
   default = {}
 }
 
+variable "cloudflared_version" {
+  description = "cloudflared Docker image version"
+  type        = string
+  default     = "2026.5.0"
+}
+
