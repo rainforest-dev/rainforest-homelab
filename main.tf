@@ -344,12 +344,14 @@ module "grafana_alloy" {
 }
 
 module "grafana_mcp" {
+  count  = var.grafana_mcp_api_key != "" ? 1 : 0
   source = "./modules/grafana-mcp"
 
   project_name    = var.project_name
   image_version   = var.grafana_mcp_version
   grafana_url     = "http://raspberrypi-5.local:${var.rpi_grafana_port}"
   grafana_api_key = var.grafana_mcp_api_key
+  mcp_port        = 8765
   log_opts        = {}
 }
 

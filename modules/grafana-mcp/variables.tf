@@ -6,7 +6,7 @@ variable "project_name" {
 variable "image_version" {
   description = "Grafana MCP server image version"
   type        = string
-  default     = "latest"
+  default     = "0.5.0"
 }
 
 variable "grafana_url" {
@@ -25,7 +25,7 @@ variable "grafana_api_key" {
 variable "mcp_port" {
   description = "Port for the MCP SSE server"
   type        = number
-  default     = 8000
+  default     = 8765
 }
 
 variable "log_opts" {
