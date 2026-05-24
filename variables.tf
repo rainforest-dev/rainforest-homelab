@@ -220,7 +220,7 @@ variable "rpi_loki_url" {
 variable "grafana_mcp_version" {
   description = "Grafana MCP server Docker image version"
   type        = string
-  default     = "latest"
+  default     = "0.5.0"
 }
 
 variable "grafana_mcp_api_key" {
