@@ -44,6 +44,11 @@ provider "kubernetes" {
   config_context = var.kubernetes_context
 }
 
+provider "kubectl" {
+  config_path    = pathexpand(var.kubeconfig_path)
+  config_context = var.kubernetes_context
+}
+
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }

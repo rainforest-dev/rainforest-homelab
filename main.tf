@@ -43,6 +43,17 @@ module "postgresql" {
   enable_metrics = false
 }
 
+module "obsidian_mcp" {
+  count  = var.obsidian_api_key != "" ? 1 : 0
+  source = "./modules/obsidian-mcp"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  obsidian_api_key    = var.obsidian_api_key
+  memory_limit        = var.default_memory_limit
+  docker_host_address = "host.docker.internal"
+}
+
 module "docker_mcp_gateway" {
   source = "./modules/docker-mcp-gateway"
 

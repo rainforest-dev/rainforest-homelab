@@ -141,8 +141,6 @@ variable "service_token_ids" {
 # Core feature flags
 # Most services are now always-on since they're core to the homelab
 
-
-
 variable "obsidian_api_key" {
   description = "API key for Obsidian Local REST API"
   type        = string
