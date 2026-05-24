@@ -273,7 +273,9 @@ module "whisper" {
   project_name         = var.project_name
   environment          = var.environment
   model_size           = "base" # Optimal for Mac CPU: fast (36x), low memory, good quality
-  external_port        = 9000
+  # Port 9000 reserved for MinIO (infrastructure > app).
+  # Cloudflare Tunnel routes to whisper.rainforest.tools regardless of port.
+  external_port        = 9090
   enable_gpu           = false # Set true if GPU available
   use_external_storage = true
   image_tag            = "latest"
@@ -320,11 +322,13 @@ module "cloudflare_tunnel" {
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_api_token  = var.cloudflare_api_token
   kubernetes_namespace  = "homelab"
-  allowed_email_domains = var.allowed_email_domains
-  allowed_emails        = var.allowed_emails
-  service_token_ids     = var.service_token_ids
-  services              = local.services
-  cloudflared_version   = var.cloudflared_version
+  allowed_email_domains      = var.allowed_email_domains
+  allowed_emails             = var.allowed_emails
+  service_token_ids          = var.service_token_ids
+  google_oauth_client_id     = var.google_oauth_client_id
+  google_oauth_client_secret = var.google_oauth_client_secret
+  services                   = local.services
+  cloudflared_version        = var.cloudflared_version
 
   depends_on = [kubernetes_namespace.homelab]
 }
@@ -350,7 +354,7 @@ module "grafana_mcp" {
 }
 
 resource "docker_container" "dockerproxy" {
-  image   = "ghcr.io/tecnativa/docker-socket-proxy:latest"
+  image   = "ghcr.io/tecnativa/docker-socket-proxy:0.3.0"
   name    = "dockerproxy"
   restart = "unless-stopped"
   env     = ["CONTAINERS=1", "SERVICES=1", "TASKS=1", "POST=0"]
