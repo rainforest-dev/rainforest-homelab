@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 FAKE_B64 = base64.b64encode(b"fake-png-bytes").decode()
 FAKE_PROMPT_ID = "abc-123"
-COMFYUI_URL = "http://localhost:8188"
+COMFYUI_URL = "http://host.docker.internal:8188"
 
 
 def make_history_response(prompt_id: str) -> dict:

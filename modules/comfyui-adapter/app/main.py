@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import random
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
@@ -14,7 +15,7 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-COMFYUI_HOST = os.getenv("COMFYUI_HOST", "http://localhost:8188")
+COMFYUI_HOST = os.getenv("COMFYUI_HOST", "http://host.docker.internal:8188")
 API_KEY = os.getenv("API_KEY", "")
 POLL_INTERVAL = float(os.getenv("POLL_INTERVAL", "1.0"))
 TIMEOUT_SECONDS = int(os.getenv("TIMEOUT_SECONDS", "300"))
@@ -32,18 +33,21 @@ _base_workflow: dict = _load_workflow()
 
 security = HTTPBearer(auto_error=False)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info(f"Loaded workflow template from {WORKFLOW_PATH}")
+    logger.info(f"ComfyUI backend: {COMFYUI_HOST}")
+    logger.info(f"API key auth: {'enabled' if API_KEY else 'disabled'}")
+    yield
+
+
 app = FastAPI(
     title="ComfyUI Adapter",
     description="OpenAI-compatible image generation API backed by ComfyUI",
     version="0.1.0",
+    lifespan=lifespan,
 )
-
-
-@app.on_event("startup")
-async def startup():
-    logger.info(f"Loaded workflow template from {WORKFLOW_PATH}")
-    logger.info(f"ComfyUI backend: {COMFYUI_HOST}")
-    logger.info(f"API key auth: {'enabled' if API_KEY else 'disabled'}")
 
 
 def _check_api_key(credentials: HTTPAuthorizationCredentials | None) -> None:
@@ -85,9 +89,9 @@ async def _queue_prompt(workflow: dict) -> str:
 
 
 async def _poll_until_done(prompt_id: str) -> dict:
-    deadline = asyncio.get_event_loop().time() + TIMEOUT_SECONDS
+    deadline = asyncio.get_running_loop().time() + TIMEOUT_SECONDS
     async with httpx.AsyncClient() as client:
-        while asyncio.get_event_loop().time() < deadline:
+        while asyncio.get_running_loop().time() < deadline:
             r = await client.get(f"{COMFYUI_HOST}/history/{prompt_id}", timeout=10)
             data = r.json()
             if prompt_id in data:
@@ -131,20 +135,20 @@ async def generate_image(
     try:
         prompt_id = await _queue_prompt(workflow)
         outputs = await _poll_until_done(prompt_id)
+
+        images = []
+        for node_output in outputs.values():
+            for img_meta in node_output.get("images", []):
+                b64 = await _fetch_image_b64(img_meta)
+                images.append({"b64_json": b64})
+                if len(images) >= req.n:
+                    break
+            if len(images) >= req.n:
+                break
     except TimeoutError as e:
         raise HTTPException(status_code=504, detail=str(e))
     except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"ComfyUI error: {e}")
-
-    images = []
-    for node_output in outputs.values():
-        for img_meta in node_output.get("images", []):
-            b64 = await _fetch_image_b64(img_meta)
-            images.append({"b64_json": b64})
-            if len(images) >= req.n:
-                break
-        if len(images) >= req.n:
-            break
 
     if not images:
         raise HTTPException(status_code=500, detail="No images in ComfyUI output")
