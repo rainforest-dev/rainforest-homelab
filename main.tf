@@ -153,6 +153,10 @@ module "open-webui" {
   whisper_stt_url = "https://whisper.${var.domain_suffix}"
   domain_suffix   = var.domain_suffix
 
+  # Image generation integration
+  image_gen_url     = var.enable_comfyui_adapter ? "https://image-gen.${var.domain_suffix}" : ""
+  image_gen_api_key = var.image_gen_api_key
+
   # Pinned image version (used by docker deployment_type)
   image_version = var.open_webui_image_version
 
