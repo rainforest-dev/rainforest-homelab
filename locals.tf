@@ -78,6 +78,24 @@ locals {
       }
     },
 
+    {
+      comfyui = {
+        hostname    = "comfyui"
+        service_url = "http://host.docker.internal:8188"
+        enable_auth = true
+        type        = "docker"
+      }
+    },
+
+    var.enable_comfyui_adapter ? {
+      "image-gen" = {
+        hostname    = "image-gen"
+        service_url = "http://host.docker.internal:7860"
+        enable_auth = false
+        type        = "docker"
+      }
+    } : {},
+
     var.grafana_mcp_api_key != "" ? {
       "grafana-mcp" = {
         hostname    = "grafana-mcp"
@@ -96,14 +114,14 @@ locals {
       }
     },
 
-    {
+    var.obsidian_api_key != "" ? {
       "obsidian-internal" = {
         hostname    = "obsidian-internal"
-        service_url = module.obsidian_mcp.service_url
+        service_url = module.obsidian_mcp[0].service_url
         enable_auth = false # Auth handled by OAuth Worker layer
         type        = "docker"
       }
-    },
+    } : {},
 
     var.enable_teleport ? {
       tp = {
