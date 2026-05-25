@@ -14,6 +14,7 @@ COMFYUI_URL = "http://host.docker.internal:8188"
 def make_history_response(prompt_id: str) -> dict:
     return {
         prompt_id: {
+            "status": {"status_str": "success", "completed": True, "messages": []},
             "outputs": {
                 "10": {
                     "images": [
@@ -138,3 +139,37 @@ async def test_api_key_accepted_when_correct(monkeypatch):
                 headers={"Authorization": "Bearer secret-key"},
             )
     assert r.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_generate_image_returns_502_on_comfyui_error(monkeypatch):
+    monkeypatch.delenv("API_KEY", raising=False)
+    import importlib, main as _main
+    importlib.reload(_main)
+    app = _main.app
+
+    error_history = {
+        FAKE_PROMPT_ID: {
+            "status": {"status_str": "error", "completed": False, "messages": [["text", "No model found"]]},
+            "outputs": {}
+        }
+    }
+
+    with respx.mock:
+        respx.post(f"{COMFYUI_URL}/prompt").mock(
+            return_value=Response(200, json={"prompt_id": FAKE_PROMPT_ID})
+        )
+        respx.get(f"{COMFYUI_URL}/history/{FAKE_PROMPT_ID}").mock(
+            return_value=Response(200, json=error_history)
+        )
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            r = await client.post(
+                "/v1/images/generations",
+                json={"prompt": "a red fox", "n": 1, "size": "1024x1024"},
+            )
+
+    assert r.status_code == 502
+    assert "No model found" in r.json()["detail"]

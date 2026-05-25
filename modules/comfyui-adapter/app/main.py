@@ -10,7 +10,7 @@ from pathlib import Path
 import httpx
 from fastapi import FastAPI, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ def _size_to_dimensions(size: str) -> tuple[int, int]:
         w, h = size.split("x")
         return int(w), int(h)
     except (ValueError, AttributeError):
-        return 1024, 1024
+        raise HTTPException(status_code=400, detail=f"Invalid size format: {size!r}. Expected 'WxH' e.g. '1024x1024'")
 
 
 def _build_workflow(prompt: str, width: int, height: int) -> dict:
@@ -84,7 +84,8 @@ async def _queue_prompt(workflow: dict) -> str:
             headers={"Content-Type": "application/json"},
             timeout=30,
         )
-        r.raise_for_status()
+        if r.status_code >= 400:
+            raise httpx.HTTPError(f"ComfyUI /prompt error {r.status_code}: {r.text}")
         return r.json()["prompt_id"]
 
 
@@ -93,9 +94,16 @@ async def _poll_until_done(prompt_id: str) -> dict:
     async with httpx.AsyncClient() as client:
         while asyncio.get_running_loop().time() < deadline:
             r = await client.get(f"{COMFYUI_HOST}/history/{prompt_id}", timeout=10)
+            r.raise_for_status()
             data = r.json()
             if prompt_id in data:
-                return data[prompt_id]["outputs"]
+                entry = data[prompt_id]
+                status = entry.get("status", {})
+                if status.get("status_str") == "error":
+                    messages = status.get("messages", [])
+                    raise RuntimeError(f"ComfyUI generation failed: {messages}")
+                if status.get("completed", True):
+                    return entry["outputs"]
             await asyncio.sleep(POLL_INTERVAL)
     raise TimeoutError(f"Image generation timed out after {TIMEOUT_SECONDS}s")
 
@@ -117,7 +125,7 @@ async def _fetch_image_b64(image_meta: dict) -> str:
 
 class ImageGenRequest(BaseModel):
     prompt: str
-    n: int = 1
+    n: int = Field(default=1, ge=1, le=1)
     size: str = "1024x1024"
 
 
@@ -147,6 +155,8 @@ async def generate_image(
                 break
     except TimeoutError as e:
         raise HTTPException(status_code=504, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
     except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"ComfyUI error: {e}")
 
