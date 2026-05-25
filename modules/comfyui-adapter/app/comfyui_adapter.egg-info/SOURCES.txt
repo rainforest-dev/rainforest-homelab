@@ -1,7 +1,0 @@
-pyproject.toml
-comfyui_adapter.egg-info/PKG-INFO
-comfyui_adapter.egg-info/SOURCES.txt
-comfyui_adapter.egg-info/dependency_links.txt
-comfyui_adapter.egg-info/requires.txt
-comfyui_adapter.egg-info/top_level.txt
-tests/test_main.py
