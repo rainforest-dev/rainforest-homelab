@@ -249,7 +249,7 @@ variable "enable_comfyui_adapter" {
 variable "comfyui_host" {
   description = "ComfyUI backend URL. Default: Mac Mini native install. Override with PC LAN IP for GPU mode."
   type        = string
-  default     = "http://host.docker.internal:8188"
+  default     = "http://host.docker.internal:8000"
 }
 
 variable "image_gen_api_key" {

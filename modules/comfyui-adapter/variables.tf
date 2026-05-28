@@ -11,7 +11,7 @@ variable "environment" {
 variable "comfyui_host" {
   description = "ComfyUI backend URL. Use host.docker.internal for Mac Mini, or PC LAN IP."
   type        = string
-  default     = "http://host.docker.internal:8188"
+  default     = "http://host.docker.internal:8000"
 }
 
 variable "api_key" {

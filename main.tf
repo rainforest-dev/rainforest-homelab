@@ -370,6 +370,18 @@ module "grafana_mcp" {
   log_opts        = {}
 }
 
+# ComfyUI — standalone Python server managed by launchd (macOS)
+# ComfyUI — standalone Python server managed by launchd (macOS)
+# Port 8000 is now free since ComfyUI Desktop (Electron) is uninstalled.
+# Access UI at http://localhost:8000; comfyui-adapter reaches it via host.docker.internal:8000
+module "comfyui" {
+  source = "./modules/comfyui"
+
+  port               = 8000
+  model_paths_config = "~/Library/Application Support/ComfyUI/extra_models_config.yaml"
+  log_dir            = "~/Library/Logs/ComfyUI"
+}
+
 resource "docker_container" "dockerproxy" {
   image   = "ghcr.io/tecnativa/docker-socket-proxy:0.3.0"
   name    = "dockerproxy"
