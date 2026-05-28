@@ -40,6 +40,7 @@ resource "docker_container" "comfyui_adapter" {
 
   env = compact([
     "COMFYUI_HOST=${var.comfyui_host}",
+    "TIMEOUT_SECONDS=${var.timeout_seconds}",
     var.api_key != "" ? "API_KEY=${var.api_key}" : "",
   ])
 
