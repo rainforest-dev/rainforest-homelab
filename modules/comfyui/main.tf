@@ -1,7 +1,8 @@
 locals {
-  server_dir  = "${path.module}/server"
-  venv_dir    = "${path.module}/.venv"
-  venv_python = "${path.module}/.venv/bin/python"
+  module_dir  = abspath(path.module)
+  server_dir  = "${local.module_dir}/server"
+  venv_dir    = "${local.module_dir}/.venv"
+  venv_python = "${local.module_dir}/.venv/bin/python"
   plist_label = "tools.rainforest.comfyui"
   plist_path  = pathexpand("~/Library/LaunchAgents/${local.plist_label}.plist")
   log_dir     = pathexpand(var.log_dir)

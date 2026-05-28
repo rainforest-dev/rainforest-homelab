@@ -1,22 +1,31 @@
-resource "docker_image" "comfyui_adapter" {
-  name = "${var.project_name}/comfyui-adapter:${var.image_tag}"
+locals {
+  image_name   = "${var.project_name}/comfyui-adapter:${var.image_tag}"
+  module_dir   = abspath(path.module)
+  build_trigger = join(":", [
+    filemd5("${path.module}/Dockerfile"),
+    filemd5("${path.module}/app/main.py"),
+    filemd5("${path.module}/app/workflow.json"),
+    filemd5("${path.module}/app/pyproject.toml"),
+  ])
+}
 
-  build {
-    context    = path.module
-    dockerfile = "Dockerfile"
-    tag        = ["${var.project_name}/comfyui-adapter:${var.image_tag}"]
-    label = {
-      project = var.project_name
-      service = "comfyui-adapter"
-    }
-  }
-
+# Build the image via docker CLI (more reliable than the provider's built-in build)
+resource "null_resource" "build" {
   triggers = {
-    dockerfile_hash = filemd5("${path.module}/Dockerfile")
-    main_py_hash    = filemd5("${path.module}/app/main.py")
-    workflow_hash   = filemd5("${path.module}/app/workflow.json")
-    pyproject_hash  = filemd5("${path.module}/app/pyproject.toml")
+    build_trigger = local.build_trigger
   }
+
+  provisioner "local-exec" {
+    command = "docker build -t '${local.image_name}' '${local.module_dir}'"
+  }
+}
+
+# Reference the pre-built image by name
+resource "docker_image" "comfyui_adapter" {
+  name         = local.image_name
+  keep_locally = true
+
+  depends_on = [null_resource.build]
 }
 
 resource "docker_container" "comfyui_adapter" {
