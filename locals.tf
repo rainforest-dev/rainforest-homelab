@@ -81,7 +81,7 @@ locals {
     {
       comfyui = {
         hostname    = "comfyui"
-        service_url = "http://host.docker.internal:8188"
+        service_url = "http://host.docker.internal:8000"
         enable_auth = true
         type        = "docker"
       }
