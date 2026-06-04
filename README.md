@@ -35,7 +35,8 @@ Internet → Cloudflare Edge → Cloudflare Tunnel → cloudflared pods → Kube
 
 #### Docker Containers (Direct Access)
 - **Calibre Web**: Ebook server and manager
-- **OpenSpeedTest**: Network speed testing tool
+- **Whisper STT**: OpenAI-compatible speech-to-text API (faster-whisper)
+- **Bambii**: Hermes Agent dashboard (AI agent with memory, skills, messaging integrations)
 - **Docker Proxy**: Secure Docker socket access
 
 ## 🚀 Quick Start
@@ -59,7 +60,12 @@ Internet → Cloudflare Edge → Cloudflare Tunnel → cloudflared pods → Kube
    
    **API Token** (https://dash.cloudflare.com/profile/api-tokens):
    - Click "Create Token" → "Custom token"
-   - Permissions: `Zone:Zone:Read`, `Zone:DNS:Edit`, `Account:Cloudflare Tunnel:Edit`, `Account:Access: Apps and Policies:Edit`
+   - Permissions required:
+     - `Zone: Zone: Read`
+     - `Zone: DNS: Edit`
+     - `Account: Cloudflare Tunnel: Edit`
+     - `Account: Access: Apps and Policies: Edit`
+     - `Account: Access: Organizations, Identity Providers, and Groups: Edit`
    - Zone Resources: Include your domain
    - Account Resources: Include your account
    
@@ -152,10 +158,43 @@ Control which services are deployed:
    - Requires adding billing info (Zero Trust is free for up to 50 users)
 2. **Configure email domains** in `terraform.tfvars`:
    ```hcl
-   allowed_email_domains = ["gmail.com"]  # Allow any Gmail addresses
-   allowed_emails        = []             # Or specific emails: ["user@company.com"]
+   allowed_email_domains = ["yourdomain.com"]  # Email domain for your team
+   allowed_emails        = ["user@gmail.com"]  # Additional specific emails
    ```
 3. **Redeploy authentication**: `terraform apply`
+
+### Google SSO
+
+To offer Google sign-in instead of (or alongside) email OTP:
+
+1. Create an OAuth 2.0 app at [console.cloud.google.com](https://console.cloud.google.com):
+   - **APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client ID**
+   - Application type: **Web application**
+   - Authorized redirect URI: `https://<team-name>.cloudflareaccess.com/cdn-cgi/access/callback`
+   - Copy the Client ID and Client Secret
+2. Add to `terraform.tfvars`:
+   ```hcl
+   google_oauth_client_id     = "your-client-id.apps.googleusercontent.com"
+   google_oauth_client_secret = "your-client-secret"
+   ```
+3. Run `terraform apply` — Google SSO will appear on all Zero Trust login pages
+4. If the Google app is in **test mode**, add each user at: APIs & Services → OAuth consent screen → Test users
+
+### Per-Service Access Control
+
+Each service in `locals.tf` supports an optional `allowed_emails` field for granting access to specific users without giving them global access:
+
+```hcl
+"my-service" = {
+  hostname       = "my-service"
+  service_url    = "http://host.docker.internal:8080"
+  enable_auth    = true
+  type           = "docker"
+  allowed_emails = ["guest@gmail.com"]  # only this user + global allowed_emails/domains
+}
+```
+
+Global access is controlled via `allowed_email_domains` and `allowed_emails` in `terraform.tfvars`.
 
 ## 🌐 Service Access
 

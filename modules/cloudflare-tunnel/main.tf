@@ -11,6 +11,19 @@ locals {
   zone_id = data.cloudflare_zones.domain.zones[0].id
 }
 
+# Google SSO identity provider (only created when credentials are provided)
+resource "cloudflare_zero_trust_access_identity_provider" "google" {
+  count      = var.google_oauth_client_id != "" ? 1 : 0
+  account_id = var.cloudflare_account_id
+  name       = "Google"
+  type       = "google"
+
+  config {
+    client_id     = var.google_oauth_client_id
+    client_secret = var.google_oauth_client_secret
+  }
+}
+
 # Create Cloudflare Zero Trust Tunnel
 resource "cloudflare_zero_trust_tunnel_cloudflared" "homelab" {
   account_id = var.cloudflare_account_id
@@ -131,11 +144,19 @@ resource "cloudflare_zero_trust_access_policy" "email_policy" {
     }
   }
 
-  # Optional: Add email list for specific users
+  # Optional: Add email list for specific users (global + per-service)
   dynamic "include" {
-    for_each = length(var.allowed_emails) > 0 ? [1] : []
+    for_each = length(concat(var.allowed_emails, each.value.allowed_emails)) > 0 ? [1] : []
     content {
-      email = var.allowed_emails
+      email = concat(var.allowed_emails, each.value.allowed_emails)
+    }
+  }
+
+  # Service tokens for programmatic access (MCP clients, CI, etc.)
+  dynamic "include" {
+    for_each = length(var.service_token_ids) > 0 ? [1] : []
+    content {
+      service_token = var.service_token_ids
     }
   }
 
@@ -194,8 +215,8 @@ spec:
           httpGet:
             path: /ready
             port: 2000
-          failureThreshold: 1
-          initialDelaySeconds: 10
+          failureThreshold: 5
+          initialDelaySeconds: 30
           periodSeconds: 10
         volumeMounts:
         - name: config

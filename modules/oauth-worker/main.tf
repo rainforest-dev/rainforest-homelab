@@ -17,9 +17,10 @@ resource "cloudflare_workers_domain" "obsidian_gateway" {
   zone_id    = var.cloudflare_zone_id
 }
 
-resource "cloudflare_workers_domain" "personal_calibre_gateway" {
+resource "cloudflare_workers_domain" "calibre_mcp_gateway" {
   account_id = var.cloudflare_account_id
-  hostname   = "personal-calibre.${var.domain_suffix}"
+  hostname   = "calibre-mcp.${var.domain_suffix}"
   service    = "${var.project_name}-oauth-gateway"
   zone_id    = var.cloudflare_zone_id
 }
+

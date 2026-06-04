@@ -138,6 +138,19 @@ variable "service_token_ids" {
   sensitive   = true
 }
 
+variable "google_oauth_client_id" {
+  description = "Google OAuth 2.0 Client ID for Zero Trust identity provider"
+  type        = string
+  default     = ""
+}
+
+variable "google_oauth_client_secret" {
+  description = "Google OAuth 2.0 Client Secret for Zero Trust identity provider"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # Core feature flags
 # Most services are now always-on since they're core to the homelab
 
@@ -184,4 +197,23 @@ variable "calibre_library_path" {
 #
 #
 #
+
+variable "grafana_mcp_version" {
+  description = "Grafana MCP server Docker image version"
+  type        = string
+  default     = "0.5.0"
+}
+
+variable "grafana_mcp_api_key" {
+  description = "Grafana read-only service account token for MCP server"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "rpi_grafana_port" {
+  description = "RPi Grafana NodePort"
+  type        = number
+  default     = 30080
+}
 

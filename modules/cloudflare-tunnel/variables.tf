@@ -45,6 +45,19 @@ variable "service_token_ids" {
   sensitive   = true
 }
 
+variable "google_oauth_client_id" {
+  description = "Google OAuth 2.0 Client ID for Zero Trust identity provider"
+  type        = string
+  default     = ""
+}
+
+variable "google_oauth_client_secret" {
+  description = "Google OAuth 2.0 Client Secret for Zero Trust identity provider"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "services" {
   description = "Map of services to expose through Cloudflare Tunnel"
   type = map(object({
@@ -52,7 +65,8 @@ variable "services" {
     service_url  = string
     enable_auth  = bool
     type         = string
-    internal     = optional(bool, false)
+    internal       = optional(bool, false)
+    allowed_emails = optional(list(string), [])
   }))
   default = {}
 }

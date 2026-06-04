@@ -38,11 +38,13 @@ resource "kubernetes_persistent_volume" "postgresql_pv" {
 }
 
 resource "kubernetes_persistent_volume_claim" "postgresql_pvc" {
+  wait_until_bound = false
+
   metadata {
     name      = "${var.project_name}-postgresql-pvc"
     namespace = var.namespace
   }
-  
+
   spec {
     access_modes = ["ReadWriteOnce"]
     
