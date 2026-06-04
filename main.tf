@@ -404,6 +404,17 @@ module "grafana_mcp" {
   log_opts        = {}
 }
 
+module "grafana_alloy" {
+  source = "./modules/grafana-alloy"
+
+  project_name                = var.project_name
+  image_version               = var.grafana_alloy_version
+  prometheus_remote_write_url = var.rpi_prometheus_url
+  loki_push_url               = var.rpi_loki_url
+  kubeconfig_path             = var.alloy_kubeconfig_path
+  log_opts                    = {}
+}
+
 resource "docker_container" "dockerproxy" {
   image   = "ghcr.io/tecnativa/docker-socket-proxy:latest"
   name    = "dockerproxy"
