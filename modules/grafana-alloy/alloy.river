@@ -1,9 +1,10 @@
-// ─── Prometheus: Mac Mini system metrics ────────────────────────────────────
-
-prometheus.exporter.unix "mac_mini" {}
+// ─── Prometheus: Mac Mini system metrics (native node_exporter on host) ─────
 
 prometheus.scrape "unix" {
-  targets         = prometheus.exporter.unix.mac_mini.targets
+  targets = [{
+    __address__ = "host.docker.internal:9100",
+    job         = "mac-mini-node",
+  }]
   forward_to      = [prometheus.remote_write.rpi.receiver]
   scrape_interval = "30s"
   job_name        = "mac-mini-node"
@@ -44,7 +45,16 @@ discovery.docker "running" {
 loki.source.docker "containers" {
   host       = "unix:///var/run/docker.sock"
   targets    = discovery.docker.running.targets
+  forward_to = [loki.process.drop_self.receiver]
+}
+
+loki.process "drop_self" {
   forward_to = [loki.write.rpi.receiver]
+
+  stage.drop {
+    source = "container_name"
+    value  = "homelab-alloy"
+  }
 }
 
 // ─── Loki: Kubernetes pod logs (Docker Desktop) ─────────────────────────────

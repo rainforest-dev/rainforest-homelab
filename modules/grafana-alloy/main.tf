@@ -45,7 +45,8 @@ resource "docker_container" "alloy" {
     protocol = "tcp"
   }
 
-  memory = 192
+  memory     = 192
+  cpu_shares = 512
 
   log_driver = "json-file"
   log_opts   = var.log_opts
