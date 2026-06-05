@@ -134,6 +134,15 @@ locals {
     # IoT / Raspberry Pi services — routed over LAN by the Mac Mini cloudflared.
     # Only expose services with genuine remote-access use cases.
     # Admin-only UIs (Pi-hole, Homebridge) stay internal; use Teleport SSH for those.
+    {
+      "homepage" = {
+        hostname    = "homepage"
+        service_url = "http://${var.raspberry_pi_ip}:8888"
+        enable_auth = true
+        type        = "iot"
+      }
+    },
+
     var.enable_homeassistant ? {
       "homeassistant" = {
         hostname       = "homeassistant"
