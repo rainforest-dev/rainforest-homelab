@@ -404,6 +404,13 @@ module "grafana_mcp" {
   log_opts        = {}
 }
 
+module "speedtest_exporter" {
+  source = "./modules/speedtest-exporter"
+
+  project_name = var.project_name
+  log_opts     = {}
+}
+
 module "grafana_alloy" {
   source = "./modules/grafana-alloy"
 
