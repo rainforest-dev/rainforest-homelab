@@ -18,7 +18,7 @@ variable "image" {
 variable "external_port" {
   description = "Host port to expose the app on"
   type        = number
-  default     = 8083
+  default     = 8084
 }
 
 variable "vault_registry_path" {

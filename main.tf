@@ -301,7 +301,7 @@ module "rss-manager" {
   project_name        = var.project_name
   environment         = var.environment
   image               = var.rss_manager_image
-  external_port       = 8083
+  external_port       = 8084
   vault_registry_path = var.vault_registry_path
 }
 
