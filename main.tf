@@ -41,7 +41,7 @@ module "postgresql" {
   external_storage_path = var.external_storage_path
 
   # pgAdmin configuration
-  enable_pgadmin = true
+  enable_pgadmin = false
   pgadmin_email  = "contact@rainforest.tools"
 
   # Monitoring
@@ -137,8 +137,8 @@ module "open-webui" {
 
   project_name       = var.project_name
   environment        = var.environment
-  cpu_limit          = "2"   # Generous CPU for smooth web search and AI processing
-  memory_limit       = "4Gi" # High memory to prevent OOM during web search operations
+  cpu_limit          = "2"
+  memory_limit       = "1536Mi"
   enable_persistence = var.enable_persistence
   storage_size       = var.default_storage_size
   ollama_enabled     = false
@@ -293,6 +293,16 @@ module "personal-calibre" {
   image                = var.personal_calibre_image
   external_port        = 8082
   calibre_library_path = var.calibre_library_path
+}
+
+module "rss-manager" {
+  source = "./modules/rss-manager"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  image               = var.rss_manager_image
+  external_port       = 8083
+  vault_registry_path = var.vault_registry_path
 }
 
 module "n8n" {

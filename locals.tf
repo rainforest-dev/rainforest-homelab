@@ -68,6 +68,15 @@ locals {
     },
 
     {
+      "rss" = {
+        hostname    = "rss"
+        service_url = module.rss-manager.tunnel_service_url
+        enable_auth = true
+        type        = "docker"
+      }
+    },
+
+    {
       "personal-calibre-internal" = {
         hostname    = "personal-calibre-internal"
         service_url = module.personal-calibre.tunnel_service_url
@@ -157,7 +166,7 @@ locals {
       "music-assistant" = {
         hostname       = "music-assistant"
         service_url    = "http://${var.raspberry_pi_ip}:8095"
-        enable_auth    = true # MA has its own login; Zero Trust adds a second layer
+        enable_auth    = false # MA has its own auth; ZT blocks HA's WebSocket connection via tunnel
         type           = "iot"
         allowed_emails = ["ting1110001@gmail.com"]
       }

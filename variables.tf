@@ -193,6 +193,18 @@ variable "calibre_library_path" {
   default     = "/Users/rainforest/Library/CloudStorage/SynologyDrive-CalibreLibrary"
 }
 
+variable "rss_manager_image" {
+  description = "Docker image for rss-manager (e.g. ghcr.io/rainforest-dev/rss-manager:latest)"
+  type        = string
+  default     = "ghcr.io/rainforest-dev/rss-manager:latest"
+}
+
+variable "vault_registry_path" {
+  description = "Host path to the Obsidian vault folder containing RSS registry markdown files (mounted read-only at /vault)"
+  type        = string
+  default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/_system"
+}
+
 # Open WebUI Configuration
 #
 #
