@@ -159,15 +159,6 @@ locals {
       }
     } : {},
 
-    var.obsidian_api_key != "" ? {
-      obsidian = {
-        hostname    = "obsidian"
-        service_url = module.obsidian_mcp[0].service_url
-        enable_auth = true # Protect with Zero Trust
-        type        = "docker"
-      }
-    } : {},
-
     # IoT / Raspberry Pi services — routed over LAN by the Mac Mini cloudflared.
     # Only expose services with genuine remote-access use cases.
     # Admin-only UIs (Pi-hole, Homebridge) stay internal; use Teleport SSH for those.
