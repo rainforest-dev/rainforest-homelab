@@ -122,3 +122,16 @@ variable "image_version" {
   type        = string
   default     = "v0.9.5"
 }
+
+variable "image_gen_url" {
+  description = "Base URL for OpenAI-compatible image generation API (e.g. https://image-gen.rainforest.tools)"
+  type        = string
+  default     = ""
+}
+
+variable "image_gen_api_key" {
+  description = "API key for image generation service"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

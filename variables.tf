@@ -240,3 +240,22 @@ variable "synology_drive_path" {
   default     = ""
 }
 
+variable "enable_comfyui_adapter" {
+  description = "Enable the ComfyUI OpenAI-compatible image generation adapter"
+  type        = bool
+  default     = false
+}
+
+variable "comfyui_host" {
+  description = "ComfyUI backend URL. Default: Mac Mini native install. Override with PC LAN IP for GPU mode."
+  type        = string
+  default     = "http://host.docker.internal:8000"
+}
+
+variable "image_gen_api_key" {
+  description = "API key for the image-gen adapter. Empty = no auth (internal use only)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+

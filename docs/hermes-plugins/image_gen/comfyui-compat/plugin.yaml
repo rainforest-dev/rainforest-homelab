@@ -1,0 +1,5 @@
+kind: backend
+name: comfyui-compat
+display_name: ComfyUI (self-hosted)
+description: Self-hosted Flux image generation via ComfyUI adapter
+version: "0.1.0"

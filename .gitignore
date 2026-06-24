@@ -62,3 +62,12 @@ node_modules
 # OAuth client registration files (contain sensitive credentials)
 modules/oauth-worker/client-*.txt
 modules/oauth-worker/client-registration-output.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+dist/
+build/
