@@ -38,6 +38,12 @@ resource "docker_container" "whisper" {
   name    = "${var.project_name}-whisper"
   restart = "unless-stopped"
 
+  memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (
+    can(regex("Gi", var.memory_limit)) ? 1024 * 1024 * 1024 :
+    can(regex("Mi", var.memory_limit)) ? 1024 * 1024 : 1
+  )
+  memory_swap = -1
+
   # Port mapping
   ports {
     internal = 8000

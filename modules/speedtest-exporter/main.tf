@@ -15,9 +15,9 @@ resource "docker_container" "speedtest_exporter" {
     protocol = "tcp"
   }
 
-  # Run on host network so it uses the Mac Mini's wired Ethernet for accurate ISP results
-  # (avoids Docker bridge NAT overhead)
-  network_mode = "host"
+  # Note: network_mode = "host" does NOT work on macOS Docker Desktop.
+  # Port mapping is used instead — Docker Desktop handles Mac→VM→container forwarding.
+  # The speedtest still uses the Mac Mini's wired Ethernet via the VM's default route.
 
   memory     = 128
   cpu_shares = 256

@@ -21,6 +21,12 @@ resource "docker_container" "personal_calibre" {
   name    = "${var.project_name}-personal-calibre"
   restart = "unless-stopped"
 
+  memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (
+    can(regex("Gi", var.memory_limit)) ? 1024 * 1024 * 1024 :
+    can(regex("Mi", var.memory_limit)) ? 1024 * 1024 : 1
+  )
+  memory_swap = -1
+
   ports {
     internal = 8080
     external = var.external_port

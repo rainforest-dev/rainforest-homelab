@@ -26,6 +26,12 @@ resource "docker_container" "calibre-web" {
   name    = "${var.project_name}-calibre-web"
   restart = "unless-stopped"
 
+  memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (
+    can(regex("Gi", var.memory_limit)) ? 1024 * 1024 * 1024 :
+    can(regex("Mi", var.memory_limit)) ? 1024 * 1024 : 1
+  )
+  memory_swap = -1
+
   ports {
     internal = var.internal_port
     external = var.external_port

@@ -48,3 +48,9 @@ variable "domain_suffix" {
   type        = string
   default     = ""
 }
+
+variable "memory_limit" {
+  description = "Memory limit for Whisper container (e.g. 512Mi, 1Gi)"
+  type        = string
+  default     = "512Mi"
+}
