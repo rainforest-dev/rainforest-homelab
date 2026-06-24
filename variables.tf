@@ -205,11 +205,6 @@ variable "vault_registry_path" {
   default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/_system"
 }
 
-# Open WebUI Configuration
-#
-#
-#
-
 variable "grafana_mcp_version" {
   description = "Grafana MCP server Docker image version"
   type        = string
@@ -253,3 +248,27 @@ variable "alloy_kubeconfig_path" {
   default     = "/Users/rainforest/.kube/config"
 }
 
+variable "teleport_storage_path" {
+  description = "Host path for Teleport data persistence. Must be on a filesystem that supports Unix sockets (APFS/ext4). Cannot use the Samsung T7 (exFAT) because Teleport v15.5+ SQLite WAL mode requires Unix socket support."
+  type        = string
+  default     = "/Users/rainforest/.homelab"
+}
+
+# Image Version Pinning
+variable "open_webui_image_version" {
+  description = "Open WebUI Docker image version"
+  type        = string
+  default     = "v0.9.5"
+}
+
+variable "cloudflared_version" {
+  description = "cloudflared Docker image version"
+  type        = string
+  default     = "2026.5.0"
+}
+
+variable "synology_drive_path" {
+  description = "Path to Synology Drive sync folder for Velero backups (empty = disabled)"
+  type        = string
+  default     = ""
+}

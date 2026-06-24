@@ -14,15 +14,6 @@ locals {
     },
 
     {
-      flowise = {
-        hostname    = "flowise"
-        service_url = "http://homelab-flowise.homelab.svc.cluster.local:3000"
-        enable_auth = true
-        type        = "kubernetes"
-      }
-    },
-
-    {
       n8n = {
         hostname    = "n8n"
         service_url = "http://homelab-n8n.homelab.svc.cluster.local:5678"
@@ -90,6 +81,7 @@ locals {
         hostname    = "docker-mcp-internal"
         service_url = module.docker_mcp_gateway.tunnel_service_url
         enable_auth = false # Auth handled by OAuth Worker layer
+        internal    = true  # No public DNS record — only reachable via the OAuth Worker
         type        = "docker"
       }
     },
@@ -102,6 +94,15 @@ locals {
         type        = "docker"
       }
     },
+
+    var.grafana_mcp_api_key != "" ? {
+      "grafana-mcp" = {
+        hostname    = "grafana-mcp"
+        service_url = "http://host.docker.internal:8765"
+        enable_auth = true
+        type        = "docker"
+      }
+    } : {},
 
     {
       pgadmin = {
@@ -137,6 +138,15 @@ locals {
         service_url = "https://homelab-teleport.homelab.svc.cluster.local:443"
         enable_auth = false # Teleport handles its own authentication
         type        = "kubernetes"
+      }
+    } : {},
+
+    var.obsidian_api_key != "" ? {
+      obsidian = {
+        hostname    = "obsidian"
+        service_url = module.obsidian_mcp[0].service_url
+        enable_auth = true # Protect with Zero Trust
+        type        = "docker"
       }
     } : {},
 

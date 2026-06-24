@@ -6,10 +6,6 @@ output "open_webui_id" {
 
 }
 
-output "flowise_id" {
-  value = module.flowise.flowise_id
-}
-
 output "postgresql_connection_info" {
   description = "PostgreSQL connection information"
   value = {
