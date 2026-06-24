@@ -30,7 +30,8 @@ resource "kubernetes_persistent_volume" "n8n_pv" {
 
 # Create persistent volume claim for n8n data
 resource "kubernetes_persistent_volume_claim" "n8n_pvc" {
-  count = var.use_external_storage ? 1 : 0
+  count            = var.use_external_storage ? 1 : 0
+  wait_until_bound = false
 
   metadata {
     name      = "${var.project_name}-n8n-pvc"

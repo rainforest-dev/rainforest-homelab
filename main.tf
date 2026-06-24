@@ -5,6 +5,11 @@
 #   special = true
 # }
 
+resource "random_password" "flowise_password" {
+  length  = 24
+  special = true
+}
+
 resource "random_password" "n8n_password" {
   length  = 24
   special = true
@@ -36,22 +41,11 @@ module "postgresql" {
   external_storage_path = var.external_storage_path
 
   # pgAdmin configuration
-  enable_pgadmin = true
+  enable_pgadmin = false
   pgadmin_email  = "contact@rainforest.tools"
 
   # Monitoring
   enable_metrics = false
-}
-
-module "obsidian_mcp" {
-  count  = var.obsidian_api_key != "" ? 1 : 0
-  source = "./modules/obsidian-mcp"
-
-  project_name        = var.project_name
-  environment         = var.environment
-  obsidian_api_key    = var.obsidian_api_key
-  memory_limit        = var.default_memory_limit
-  docker_host_address = "host.docker.internal"
 }
 
 module "docker_mcp_gateway" {
@@ -132,8 +126,8 @@ module "open-webui" {
 
   project_name       = var.project_name
   environment        = var.environment
-  cpu_limit          = "2"   # Generous CPU for smooth web search and AI processing
-  memory_limit       = "4Gi" # High memory to prevent OOM during web search operations
+  cpu_limit          = "2"
+  memory_limit       = "1536Mi"
   enable_persistence = var.enable_persistence
   storage_size       = var.default_storage_size
   ollama_enabled     = false
@@ -153,6 +147,7 @@ module "open-webui" {
   whisper_stt_url = "https://whisper.${var.domain_suffix}"
   domain_suffix   = var.domain_suffix
 
+
   # Image generation integration
   image_gen_url     = var.enable_comfyui_adapter ? "https://image-gen.${var.domain_suffix}" : ""
   image_gen_api_key = var.image_gen_api_key
@@ -161,6 +156,39 @@ module "open-webui" {
   image_version = var.open_webui_image_version
 
   # No longer depends on PostgreSQL database - using SQLite
+}
+
+# Flowise Database Self-Registration
+module "flowise_database" {
+  source = "./modules/database-init"
+
+  service_name         = "flowise"
+  database_name        = "flowise_db"
+  postgres_host        = module.postgresql.postgresql_host
+  postgres_user        = module.postgresql.postgresql_username
+  postgres_secret_name = module.postgresql.postgresql_secret_name
+  postgres_secret_key  = "postgres-password"
+  namespace            = "homelab"
+
+  # Create service-specific user for better security
+  service_user     = "flowise_user"
+  service_password = random_password.flowise_password.result
+
+  # Custom initialization SQL for Flowise
+  init_sql = <<-SQL
+    -- Create extensions for Flowise
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    
+    -- Grant permissions for application operations
+    GRANT ALL ON SCHEMA public TO flowise_user;
+    
+    -- Comment on database
+    COMMENT ON DATABASE flowise_db IS 'Flowise AI workflow automation database';
+  SQL
+
+  force_recreate = "2" # Recreate after PostgreSQL password fix
+
+  depends_on = [module.postgresql]
 }
 
 # n8n Database Self-Registration
@@ -196,6 +224,35 @@ module "n8n_database" {
   depends_on = [module.postgresql]
 }
 
+module "flowise" {
+  source = "./modules/flowise"
+
+  project_name       = var.project_name
+  environment        = var.environment
+  cpu_limit          = var.default_cpu_limit
+  memory_limit       = var.default_memory_limit
+  enable_persistence = var.enable_persistence
+  storage_size       = var.default_storage_size
+  chart_repository   = "https://cowboysysop.github.io/charts"
+  chart_version      = "6.0.0"
+
+  # External storage configuration
+  use_external_storage  = true
+  external_storage_path = var.external_storage_path
+
+  # PostgreSQL configuration
+  database_type        = "postgres"
+  database_host        = module.postgresql.postgresql_host
+  database_port        = "5432"
+  database_name        = "flowise_db"
+  database_user        = "postgres"
+  database_secret_name = module.postgresql.postgresql_secret_name
+  database_secret_key  = "postgres-password"
+
+  depends_on = [module.flowise_database]
+}
+
+
 module "minio" {
   source = "./modules/minio"
 
@@ -208,7 +265,6 @@ module "minio" {
   chart_repository     = "https://charts.min.io/"
   chart_version        = "5.4.0"
   use_external_storage = true # Enable external storage on Samsung T7
-  synology_drive_path  = var.synology_drive_path
 }
 
 # OpenSpeedTest moved to Raspberry Pi (external hosting)
@@ -234,6 +290,16 @@ module "personal-calibre" {
   image                = var.personal_calibre_image
   external_port        = 8082
   calibre_library_path = var.calibre_library_path
+}
+
+module "rss-manager" {
+  source = "./modules/rss-manager"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  image               = var.rss_manager_image
+  external_port       = 8084
+  vault_registry_path = var.vault_registry_path
 }
 
 module "n8n" {
@@ -322,11 +388,8 @@ module "teleport" {
   teleport_version        = "15.5.4"
   memory_limit            = "1Gi"
   storage_size            = "10Gi"
-  # Use internal SSD path (APFS), not the Samsung T7 (exFAT).
-  # Teleport v15.5+ SQLite WAL mode requires Unix socket support — exFAT doesn't provide it.
-  # /Users is mounted into the Docker Desktop VM, so this path resolves to macOS APFS.
-  use_external_storage    = true
-  external_storage_path   = var.teleport_storage_path
+  use_external_storage    = false # exFAT on Samsung T7 doesn't support Unix sockets needed by Teleport v15.5+
+  external_storage_path   = var.external_storage_path
 
   depends_on = [kubernetes_namespace.homelab]
 }
@@ -339,23 +402,15 @@ module "cloudflare_tunnel" {
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_api_token  = var.cloudflare_api_token
   kubernetes_namespace  = "homelab"
-  allowed_email_domains = var.allowed_email_domains
-  allowed_emails        = var.allowed_emails
-  service_token_ids     = var.service_token_ids
-  services              = local.services
+  allowed_email_domains      = var.allowed_email_domains
+  allowed_emails             = var.allowed_emails
+  service_token_ids          = var.service_token_ids
+  google_oauth_client_id     = var.google_oauth_client_id
+  google_oauth_client_secret = var.google_oauth_client_secret
+  services                   = local.services
   cloudflared_version        = var.cloudflared_version
 
   depends_on = [kubernetes_namespace.homelab]
-}
-
-module "grafana_alloy" {
-  source = "./modules/grafana-alloy"
-
-  project_name                = var.project_name
-  image_version               = var.grafana_alloy_version
-  prometheus_remote_write_url = var.rpi_prometheus_url
-  loki_push_url               = var.rpi_loki_url
-  log_opts                    = {}
 }
 
 module "grafana_mcp" {
@@ -370,7 +425,24 @@ module "grafana_mcp" {
   log_opts        = {}
 }
 
-# ComfyUI — standalone Python server managed by launchd (macOS)
+module "speedtest_exporter" {
+  source = "./modules/speedtest-exporter"
+
+  project_name = var.project_name
+  log_opts     = {}
+}
+
+module "grafana_alloy" {
+  source = "./modules/grafana-alloy"
+
+  project_name                = var.project_name
+  image_version               = var.grafana_alloy_version
+  prometheus_remote_write_url = var.rpi_prometheus_url
+  loki_push_url               = var.rpi_loki_url
+  kubeconfig_path             = var.alloy_kubeconfig_path
+  log_opts                    = {}
+}
+
 # ComfyUI — standalone Python server managed by launchd (macOS)
 # Port 8000 is now free since ComfyUI Desktop (Electron) is uninstalled.
 # Access UI at http://localhost:8000; comfyui-adapter reaches it via host.docker.internal:8000
@@ -383,7 +455,7 @@ module "comfyui" {
 }
 
 resource "docker_container" "dockerproxy" {
-  image   = "ghcr.io/tecnativa/docker-socket-proxy:0.3.0"
+  image   = "ghcr.io/tecnativa/docker-socket-proxy:latest"
   name    = "dockerproxy"
   restart = "unless-stopped"
   env     = ["CONTAINERS=1", "SERVICES=1", "TASKS=1", "POST=0"]

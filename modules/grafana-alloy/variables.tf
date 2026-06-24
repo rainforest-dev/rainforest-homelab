@@ -4,21 +4,27 @@ variable "project_name" {
 }
 
 variable "image_version" {
-  description = "Grafana Alloy image version"
+  description = "Grafana Alloy Docker image version"
   type        = string
   default     = "v1.8.2"
 }
 
 variable "prometheus_remote_write_url" {
-  description = "RPi Prometheus remote_write endpoint"
+  description = "Prometheus remote_write endpoint on RPi"
   type        = string
   default     = "http://raspberrypi-5.local:30090/api/v1/write"
 }
 
 variable "loki_push_url" {
-  description = "RPi Loki push endpoint"
+  description = "Loki push endpoint on RPi"
   type        = string
   default     = "http://raspberrypi-5.local:30100/loki/api/v1/push"
+}
+
+variable "kubeconfig_path" {
+  description = "Absolute path to kubeconfig for K8s pod log discovery"
+  type        = string
+  default     = "/Users/rainforest/.kube/config"
 }
 
 variable "log_opts" {

@@ -138,8 +138,23 @@ variable "service_token_ids" {
   sensitive   = true
 }
 
+variable "google_oauth_client_id" {
+  description = "Google OAuth 2.0 Client ID for Zero Trust identity provider"
+  type        = string
+  default     = ""
+}
+
+variable "google_oauth_client_secret" {
+  description = "Google OAuth 2.0 Client Secret for Zero Trust identity provider"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # Core feature flags
 # Most services are now always-on since they're core to the homelab
+
+
 
 variable "obsidian_api_key" {
   description = "API key for Obsidian Local REST API"
@@ -152,12 +167,6 @@ variable "external_storage_path" {
   description = "Path to external storage for data persistence"
   type        = string
   default     = "/Volumes/Samsung T7 Touch/homelab-data"
-}
-
-variable "teleport_storage_path" {
-  description = "Host path for Teleport data persistence. Must be on a filesystem that supports Unix sockets (APFS/ext4). Cannot use the Samsung T7 (exFAT) because Teleport v15.5+ SQLite WAL mode requires Unix socket support."
-  type        = string
-  default     = "/Users/rainforest/.homelab"
 }
 
 variable "raspberry_pi_ip" {
@@ -184,17 +193,35 @@ variable "calibre_library_path" {
   default     = "/Users/rainforest/Library/CloudStorage/SynologyDrive-CalibreLibrary"
 }
 
-# Image Version Pinning
-variable "open_webui_image_version" {
-  description = "Open WebUI Docker image version"
+variable "rss_manager_image" {
+  description = "Docker image for rss-manager (e.g. ghcr.io/rainforest-dev/rss-manager:latest)"
   type        = string
-  default     = "v0.9.5"
+  default     = "ghcr.io/rainforest-dev/rss-manager:latest"
 }
 
-variable "cloudflared_version" {
-  description = "cloudflared Docker image version"
+variable "vault_registry_path" {
+  description = "Host path to the Obsidian vault folder containing RSS registry markdown files (mounted read-only at /vault)"
   type        = string
-  default     = "2026.5.0"
+  default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/_system"
+}
+
+variable "grafana_mcp_version" {
+  description = "Grafana MCP server Docker image version"
+  type        = string
+  default     = "0.5.0"
+}
+
+variable "grafana_mcp_api_key" {
+  description = "Grafana read-only service account token for MCP server"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "rpi_grafana_port" {
+  description = "RPi Grafana NodePort"
+  type        = number
+  default     = 30080
 }
 
 variable "grafana_alloy_version" {
@@ -215,23 +242,29 @@ variable "rpi_loki_url" {
   default     = "http://raspberrypi-5.local:30100/loki/api/v1/push"
 }
 
-variable "grafana_mcp_version" {
-  description = "Grafana MCP server Docker image version"
+variable "alloy_kubeconfig_path" {
+  description = "Absolute path to kubeconfig for Alloy K8s pod log discovery"
   type        = string
-  default     = "0.5.0"
+  default     = "/Users/rainforest/.kube/config"
 }
 
-variable "grafana_mcp_api_key" {
-  description = "Grafana read-only service account token for MCP server"
+variable "teleport_storage_path" {
+  description = "Host path for Teleport data persistence. Must be on a filesystem that supports Unix sockets (APFS/ext4). Cannot use the Samsung T7 (exFAT) because Teleport v15.5+ SQLite WAL mode requires Unix socket support."
   type        = string
-  sensitive   = true
-  default     = ""
+  default     = "/Users/rainforest/.homelab"
 }
 
-variable "rpi_grafana_port" {
-  description = "RPi Grafana NodePort"
-  type        = number
-  default     = 30080
+# Image Version Pinning
+variable "open_webui_image_version" {
+  description = "Open WebUI Docker image version"
+  type        = string
+  default     = "v0.9.5"
+}
+
+variable "cloudflared_version" {
+  description = "cloudflared Docker image version"
+  type        = string
+  default     = "2026.5.0"
 }
 
 variable "synology_drive_path" {
@@ -258,4 +291,3 @@ variable "image_gen_api_key" {
   default     = ""
   sensitive   = true
 }
-

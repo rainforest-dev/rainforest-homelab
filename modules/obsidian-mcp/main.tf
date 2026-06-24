@@ -1,18 +1,19 @@
-# Obsidian MCP Server - SSE transport
-# Wraps mcp-obsidian (stdio) with SSE transport for remote access
-# Uses the existing mcp/obsidian Docker image with a mounted SSE wrapper script
+# Obsidian MCP Server — Streamable HTTP + legacy SSE
+# Builds on mcp/obsidian:latest with upgraded MCP SDK (>=1.9 for Streamable HTTP)
 
-locals {
-  memory_numeric    = parseint(regex("([0-9]+)", var.memory_limit)[0], 10)
-  memory_multiplier = (
-    can(regex("Gi", var.memory_limit)) ? 1073741824 :
-    can(regex("Mi", var.memory_limit)) ? 1048576 : 1
-  )
-  memory_bytes = local.memory_numeric * local.memory_multiplier
+resource "docker_image" "obsidian_mcp" {
+  name = "obsidian-mcp:local"
+  build {
+    context    = path.module
+    dockerfile = "Dockerfile"
+  }
+  triggers = {
+    dockerfile = filemd5("${path.module}/Dockerfile")
+  }
 }
 
 resource "docker_container" "obsidian_mcp" {
-  image   = "mcp/obsidian:latest"
+  image   = docker_image.obsidian_mcp.image_id
   name    = "${var.project_name}-obsidian-mcp"
   restart = "always"
 
@@ -38,11 +39,14 @@ resource "docker_container" "obsidian_mcp" {
     read_only      = true
   }
 
-  memory = local.memory_bytes
+  # Resource limits
+  memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (
+    can(regex("Gi", var.memory_limit)) ? 1024 * 1024 * 1024 :
+    can(regex("Mi", var.memory_limit)) ? 1024 * 1024 : 1
+  )
 
   healthcheck {
-    # CMD array avoids shell parsing — urllib raises on connection failure/non-2xx
-    test         = ["CMD", "/app/.venv/bin/python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:${var.port}/health')"]
+    test         = ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:${var.port}/health')\" || exit 1"]
     interval     = "30s"
     timeout      = "10s"
     retries      = 3

@@ -50,12 +50,29 @@ locals {
     },
 
     {
+      "calibre" = {
+        hostname    = "calibre"
+        service_url = module.personal-calibre.tunnel_service_url
+        enable_auth = true
+        type        = "docker"
+      }
+    },
+
+    {
+      "rss" = {
+        hostname    = "rss"
+        service_url = module.rss-manager.tunnel_service_url
+        enable_auth = true
+        type        = "docker"
+      }
+    },
+
+    {
       "personal-calibre-internal" = {
         hostname    = "personal-calibre-internal"
         service_url = module.personal-calibre.tunnel_service_url
         enable_auth = false # Auth handled by OAuth Worker layer
         type        = "docker"
-        internal    = true  # DNS record skipped; only reachable via Cloudflare Tunnel
       }
     },
 
@@ -123,6 +140,16 @@ locals {
       }
     } : {},
 
+    {
+      "bambii" = {
+        hostname       = "bambii"
+        service_url    = "http://host.docker.internal:9119"
+        enable_auth    = true
+        type           = "docker"
+        allowed_emails = ["ting1110001@gmail.com"]
+      }
+    },
+
     var.enable_teleport ? {
       tp = {
         hostname    = "tp"
@@ -144,12 +171,32 @@ locals {
     # IoT / Raspberry Pi services — routed over LAN by the Mac Mini cloudflared.
     # Only expose services with genuine remote-access use cases.
     # Admin-only UIs (Pi-hole, Homebridge) stay internal; use Teleport SSH for those.
+    {
+      "homepage" = {
+        hostname    = "homepage"
+        service_url = "http://${var.raspberry_pi_ip}:8888"
+        enable_auth = true
+        type        = "iot"
+      }
+    },
+
     var.enable_homeassistant ? {
       "homeassistant" = {
-        hostname    = "homeassistant"
-        service_url = "http://${var.raspberry_pi_ip}:8123"
-        enable_auth = true # Zero Trust email auth + HA's own auth = two layers
-        type        = "iot"
+        hostname       = "homeassistant"
+        service_url    = "http://${var.raspberry_pi_ip}:8123"
+        enable_auth    = false # HA has its own auth; Zero Trust breaks Google OAuth account linking
+        type           = "iot"
+        allowed_emails = ["ting1110001@gmail.com"]
+      }
+    } : {},
+
+    var.enable_homeassistant ? {
+      "music-assistant" = {
+        hostname       = "music-assistant"
+        service_url    = "http://${var.raspberry_pi_ip}:8095"
+        enable_auth    = false # MA has its own auth; ZT blocks HA's WebSocket connection via tunnel
+        type           = "iot"
+        allowed_emails = ["ting1110001@gmail.com"]
       }
     } : {},
 

@@ -23,8 +23,8 @@ output "postgresql_admin_password" {
 }
 
 output "pgadmin_access_info" {
-  description = "pgAdmin access information"
-  value = {
+  description = "pgAdmin access information (null when enable_pgadmin = false)"
+  value = module.postgresql.pgadmin_service_name == null ? null : {
     email            = "contact@rainforest.tools"
     internal_url     = module.postgresql.pgadmin_url
     service_name     = module.postgresql.pgadmin_service_name
@@ -33,7 +33,7 @@ output "pgadmin_access_info" {
 }
 
 output "pgadmin_password" {
-  description = "pgAdmin login password (sensitive)"
+  description = "pgAdmin login password (sensitive, null when enable_pgadmin = false)"
   value       = module.postgresql.pgadmin_password
   sensitive   = true
 }

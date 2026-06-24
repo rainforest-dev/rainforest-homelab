@@ -580,6 +580,33 @@ terraform apply  # Will re-download models
 docker ps --filter "name=homelab-whisper"
 ```
 
+## Grafana Alloy (Observability Agent)
+
+Grafana Alloy runs as a Docker container on the Mac Mini, shipping Docker container logs to Loki and container metrics (cAdvisor) to Prometheus on the Pi at 192.168.0.128.
+
+**Module:** `modules/grafana-alloy/` — managed by Terraform via the kreuzwerker/docker provider.
+
+**Config file:** `modules/grafana-alloy/alloy.river` — bind-mounted into the container. Edit this file and restart the container (`docker restart homelab-alloy`) to apply config changes without a full `terraform apply`.
+
+### node_exporter (Mac Mini host metrics)
+
+`node_exporter` must be installed natively on macOS — it cannot run in Docker because Docker Desktop on Mac runs containers inside a Linux VM, so a containerized exporter reports VM metrics rather than actual Mac Mini CPU/memory/disk/network.
+
+**This is a manual prerequisite — not managed by Terraform:**
+
+```bash
+brew install node_exporter
+brew services start node_exporter
+```
+
+Once running, Alloy scrapes it at `host.docker.internal:9100` and pushes metrics to Prometheus with `job="mac-mini-node"`.
+
+**To check status:**
+```bash
+brew services info node_exporter
+curl http://localhost:9100/metrics | grep node_cpu_seconds_total | head -3
+```
+
 ## Security Considerations
 
 - **Cloudflare API Credentials**: The `cloudflare_api_token` and `cloudflare_account_id` variables are marked as sensitive in Terraform

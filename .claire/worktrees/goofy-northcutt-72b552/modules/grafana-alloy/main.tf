@@ -33,20 +33,13 @@ resource "docker_container" "alloy" {
     read_only      = true
   }
 
-  volumes {
-    host_path      = var.kubeconfig_path
-    container_path = "/etc/alloy/kubeconfig"
-    read_only      = true
-  }
-
   ports {
     internal = 12345
     external = 12345
     protocol = "tcp"
   }
 
-  memory     = 192
-  cpu_shares = 512
+  memory = 128
 
   log_driver = "json-file"
   log_opts   = var.log_opts
