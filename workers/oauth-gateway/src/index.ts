@@ -12,7 +12,8 @@ type Props = {
 // Backend routing: hostname-based first, then ?backend= query param fallback
 const HOSTNAME_BACKENDS: Record<string, string> = {
 	"obsidian": "https://obsidian-internal.rainforest.tools",
-	"personal-calibre": "https://personal-calibre-internal.rainforest.tools",
+	"calibre": "https://personal-calibre-internal.rainforest.tools",
+	"calibre-mcp": "https://personal-calibre-internal.rainforest.tools",
 };
 const DEFAULT_BACKEND = "https://docker-mcp-internal.rainforest.tools";
 

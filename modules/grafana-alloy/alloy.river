@@ -1,27 +1,24 @@
-// ─── Prometheus: Mac Mini system metrics ────────────────────────────────────
-
-prometheus.exporter.unix "mac_mini" {
-  // Equivalent to node_exporter — CPU, memory, disk, network
-}
+// ─── Prometheus: Mac Mini system metrics (native node_exporter on host) ─────
 
 prometheus.scrape "unix" {
-  targets    = prometheus.exporter.unix.mac_mini.targets
-  forward_to = [prometheus.remote_write.rpi.receiver]
-
+  targets = [{
+    __address__ = "host.docker.internal:9100",
+    job         = "mac-mini-node",
+  }]
+  forward_to      = [prometheus.remote_write.rpi.receiver]
   scrape_interval = "30s"
   job_name        = "mac-mini-node"
 }
 
-// ─── Prometheus: Docker container metrics ───────────────────────────────────
+// ─── Prometheus: Docker container metrics (cAdvisor) ────────────────────────
 
 prometheus.exporter.cadvisor "containers" {
   docker_host = "unix:///var/run/docker.sock"
 }
 
 prometheus.scrape "cadvisor" {
-  targets    = prometheus.exporter.cadvisor.containers.targets
-  forward_to = [prometheus.remote_write.rpi.receiver]
-
+  targets         = prometheus.exporter.cadvisor.containers.targets
+  forward_to      = [prometheus.remote_write.rpi.receiver]
   scrape_interval = "30s"
   job_name        = "mac-mini-cadvisor"
 }
@@ -45,10 +42,39 @@ discovery.docker "running" {
   host = "unix:///var/run/docker.sock"
 }
 
+discovery.relabel "docker_labels" {
+  targets = discovery.docker.running.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container_name"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_id"]
+    target_label  = "container_id"
+  }
+
+  rule {
+    replacement  = "docker"
+    target_label = "job"
+  }
+}
+
 loki.source.docker "containers" {
   host       = "unix:///var/run/docker.sock"
-  targets    = discovery.docker.running.targets
+  targets    = discovery.relabel.docker_labels.output
+  forward_to = [loki.process.drop_self.receiver]
+}
+
+loki.process "drop_self" {
   forward_to = [loki.write.rpi.receiver]
+
+  stage.drop {
+    source = "container_name"
+    value  = "homelab-alloy"
+  }
 }
 
 // ─── Loki: Push to RPi ──────────────────────────────────────────────────────

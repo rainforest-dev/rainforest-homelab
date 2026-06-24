@@ -11,8 +11,9 @@ import {
 // Extended Env interface with GitHub OAuth secrets
 interface ExtendedEnv {
 	GITHUB_CLIENT_ID: string;
-	GITHUB_CLIENT_SECRET: string;  
+	GITHUB_CLIENT_SECRET: string;
 	COOKIE_ENCRYPTION_KEY: string;
+	GITHUB_CALLBACK_URL: string;
 	OAUTH_PROVIDER: OAuthHelpers;
 }
 
@@ -159,14 +160,16 @@ async function redirectToGithub(
 	env: ExtendedEnv,
 	headers: Record<string, string> = {},
 ) {
+	// Store the originating hostname so the callback can complete auth on the correct issuer
+	const originUrl = new URL(request.url).origin;
 	return new Response(null, {
 		headers: {
 			...headers,
 			location: getUpstreamAuthorizeUrl({
 				client_id: env.GITHUB_CLIENT_ID,
-				redirect_uri: new URL("/callback", request.url).href,
+				redirect_uri: env.GITHUB_CALLBACK_URL,
 				scope: "read:user",
-				state: btoa(JSON.stringify(oauthReqInfo)),
+				state: btoa(JSON.stringify({ oauthReqInfo, originUrl })),
 				upstream_url: "https://github.com/login/oauth/authorize",
 			}),
 		},
@@ -193,14 +196,15 @@ app.get("/callback", async (c) => {
 			}, 400);
 		}
 
-		// Parse OAuth request info from state
+		let stateData: { oauthReqInfo: AuthRequest; originUrl?: string } | AuthRequest;
 		let oauthReqInfo: AuthRequest;
 		try {
-			oauthReqInfo = JSON.parse(atob(stateParam)) as AuthRequest;
+			stateData = JSON.parse(atob(stateParam));
+			oauthReqInfo = 'oauthReqInfo' in stateData ? stateData.oauthReqInfo : stateData;
 		} catch (error) {
 			console.error("[OAuth] Invalid state parameter:", error);
 			return c.json({
-				error: "invalid_request", 
+				error: "invalid_request",
 				error_description: "Invalid state parameter - unable to decode"
 			}, 400);
 		}
@@ -210,6 +214,18 @@ app.get("/callback", async (c) => {
 				error: "invalid_request",
 				error_description: "Invalid state - missing client_id"
 			}, 400);
+		}
+
+		// If GitHub redirected to docker-mcp but auth originated from another hostname,
+		// forward to that hostname's /callback so completeAuthorization uses the correct issuer.
+		const originUrl = 'originUrl' in stateData ? stateData.originUrl : undefined;
+		const currentOrigin = new URL(c.req.url).origin;
+		if (originUrl && originUrl !== currentOrigin) {
+			const dest = new URL("/callback", originUrl);
+			dest.searchParams.set("code", c.req.query("code") || "");
+			dest.searchParams.set("state", btoa(JSON.stringify(oauthReqInfo)));
+			console.log(`[OAuth] Cross-origin callback: ${currentOrigin} → ${originUrl}`);
+			return Response.redirect(dest.toString());
 		}
 
 		// Validate authorization code
@@ -227,7 +243,7 @@ app.get("/callback", async (c) => {
 			client_id: c.env.GITHUB_CLIENT_ID,
 			client_secret: c.env.GITHUB_CLIENT_SECRET,
 			code: authCode,
-			redirect_uri: new URL("/callback", c.req.url).href,
+			redirect_uri: c.env.GITHUB_CALLBACK_URL,
 			upstream_url: "https://github.com/login/oauth/access_token",
 		});
 

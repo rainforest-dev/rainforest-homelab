@@ -28,6 +28,14 @@
     "cloudflare-docs": {
       "type": "sse",
       "url": "https://docs.mcp.cloudflare.com/sse"
+    },
+    "docker-remote": {
+      "type": "http",
+      "url": "https://docker-mcp.rainforest.tools/mcp"
+    },
+    "obsidian-remote": {
+      "type": "http",
+      "url": "https://obsidian.rainforest.tools/mcp"
     }
   }
 }
