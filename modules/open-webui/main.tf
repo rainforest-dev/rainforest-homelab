@@ -169,6 +169,24 @@ resource "helm_release" "open-webui" {
             name  = "AUDIO_STT_OPENAI_API_BASE_URL"
             value = "${var.whisper_stt_url}/v1"
           }
+        ] : [],
+        var.image_gen_url != "" ? [
+          {
+            name  = "ENABLE_IMAGE_GENERATION"
+            value = "true"
+          },
+          {
+            name  = "IMAGE_GENERATION_ENGINE"
+            value = "openai"
+          },
+          {
+            name  = "IMAGES_OPENAI_API_BASE_URL"
+            value = "${var.image_gen_url}/v1"
+          },
+          {
+            name  = "IMAGES_OPENAI_API_KEY"
+            value = var.image_gen_api_key != "" ? var.image_gen_api_key : "homelab-internal"
+          }
         ] : []
       )
 

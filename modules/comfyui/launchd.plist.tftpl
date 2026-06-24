@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${label}</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>${python}</string>
+        <string>${server_dir}/main.py</string>
+        <string>--port</string>
+        <string>${port}</string>
+        <string>--listen</string>
+        <string>0.0.0.0</string>
+        <string>--extra-model-paths-config</string>
+        <string>${model_config}</string>
+        <string>--preview-method</string>
+        <string>auto</string>
+        <string>--disable-auto-launch</string>
+%{ for arg in extra_args ~}
+        <string>${arg}</string>
+%{ endfor ~}
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>${server_dir}</string>
+
+    <!-- Start automatically at login and keep alive if it crashes -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Wait 30s before restarting a crashed process -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>${log_dir}/stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>${log_dir}/stderr.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>${home_dir}</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <!-- Allow MPS ops that lack a native implementation to fall back to CPU -->
+        <key>PYTORCH_ENABLE_MPS_FALLBACK</key>
+        <string>1</string>
+    </dict>
+</dict>
+</plist>
