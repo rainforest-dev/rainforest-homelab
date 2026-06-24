@@ -70,17 +70,6 @@ module "docker_mcp_gateway" {
   obsidian_api_key = var.obsidian_api_key
 }
 
-# Obsidian MCP Server - standalone SSE transport with Zero Trust auth
-module "obsidian_mcp" {
-  source = "./modules/obsidian-mcp"
-
-  project_name        = var.project_name
-  environment         = var.environment
-  obsidian_api_key    = var.obsidian_api_key
-  memory_limit        = var.default_memory_limit
-  docker_host_address = "host.docker.internal"
-}
-
 # OAuth Worker for Docker MCP Gateway
 # Clients (Claude.ai, Claude Code) auto-register via RFC 7591 Dynamic Client Registration
 module "oauth_worker" {
@@ -157,6 +146,14 @@ module "open-webui" {
   # Whisper STT integration
   whisper_stt_url = "https://whisper.${var.domain_suffix}"
   domain_suffix   = var.domain_suffix
+
+
+  # Image generation integration
+  image_gen_url     = var.enable_comfyui_adapter ? "https://image-gen.${var.domain_suffix}" : ""
+  image_gen_api_key = var.image_gen_api_key
+
+  # Pinned image version (used by docker deployment_type)
+  image_version = var.open_webui_image_version
 
   # No longer depends on PostgreSQL database - using SQLite
 }
@@ -355,6 +352,19 @@ module "whisper" {
   domain_suffix        = var.domain_suffix
 }
 
+module "comfyui_adapter" {
+  count  = var.enable_comfyui_adapter ? 1 : 0
+  source = "./modules/comfyui-adapter"
+
+  project_name  = var.project_name
+  environment   = var.environment
+  comfyui_host  = var.comfyui_host
+  api_key       = var.image_gen_api_key
+  external_port = 7860
+  image_tag     = "latest"
+  domain_suffix = var.domain_suffix
+}
+
 module "metrics_server" {
   source = "./modules/metrics-server"
 
@@ -398,6 +408,7 @@ module "cloudflare_tunnel" {
   google_oauth_client_id     = var.google_oauth_client_id
   google_oauth_client_secret = var.google_oauth_client_secret
   services                   = local.services
+  cloudflared_version        = var.cloudflared_version
 
   depends_on = [kubernetes_namespace.homelab]
 }
@@ -430,6 +441,17 @@ module "grafana_alloy" {
   loki_push_url               = var.rpi_loki_url
   kubeconfig_path             = var.alloy_kubeconfig_path
   log_opts                    = {}
+}
+
+# ComfyUI — standalone Python server managed by launchd (macOS)
+# Port 8000 is now free since ComfyUI Desktop (Electron) is uninstalled.
+# Access UI at http://localhost:8000; comfyui-adapter reaches it via host.docker.internal:8000
+module "comfyui" {
+  source = "./modules/comfyui"
+
+  port               = 8000
+  model_paths_config = "~/Library/Application Support/ComfyUI/extra_models_config.yaml"
+  log_dir            = "~/Library/Logs/ComfyUI"
 }
 
 resource "docker_container" "dockerproxy" {
