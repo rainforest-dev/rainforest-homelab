@@ -10,26 +10,25 @@ module "whisper_models_volume" {
   use_external_storage = var.use_external_storage
 }
 
-# Build Docker image from local Dockerfile
-resource "docker_image" "whisper" {
-  name = "${var.project_name}/whisper:${var.image_tag}"
-
-  build {
-    context    = path.module
-    dockerfile = "Dockerfile"
-    tag        = ["${var.project_name}/whisper:${var.image_tag}"]
-    label = {
-      project = var.project_name
-      service = "whisper"
-    }
-  }
-
-  # Force rebuild when files change
+# Build Docker image via local-exec — the kreuzwerker/docker provider's legacy
+# build API corrupts the gzip build context on macOS Docker Desktop (unpigz CRC32 mismatch).
+resource "null_resource" "whisper_build" {
   triggers = {
     dockerfile_hash = filemd5("${path.module}/Dockerfile")
     main_py_hash    = filemd5("${path.module}/app/main.py")
     pyproject_hash  = filemd5("${path.module}/app/pyproject.toml")
   }
+
+  provisioner "local-exec" {
+    command = "docker build -t ${var.project_name}/whisper:${var.image_tag} ${path.module}"
+  }
+}
+
+resource "docker_image" "whisper" {
+  name         = "${var.project_name}/whisper:${var.image_tag}"
+  keep_locally = true
+
+  depends_on = [null_resource.whisper_build]
 }
 
 # Whisper Docker container
@@ -81,6 +80,5 @@ resource "docker_container" "whisper" {
     value = var.environment
   }
 
-  # Wait for image to be ready
-  depends_on = [docker_image.whisper]
+  depends_on = [null_resource.whisper_build]
 }
