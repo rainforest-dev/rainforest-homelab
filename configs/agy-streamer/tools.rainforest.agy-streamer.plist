@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>tools.rainforest.agy-streamer</string>
+    <key>WorkingDirectory</key>
+    <string>/Users/rainforest/Repositories/rainforest-monorepo/.worktrees/agy-streamer-migration</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>/opt/homebrew/bin/pnpm nx dev agy-streamer -- --host 100.111.143.71 --port 3010</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/rainforest/.asdf/shims:/opt/homebrew/bin:/opt/homebrew/sbin:/Users/rainforest/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/rainforest/Library/Logs/agy-streamer.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/rainforest/Library/Logs/agy-streamer.log</string>
+</dict>
+</plist>
