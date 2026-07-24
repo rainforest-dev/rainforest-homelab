@@ -251,6 +251,12 @@ resource "kubernetes_service" "n8n" {
       protocol    = "TCP"
     }
 
-    type = "ClusterIP"
+    # LoadBalancer (not ClusterIP) so Docker Desktop binds the service on the
+    # host at localhost:5678. This lets the Docker MCP gateway reach n8n's API
+    # via host.docker.internal:5678, bypassing the Cloudflare Access 302 that
+    # intercepts https://n8n.rainforest.tools/api/v1/*. LoadBalancer is a
+    # superset of ClusterIP, so the in-cluster DNS the tunnel uses
+    # (homelab-n8n.homelab.svc.cluster.local:5678) is unchanged.
+    type = "LoadBalancer"
   }
 }
