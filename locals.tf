@@ -89,8 +89,8 @@ locals {
     {
       whisper = {
         hostname    = "whisper"
-        service_url = "http://host.docker.internal:9000"
-        enable_auth = true # Protect with Zero Trust
+        service_url = "http://host.docker.internal:9090" # container publishes 9090; :9000 is MinIO
+        enable_auth = true                               # Protect with Zero Trust
         type        = "docker"
       }
     },
