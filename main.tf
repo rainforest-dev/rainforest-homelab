@@ -154,8 +154,11 @@ module "open-webui" {
   use_external_storage  = true
   external_storage_path = var.external_storage_path
 
-  # Whisper STT integration
-  whisper_stt_url = "https://whisper.${var.domain_suffix}"
+  # Whisper STT integration — use the INTERNAL address, not the public tunnel URL.
+  # whisper.<domain> is behind Cloudflare Access, which 302-redirects API calls to a
+  # login page; open-webui then fails to transcribe (same failure mode n8n's API hit).
+  # Both services run on this machine, so there is no reason to leave the LAN.
+  whisper_stt_url = "http://host.docker.internal:9090"
   domain_suffix   = var.domain_suffix
 
 
