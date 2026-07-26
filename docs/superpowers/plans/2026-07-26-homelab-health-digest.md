@@ -75,305 +75,393 @@ No commit — this task only confirms the queries return data before they are em
 
 ---
 
-### Task 2: Create the n8n credential for Obsidian
+### Task 2: Give n8n the Obsidian key as an environment variable
 
-The Obsidian key already exists in `terraform.tfvars`; this only teaches n8n to use it. No
-new credential is created anywhere.
+The Obsidian key already exists in `terraform.tfvars`. Injecting it as an env var means the
+workflow JSON can reference `$env.OBSIDIAN_API_KEY` and stay free of secrets when committed
+— and it avoids an n8n UI credential, which the public API cannot create.
 
-**Files:** none in git (credential lives in n8n's database)
+`N8N_BLOCK_ENV_ACCESS_IN_NODE` is unset on this deployment (verified), so expressions may
+read env vars.
 
-- [ ] **Step 1: Read the existing key without printing it**
+**Files:**
+- Modify: `modules/n8n/main.tf` (container env block)
+- Modify: `main.tf` (pass the variable into the module)
+- Modify: `modules/n8n/variables.tf` (declare the variable)
 
-```bash
-OBS_KEY=$(grep -oE 'obsidian_api_key *= *"[^"]*"' ~/Repositories/rainforest-homelab/terraform.tfvars | sed -E 's/.*"(.*)"/\1/')
-[ -n "$OBS_KEY" ] && echo "key loaded (not shown)" || echo "FAILED to read key"
-```
+- [ ] **Step 1: Declare the variable in the n8n module**
 
-Expected: `key loaded (not shown)`
+Add to `modules/n8n/variables.tf`:
 
-- [ ] **Step 2: Create an HTTP Header Auth credential in n8n**
-
-In the n8n UI (`http://localhost:5678`) → Credentials → New → **Header Auth**:
-- Name: `Obsidian Local REST API`
-- Header Name: `Authorization`
-- Header Value: `Bearer <the key from step 1>`
-
-The n8n public API does not expose credential creation, so this is a one-time UI step. It
-consumes an existing secret rather than minting a new one, which satisfies the
-"no new manual credentials" constraint from the spec.
-
-- [ ] **Step 3: Verify the credential saves without error**
-
-Expected: credential appears in the list as `Obsidian Local REST API`.
-
----
-
-### Task 3: Build the workflow — Prometheus stage
-
-**Files:** none yet (built in the n8n UI, exported in Task 7)
-
-- [ ] **Step 1: Create a new workflow named `Homelab health digest`**
-
-- [ ] **Step 2: Add an HTTP Request node named `Fetch alerts`**
-
-- Method: `GET`
-- URL: `http://192.168.0.128:30090/api/v1/query`
-- Send Query Parameters: on
-  - Name `query`, Value: `ALERTS{alertstate="firing",alertname!="Watchdog"}`
-- Response → Format: `JSON`
-
-- [ ] **Step 3: Execute the node alone and verify output**
-
-Click **Test step**.
-Expected: `data.result` is an array containing objects whose
-`metric.alertname` includes `KubePodCrashLooping`.
-
-If `data.result` is empty, the digest has nothing to report — re-run Task 1 Step 1 to
-confirm alerts are still firing before assuming the node is misconfigured.
-
-- [ ] **Step 4: Add a second HTTP Request node named `Fetch sensors`**
-
-- Method: `GET`
-- URL: `http://192.168.0.128:30090/api/v1/query`
-- Send Query Parameters: on
-  - Name `query`, Value:
-    `homeassistant_sensor_humidity_percent or homeassistant_sensor_temperature_celsius`
-- Response → Format: `JSON`
-
-- [ ] **Step 5: Execute and verify**
-
-Expected: `data.result` contains entries with `metric.friendly_name` and numeric values.
-
----
-
-### Task 4: Build the workflow — summarise with Ollama
-
-**Files:** none yet
-
-- [ ] **Step 1: Add a Code node named `Build prompt`**
-
-Connect `Fetch alerts` → `Build prompt`, and `Fetch sensors` → `Build prompt`.
-
-```javascript
-// Collapse both Prometheus responses into one compact prompt.
-// items[0] = alerts, items[1] = sensors (order follows node connection order).
-const alerts = $('Fetch alerts').first().json.data.result || [];
-const sensors = $('Fetch sensors').first().json.data.result || [];
-
-const alertLines = alerts.map(a => {
-  const m = a.metric;
-  const what = m.pod || m.job_name || m.instance || 'unknown';
-  return `- ${m.alertname} (${m.severity || 'n/a'}): ${what}`;
-});
-
-const sensorLines = sensors.map(s => {
-  const name = s.metric.friendly_name || s.metric.entity || 'sensor';
-  const val = Number(s.value[1]).toFixed(1);
-  return `- ${name}: ${val}`;
-});
-
-const prompt = [
-  'Summarise this homelab status in at most 4 short sentences.',
-  'State plainly what is wrong and what looks normal. No preamble, no bullet points.',
-  '',
-  `Firing alerts (${alertLines.length}):`,
-  alertLines.length ? alertLines.join('\n') : '- none',
-  '',
-  'Home sensors:',
-  sensorLines.length ? sensorLines.join('\n') : '- none',
-].join('\n');
-
-return [{ json: { prompt, alertCount: alertLines.length, alertLines, sensorLines } }];
-```
-
-- [ ] **Step 2: Execute and verify the prompt**
-
-Expected: `prompt` is a string mentioning `KubePodCrashLooping`, and `alertCount` is a
-number greater than 0.
-
-- [ ] **Step 3: Add an HTTP Request node named `Summarise`**
-
-- Method: `POST`
-- URL: `http://host.docker.internal:11434/api/generate`
-- Send Body: on, Body Content Type: `JSON`, Specify Body: **Using JSON**
-
-```json
-{
-  "model": "gemma4:e4b-mlx",
-  "prompt": "={{ $json.prompt }}",
-  "stream": false
+```hcl
+variable "obsidian_api_key" {
+  description = "Obsidian Local REST API key, exposed to workflows as $env.OBSIDIAN_API_KEY"
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 ```
 
-`gemma4:e4b-mlx` is chosen for speed — it is the smallest MLX-optimised model available
-locally, and this is a short summarisation run on shared hardware. Any name from
-`ollama list` works if you prefer a larger one.
+- [ ] **Step 2: Add the env var to the n8n container**
 
-- [ ] **Step 4: Set the node timeout**
+In `modules/n8n/main.tf`, find the container's `env` blocks (near the other `env { name = ... }`
+entries around line 94-190) and add:
 
-Options → Timeout: `120000` (ms). Local inference on a busy Mac Mini can exceed the 30s
-default, and a timeout here would silently produce an empty digest.
+```hcl
+          env {
+            name  = "OBSIDIAN_API_KEY"
+            value = var.obsidian_api_key
+          }
+```
 
-- [ ] **Step 5: Execute and verify**
+- [ ] **Step 3: Pass the existing variable through in the root module**
 
-Expected: response JSON contains a non-empty `response` string describing the alerts.
+In `main.tf`, inside `module "n8n" { ... }`, add:
+
+```hcl
+  obsidian_api_key = var.obsidian_api_key
+```
+
+- [ ] **Step 4: Apply**
+
+```bash
+cd ~/Repositories/rainforest-homelab
+terraform apply -target=module.n8n -auto-approve
+```
+
+Expected: `Apply complete!`, n8n pod restarts.
+
+- [ ] **Step 5: Verify the variable is present without printing it**
+
+```bash
+kubectl wait --for=condition=ready pod -l app=n8n -n homelab --timeout=180s
+POD=$(kubectl get pod -n homelab -l app=n8n -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n homelab "$POD" -- sh -c '[ -n "$OBSIDIAN_API_KEY" ] && echo "OBSIDIAN_API_KEY set (len ${#OBSIDIAN_API_KEY})" || echo MISSING'
+```
+
+Expected: `OBSIDIAN_API_KEY set (len 64)`
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add modules/n8n/variables.tf modules/n8n/main.tf main.tf
+git commit -m "feat(n8n): expose Obsidian API key to workflows as an env var
+
+Lets workflow JSON reference \$env.OBSIDIAN_API_KEY instead of embedding the
+secret or requiring a hand-made n8n credential (the public API cannot create
+credentials). Reuses the existing obsidian_api_key variable."
+```
 
 ---
 
-### Task 5: Build the workflow — write to Obsidian
+### Task 3: Write the workflow definition
 
-**Files:** none yet
+Written as a file first, then imported — so the version-controlled JSON is the source of
+truth rather than an after-the-fact export.
 
-- [ ] **Step 1: Add a Code node named `Format section`**
+**Files:**
+- Create: `configs/n8n/workflows/homelab-health-digest.json`
 
-```javascript
-const summary = ($('Summarise').first().json.response || '').trim();
-const p = $('Build prompt').first().json;
-const stamp = new Date().toISOString().slice(11, 16); // HH:MM
+- [ ] **Step 1: Create the directory**
 
-const body = [
-  '',
-  '## Homelab health',
-  '',
-  `*checked ${stamp}*`,
-  '',
-  summary || '_summary unavailable_',
-  '',
-  `**Firing alerts:** ${p.alertCount}`,
-  ...(p.alertLines.length ? p.alertLines : ['- none']),
-  '',
-  '**Sensors**',
-  ...(p.sensorLines.length ? p.sensorLines : ['- none']),
-  '',
-].join('\n');
-
-return [{ json: { body } }];
+```bash
+mkdir -p ~/Repositories/rainforest-homelab/configs/n8n/workflows
 ```
 
-The raw alert list is included alongside the summary on purpose: the model can be wrong or
-vague, and the underlying facts must remain in the note.
+- [ ] **Step 2: Write the workflow JSON**
 
-- [ ] **Step 2: Execute and verify**
+Create `configs/n8n/workflows/homelab-health-digest.json` with exactly this content:
 
-Expected: `body` starts with `## Homelab health` and contains the alert lines.
+```json
+{
+  "name": "Homelab health digest",
+  "nodes": [
+    {
+      "id": "schedule",
+      "name": "Daily 08:10",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "days", "triggerAtHour": 8, "triggerAtMinute": 10 }
+          ]
+        }
+      }
+    },
+    {
+      "id": "alerts",
+      "name": "Fetch alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 200],
+      "parameters": {
+        "url": "http://192.168.0.128:30090/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "query", "value": "ALERTS{alertstate=\"firing\",alertname!=\"Watchdog\"}" }
+          ]
+        },
+        "options": { "timeout": 30000 }
+      }
+    },
+    {
+      "id": "sensors",
+      "name": "Fetch sensors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 400],
+      "parameters": {
+        "url": "http://192.168.0.128:30090/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "query", "value": "homeassistant_sensor_humidity_percent or homeassistant_sensor_temperature_celsius" }
+          ]
+        },
+        "options": { "timeout": 30000 }
+      }
+    },
+    {
+      "id": "prompt",
+      "name": "Build prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300],
+      "parameters": {
+        "jsCode": "const alerts = $('Fetch alerts').first().json.data.result || [];\nconst sensors = $('Fetch sensors').first().json.data.result || [];\n\nconst alertLines = alerts.map(a => {\n  const m = a.metric;\n  const what = m.pod || m.job_name || m.instance || 'unknown';\n  return `- ${m.alertname} (${m.severity || 'n/a'}): ${what}`;\n});\n\nconst sensorLines = sensors.map(s => {\n  const name = s.metric.friendly_name || s.metric.entity || 'sensor';\n  const val = Number(s.value[1]).toFixed(1);\n  return `- ${name}: ${val}`;\n});\n\nconst prompt = [\n  'Summarise this homelab status in at most 4 short sentences.',\n  'State plainly what is wrong and what looks normal. No preamble, no bullet points.',\n  '',\n  `Firing alerts (${alertLines.length}):`,\n  alertLines.length ? alertLines.join('\\n') : '- none',\n  '',\n  'Home sensors:',\n  sensorLines.length ? sensorLines.join('\\n') : '- none',\n].join('\\n');\n\nreturn [{ json: { prompt, alertCount: alertLines.length, alertLines, sensorLines } }];"
+      }
+    },
+    {
+      "id": "summarise",
+      "name": "Summarise",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gemma4:e4b-mlx', prompt: $json.prompt, stream: false }) }}",
+        "options": { "timeout": 120000 }
+      }
+    },
+    {
+      "id": "format",
+      "name": "Format section",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300],
+      "parameters": {
+        "jsCode": "const summary = ($('Summarise').first().json.response || '').trim();\nconst p = $('Build prompt').first().json;\nconst stamp = new Date().toISOString().slice(11, 16);\n\nconst body = [\n  '',\n  '## Homelab health',\n  '',\n  `*checked ${stamp} UTC*`,\n  '',\n  summary || '_summary unavailable_',\n  '',\n  `**Firing alerts:** ${p.alertCount}`,\n  ...(p.alertLines.length ? p.alertLines : ['- none']),\n  '',\n  '**Sensors**',\n  ...(p.sensorLines.length ? p.sensorLines : ['- none']),\n  '',\n].join('\\n');\n\nreturn [{ json: { body } }];"
+      }
+    },
+    {
+      "id": "append",
+      "name": "Append to daily note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://host.docker.internal:27124/periodic/daily/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OBSIDIAN_API_KEY }}" },
+            { "name": "Content-Type", "value": "text/markdown" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/markdown",
+        "body": "={{ $json.body }}",
+        "options": { "allowUnauthorizedCerts": true, "timeout": 30000 }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 08:10": {
+      "main": [[{ "node": "Fetch alerts", "type": "main", "index": 0 },
+                { "node": "Fetch sensors", "type": "main", "index": 0 }]]
+    },
+    "Fetch alerts": { "main": [[{ "node": "Build prompt", "type": "main", "index": 0 }]] },
+    "Fetch sensors": { "main": [[{ "node": "Build prompt", "type": "main", "index": 0 }]] },
+    "Build prompt": { "main": [[{ "node": "Summarise", "type": "main", "index": 0 }]] },
+    "Summarise": { "main": [[{ "node": "Format section", "type": "main", "index": 0 }]] },
+    "Format section": { "main": [[{ "node": "Append to daily note", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
+```
 
-- [ ] **Step 3: Add an HTTP Request node named `Append to daily note`**
+Design notes for the reviewer:
+- The raw alert list is written to the note alongside the model's summary on purpose — the
+  model can be vague or wrong, and the underlying facts must survive.
+- `allowUnauthorizedCerts` is required: the Obsidian endpoint uses a self-signed
+  certificate. Expected, not a workaround.
+- `Watchdog` is excluded from the query — it is a permanently-firing heartbeat and would be
+  noise in every single digest.
+- 08:10 sits after the existing `rss-daily-digest` routine (08:03) so both append to the
+  same daily note without racing to create it.
 
-- Method: `POST`
-- URL: `https://host.docker.internal:27124/periodic/daily/`
-- Authentication: Generic Credential Type → Header Auth → `Obsidian Local REST API`
-- Send Headers: on → `Content-Type`: `text/markdown`
-- Send Body: on → Body Content Type: `RAW` → Content: `={{ $json.body }}`
-- Options → **Ignore SSL Issues: on** (the endpoint uses a self-signed certificate; this is
-  expected, not a workaround)
+- [ ] **Step 3: Verify it is valid JSON and contains no secret**
 
-- [ ] **Step 4: Execute and verify the write landed**
+```bash
+cd ~/Repositories/rainforest-homelab
+python3 -m json.tool configs/n8n/workflows/homelab-health-digest.json > /dev/null && echo "valid JSON"
+grep -ciE 'bearer [a-z0-9]{20,}|eyJ|glsa_' configs/n8n/workflows/homelab-health-digest.json
+```
+
+Expected: `valid JSON`, then `0`. The only "Bearer" is the `$env` expression, which holds
+no value.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add configs/n8n/workflows/homelab-health-digest.json
+git commit -m "feat(n8n): add homelab health digest workflow definition"
+```
+
+---
+
+### Task 4: Import the workflow into n8n
+
+**Files:** none (creates state inside n8n)
+
+- [ ] **Step 1: Import via the n8n API**
+
+Use the MCP tool `n8n_create_workflow`, passing `name`, `nodes`, `connections` and
+`settings` exactly as written in the JSON file from Task 3.
+
+Equivalent curl, if the API key is available in the shell:
+
+```bash
+curl -s -X POST http://localhost:5678/api/v1/workflows \
+  -H "X-N8N-API-KEY: $N8N_API_KEY" -H "Content-Type: application/json" \
+  --data @configs/n8n/workflows/homelab-health-digest.json | python3 -m json.tool | head -5
+```
+
+Expected: JSON response containing an `id`. Record it — later steps need it.
+
+- [ ] **Step 2: Validate the imported workflow**
+
+Use the MCP tool `n8n_validate_workflow` with the id from step 1.
+
+Expected: no errors. Warnings about unused nodes or missing credentials are acceptable;
+connection or expression errors are not — fix the JSON in Task 3 and re-import.
+
+- [ ] **Step 3: Confirm it is listed**
+
+Use `n8n_list_workflows` (limit 20).
+
+Expected: `Homelab health digest` present, `active: false` (imports arrive inactive).
+
+---
+
+### Task 5: Prove each stage produces real output
+
+Do not trust node success indicators. Every stage is verified by its actual output — n8n's
+own health check reported `ok` for weeks while every authenticated call failed.
+
+**Files:** none
+
+- [ ] **Step 1: Execute the workflow manually**
+
+In n8n (`http://localhost:5678`), open `Homelab health digest` and click **Execute
+Workflow**. Manual execution cannot be triggered through the public API, so this single
+click is unavoidable.
+
+Expected: all seven nodes complete.
+
+- [ ] **Step 2: Verify the alert query returned real data**
+
+```bash
+curl -s "http://192.168.0.128:30090/api/v1/query" \
+  --data-urlencode 'query=count(ALERTS{alertstate="firing",alertname!="Watchdog"})' \
+  | python3 -c "import sys,json; print('alerts firing:', json.load(sys.stdin)['data']['result'][0]['value'][1])"
+```
+
+Expected: a non-zero count (`KubePodCrashLooping` and `KubeJobFailed` are currently firing).
+Note the number — Task 9 compares it against the note.
+
+- [ ] **Step 3: Verify the note was written**
 
 ```bash
 OBS_KEY=$(grep -oE 'obsidian_api_key *= *"[^"]*"' ~/Repositories/rainforest-homelab/terraform.tfvars | sed -E 's/.*"(.*)"/\1/')
 curl -sk -H "Authorization: Bearer $OBS_KEY" https://localhost:27124/periodic/daily/ | tail -25
 ```
 
-Expected: the daily note now ends with the `## Homelab health` section, including the
-`KubePodCrashLooping` line.
+Expected: the daily note ends with a `## Homelab health` section naming
+`KubePodCrashLooping`.
 
-This is the verification that matters. Per the spec, prove the **output**, not that a node
-reported success — n8n and Grafana health checks both lied during the audit.
+If the section is missing but the node reported success, the most likely cause is
+`$env.OBSIDIAN_API_KEY` not resolving — re-check Task 2 Step 5.
 
 ---
 
-### Task 6: Add the schedule and activate
+### Task 6: Activate the schedule
 
-**Files:** none yet
+**Files:** none
 
-- [ ] **Step 1: Add a Schedule Trigger node**
-
-- Trigger Interval: `Days`, Days Between Triggers: `1`
-- Trigger at Hour: `8`, Trigger at Minute: `10`
-
-08:10 sits after the existing `rss-daily-digest` routine (08:03) so both land in the same
-daily note without racing to create it.
-
-- [ ] **Step 2: Connect `Schedule Trigger` → `Fetch alerts` and `Schedule Trigger` → `Fetch sensors`**
-
-- [ ] **Step 3: Activate the workflow**
-
-Toggle **Active** in the top right.
-
-- [ ] **Step 4: Verify it is registered as scheduled**
+- [ ] **Step 1: Activate**
 
 ```bash
-curl -s "http://localhost:5678/api/v1/workflows?active=true" \
-  -H "X-N8N-API-KEY: $(printf '%s' "$N8N_API_KEY")" | python3 -m json.tool | grep -E '"name"|"active"'
+curl -s -X POST "http://localhost:5678/api/v1/workflows/<ID>/activate" \
+  -H "X-N8N-API-KEY: $N8N_API_KEY" | python3 -m json.tool | grep -E '"active"'
 ```
 
-Expected: `Homelab health digest` listed with `"active": true`.
+Substitute the id recorded in Task 4 Step 1.
 
-If `$N8N_API_KEY` is not set in the shell, read it from the Docker MCP gateway secret
-store instead: `docker mcp secret ls` shows `n8n.api_key` exists; the value can be supplied
-by whatever process needs it. Confirming via the n8n UI's workflow list is equally valid.
+Expected: `"active": true`
+
+- [ ] **Step 2: Confirm via listing**
+
+Use `n8n_list_workflows` with `active: true`.
+
+Expected: `Homelab health digest` appears.
 
 ---
 
-### Task 7: Version-control the workflow
+### Task 7: Document the restore procedure
 
 **Files:**
-- Create: `configs/n8n/workflows/homelab-health-digest.json`
 - Create: `configs/n8n/README.md`
 
-- [ ] **Step 1: Export the workflow from n8n**
-
-In the n8n UI: workflow menu (⋯) → **Download**. Save the file to
-`configs/n8n/workflows/homelab-health-digest.json`.
-
-- [ ] **Step 2: Confirm the export contains no secret**
-
-```bash
-grep -ciE 'bearer |api[_-]?key|password|eyJ' configs/n8n/workflows/homelab-health-digest.json
-```
-
-Expected: `0`. n8n exports credential *references*, not values. If this returns anything
-other than 0, stop and inspect before committing.
-
-- [ ] **Step 3: Write the import instructions**
-
-Create `configs/n8n/README.md`:
+- [ ] **Step 1: Write the README**
 
 ```markdown
 # n8n workflows
 
-Workflow definitions exported from n8n, kept in git so they survive a rebuild.
+Workflow definitions kept in git so they survive a machine rebuild.
 
 ## Restore after a rebuild
 
-1. Recreate the `Obsidian Local REST API` credential (Header Auth):
-   Header Name `Authorization`, Header Value `Bearer <obsidian_api_key from terraform.tfvars>`
-2. In n8n: Workflows → Import from File → select the JSON in `workflows/`
-3. Activate the workflow
+Workflows reference `$env.OBSIDIAN_API_KEY`, which Terraform injects into the n8n
+deployment from `obsidian_api_key` in `terraform.tfvars`. No n8n credential needs to be
+created by hand.
 
-Credentials are intentionally NOT exported — the JSON references them by name only.
+1. `terraform apply -target=module.n8n` — ensures the env var is present
+2. Import: `POST /api/v1/workflows` with the JSON from `workflows/`, or use the n8n UI's
+   Import from File
+3. Activate: `POST /api/v1/workflows/<id>/activate`
 
 ## Workflows
 
 - `homelab-health-digest.json` — daily 08:10. Reads firing Prometheus alerts and Home
   Assistant sensors, summarises with Ollama, appends a "Homelab health" section to the
-  Obsidian daily note. Design: `docs/superpowers/specs/2026-07-26-theme-a-homelab-health-digest-design.md`
+  Obsidian daily note.
+  Design: `docs/superpowers/specs/2026-07-26-theme-a-homelab-health-digest-design.md`
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 2: Commit**
 
 ```bash
-cd ~/Repositories/rainforest-homelab
-git add configs/n8n/workflows/homelab-health-digest.json configs/n8n/README.md
-git commit -m "feat(n8n): add homelab health digest workflow
-
-Daily workflow reading firing Prometheus alerts and Home Assistant sensors,
-summarising with Ollama, and appending a health section to the Obsidian daily
-note. Closes the visibility gap that let a crash-looping exporter and a failing
-Pi-hole gravity update go unnoticed for weeks.
-
-No new alert rules were needed — kube-prometheus-stack defaults were already
-firing correctly; only delivery was missing."
+git add configs/n8n/README.md
+git commit -m "docs(n8n): restore procedure for version-controlled workflows"
 ```
 
 ---
