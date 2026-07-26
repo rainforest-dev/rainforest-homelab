@@ -345,6 +345,9 @@ module "n8n" {
   # Encryption
   encryption_key = "n8n-homelab-encryption-key-2024"
 
+  # Obsidian Local REST API key, exposed to workflows as $env.OBSIDIAN_API_KEY
+  obsidian_api_key = var.obsidian_api_key
+
   depends_on = [module.postgresql, module.n8n_database]
 }
 
