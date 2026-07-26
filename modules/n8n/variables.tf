@@ -129,3 +129,10 @@ variable "depends_on_container" {
   type        = string
   default     = "homelab-postgresql"
 }
+
+variable "obsidian_api_key" {
+  description = "Obsidian Local REST API key, exposed to workflows as $env.OBSIDIAN_API_KEY"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
