@@ -98,3 +98,9 @@ variable "synology_drive_path" {
   type        = string
   default     = ""
 }
+
+variable "provisioned_buckets" {
+  description = "Buckets guaranteed to exist after every apply. The backup pipeline hard-depends on these — a missing bucket silently fails every nightly upload (NoSuchBucket)."
+  type        = list(string)
+  default     = ["default", "velero", "pi5-docker-backup", "mac-docker-backup"]
+}

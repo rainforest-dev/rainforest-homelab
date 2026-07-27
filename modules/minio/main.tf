@@ -45,10 +45,10 @@ resource "helm_release" "minio" {
 
       # Persistence configuration  
       persistence = var.use_external_storage ? {
-        enabled        = false  # Disable helm persistence when using external storage
-        existingClaim  = ""     # No existing claim
-        storageClass   = ""     # No storage class
-      } : {
+        enabled       = false # Disable helm persistence when using external storage
+        existingClaim = ""    # No existing claim
+        storageClass  = ""    # No storage class
+        } : {
         enabled = var.enable_persistence
         size    = var.storage_size
       }
@@ -137,4 +137,32 @@ resource "helm_release" "minio" {
   ]
 
   depends_on = []
+}
+
+# Guarantee the backup-pipeline buckets exist. MinIO's chart `defaultBuckets` only
+# provisions on FIRST install, so the 2026-07 MinIO reinstall silently dropped
+# `velero` and `pi5-docker-backup` — every nightly Velero and docker-volume-backup
+# upload failed with NoSuchBucket for days before it was caught. This idempotently
+# (re)creates them via `mc mb -p` after MinIO is up, and re-runs whenever the MinIO
+# release changes (so a future reinstall self-heals). Creds are read from the k8s
+# secret at run time so no secret lands in the Terraform config or state.
+resource "null_resource" "minio_buckets" {
+  triggers = {
+    buckets  = join(",", var.provisioned_buckets)
+    revision = helm_release.minio.metadata[0].revision
+  }
+
+  provisioner "local-exec" {
+    command = <<-BASH
+      set -e
+      RU=$(kubectl get secret ${var.project_name}-minio -n ${var.namespace} -o jsonpath='{.data.rootUser}' | base64 -d)
+      RP=$(kubectl get secret ${var.project_name}-minio -n ${var.namespace} -o jsonpath='{.data.rootPassword}' | base64 -d)
+      for b in ${join(" ", var.provisioned_buckets)}; do
+        docker run --rm -e RU="$RU" -e RP="$RP" --entrypoint sh minio/mc -c \
+          'mc alias set m http://host.docker.internal:9000 "$RU" "$RP" >/dev/null 2>&1 && mc mb -p m/'"$b"' 2>&1 | tail -1'
+      done
+    BASH
+  }
+
+  depends_on = [helm_release.minio]
 }
