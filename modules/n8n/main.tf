@@ -178,10 +178,11 @@ resource "kubernetes_deployment" "n8n" {
 
           # Drop folder for the voice-memo transcription workflow. Direct hostPath
           # (not a PV/PVC) — it is a shared inbox, not stateful data. Docker Desktop
-          # surfaces the Mac's T7 path into the pod (verified via marker file).
+          # n8n 2.x sandboxes the readWriteFile node to /home/node/.n8n-files, so mount
+          # inside that path. Docker Desktop surfaces the Mac's T7 path into the pod (verified via marker file).
           volume_mount {
             name       = "voice-inbox"
-            mount_path = "/data/voice-inbox"
+            mount_path = "/home/node/.n8n-files/voice-inbox"
           }
 
           resources {
@@ -220,14 +221,14 @@ resource "kubernetes_deployment" "n8n" {
 
         volume {
           name = "n8n-data"
-          
+
           dynamic "persistent_volume_claim" {
             for_each = var.use_external_storage ? [1] : []
             content {
               claim_name = kubernetes_persistent_volume_claim.n8n_pvc[0].metadata[0].name
             }
           }
-          
+
           dynamic "empty_dir" {
             for_each = var.use_external_storage ? [] : [1]
             content {
