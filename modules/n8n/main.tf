@@ -176,6 +176,14 @@ resource "kubernetes_deployment" "n8n" {
             mount_path = "/home/node/.n8n"
           }
 
+          # Drop folder for the voice-memo transcription workflow. Direct hostPath
+          # (not a PV/PVC) — it is a shared inbox, not stateful data. Docker Desktop
+          # surfaces the Mac's T7 path into the pod (verified via marker file).
+          volume_mount {
+            name       = "voice-inbox"
+            mount_path = "/data/voice-inbox"
+          }
+
           resources {
             limits = {
               cpu    = var.cpu_limit
@@ -225,6 +233,14 @@ resource "kubernetes_deployment" "n8n" {
             content {
               size_limit = var.storage_size
             }
+          }
+        }
+
+        volume {
+          name = "voice-inbox"
+          host_path {
+            path = "${var.external_storage_path}/voice-inbox"
+            type = "DirectoryOrCreate"
           }
         }
       }
