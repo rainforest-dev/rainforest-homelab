@@ -1,0 +1,224 @@
+{
+  "id": "voicememotranscr",
+  "name": "Voice memo transcription",
+  "active": false,
+  "nodes": [
+    {
+      "id": "sched",
+      "name": "Every 2 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "run",
+      "name": "Run now",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        360
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "read",
+      "name": "Read audio files",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        240,
+        280
+      ],
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/data/voice-inbox/*.*",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "transcribe",
+      "name": "Whisper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        280
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9090/v1/audio/transcriptions",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "model",
+              "value": "whisper-1"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "build",
+      "name": "Build note",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        280
+      ],
+      "parameters": {
+        "jsCode": "const text = ($json.text || '').trim();\nconst src = $('Read audio files').item.binary.data.fileName || 'memo';\nconst base = src.replace(/\\.[^.]+$/, '').replace(/[\\\\/:*?\"<>|]/g, '-');\nconst now = new Date().toISOString();\nconst date = now.slice(0, 10);\nconst noteName = `${date} ${base}`;\nconst body = [\n  '---',\n  'type: voice-memo',\n  `source: ${src}`,\n  `transcribed: ${now}`,\n  '---',\n  '',\n  text || '_(empty transcription)_',\n  '',\n].join('\\n');\nreturn [{ json: { noteName, body, src } }];"
+      }
+    },
+    {
+      "id": "note",
+      "name": "Create note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        280
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://host.docker.internal:27124/vault/Voice%20memos/{{ encodeURIComponent($json.noteName) }}.md",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/markdown"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/markdown",
+        "body": "={{ $json.body }}",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obsidianrestapi1",
+          "name": "Obsidian Local REST API"
+        }
+      }
+    },
+    {
+      "id": "move",
+      "name": "Move to processed",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        280
+      ],
+      "parameters": {
+        "command": "=mv -- \"/data/voice-inbox/{{ $('Build note').item.json.src }}\" \"/data/voice-inbox/processed/\""
+      }
+    }
+  ],
+  "connections": {
+    "Every 2 min": {
+      "main": [
+        [
+          {
+            "node": "Read audio files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run now": {
+      "main": [
+        [
+          {
+            "node": "Read audio files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read audio files": {
+      "main": [
+        [
+          {
+            "node": "Whisper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whisper": {
+      "main": [
+        [
+          {
+            "node": "Build note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build note": {
+      "main": [
+        [
+          {
+            "node": "Create note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create note": {
+      "main": [
+        [
+          {
+            "node": "Move to processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
