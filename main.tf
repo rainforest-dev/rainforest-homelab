@@ -486,3 +486,21 @@ resource "docker_container" "dockerproxy" {
     read_only      = true
   }
 }
+
+# ─── Mac-side backup (Theme C1) ─────────────────────────────────────────────
+# Nightly logical dump of Postgres (all n8n/flowise data), then an offen backup
+# container ships the app volumes + that dump to MinIO. Closes the Mac-side gap
+# the Theme C audit found (the Pi was covered; the Mac was not).
+
+module "postgres_backup" {
+  source         = "./modules/postgres-backup"
+  namespace      = "homelab"
+  dump_host_path = "${var.external_storage_path}/postgres-backups"
+}
+
+module "docker_volume_backup" {
+  source                  = "./modules/docker-volume-backup"
+  minio_access_key        = module.minio.access_key
+  minio_secret_key        = module.minio.secret_key
+  postgres_dump_host_path = "${var.external_storage_path}/postgres-backups"
+}
