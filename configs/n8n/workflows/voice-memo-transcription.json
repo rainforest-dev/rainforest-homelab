@@ -1,7 +1,7 @@
 {
   "id": "voicememotranscr",
   "name": "Voice memo transcription",
-  "active": false,
+  "active": true,
   "nodes": [
     {
       "id": "sched",
@@ -9,7 +9,7 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        0,
+        -220,
         200
       ],
       "parameters": {
@@ -29,10 +29,37 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
       "position": [
-        0,
+        -220,
         360
       ],
       "parameters": {}
+    },
+    {
+      "id": "listnotes",
+      "name": "List processed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        280
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://host.docker.internal:27124/vault/Voice%20memos/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obsidianrestapi1",
+          "name": "Obsidian Local REST API"
+        }
+      },
+      "continueOnFail": true
     },
     {
       "id": "read",
@@ -45,7 +72,7 @@
       ],
       "parameters": {
         "operation": "read",
-        "fileSelector": "/data/voice-inbox/*.*",
+        "fileSelector": "/home/node/.n8n-files/voice-inbox/*.*",
         "options": {
           "dataPropertyName": "data"
         }
@@ -53,12 +80,25 @@
       "continueOnFail": true
     },
     {
+      "id": "filternew",
+      "name": "Filter new",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        280
+      ],
+      "parameters": {
+        "jsCode": "// Idempotency gate. 'List processed' fetched the Voice memos folder once;\n// keep only audio files whose note does not exist yet. The stable dedup key is\n// the audio basename (no date prefix) so a file is transcribed exactly once,\n// no matter how long it lingers in the inbox. Binary is passed through so\n// Whisper downstream still receives the audio.\nconst listed = $('List processed').first().json;\nconst existing = new Set(Array.isArray(listed.files) ? listed.files : []);\nconst out = [];\nfor (const item of $input.all()) {\n  const src = item.binary && item.binary.data ? item.binary.data.fileName : null;\n  if (!src) { continue; }\n  const base = src.replace(/\\.[^.]+$/, '').replace(/[\\\\/:*?\"<>|]/g, '-');\n  if (existing.has(base + '.md')) { continue; }\n  out.push({ json: { src, noteName: base }, binary: item.binary });\n}\nreturn out;"
+      }
+    },
+    {
       "id": "transcribe",
       "name": "Whisper",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        480,
+        720,
         280
       ],
       "parameters": {
@@ -90,11 +130,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        720,
+        960,
         280
       ],
       "parameters": {
-        "jsCode": "const text = ($json.text || '').trim();\nconst src = $('Read audio files').item.binary.data.fileName || 'memo';\nconst base = src.replace(/\\.[^.]+$/, '').replace(/[\\\\/:*?\"<>|]/g, '-');\nconst now = new Date().toISOString();\nconst date = now.slice(0, 10);\nconst noteName = `${date} ${base}`;\nconst body = [\n  '---',\n  'type: voice-memo',\n  `source: ${src}`,\n  `transcribed: ${now}`,\n  '---',\n  '',\n  text || '_(empty transcription)_',\n  '',\n].join('\\n');\nreturn [{ json: { noteName, body, src } }];"
+        "jsCode": "const text = ($json.text || '').trim();\nconst src = $('Filter new').item.json.src;\nconst noteName = $('Filter new').item.json.noteName;\nconst now = new Date().toISOString();\nconst date = now.slice(0, 10);\nconst body = [\n  '---',\n  'type: voice-memo',\n  `source: ${src}`,\n  `date: ${date}`,\n  `transcribed: ${now}`,\n  '---',\n  '',\n  text || '_(empty transcription)_',\n  '',\n].join('\\n');\nreturn [{ json: { noteName, body, src } }];"
       }
     },
     {
@@ -103,7 +143,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        960,
+        1200,
         280
       ],
       "parameters": {
@@ -135,19 +175,6 @@
           "name": "Obsidian Local REST API"
         }
       }
-    },
-    {
-      "id": "move",
-      "name": "Move to processed",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
-      "position": [
-        1200,
-        280
-      ],
-      "parameters": {
-        "command": "=mv -- \"/data/voice-inbox/{{ $('Build note').item.json.src }}\" \"/data/voice-inbox/processed/\""
-      }
     }
   ],
   "connections": {
@@ -155,7 +182,7 @@
       "main": [
         [
           {
-            "node": "Read audio files",
+            "node": "List processed",
             "type": "main",
             "index": 0
           }
@@ -163,6 +190,17 @@
       ]
     },
     "Run now": {
+      "main": [
+        [
+          {
+            "node": "List processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List processed": {
       "main": [
         [
           {
@@ -174,6 +212,17 @@
       ]
     },
     "Read audio files": {
+      "main": [
+        [
+          {
+            "node": "Filter new",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter new": {
       "main": [
         [
           {
@@ -200,17 +249,6 @@
         [
           {
             "node": "Create note",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Create note": {
-      "main": [
-        [
-          {
-            "node": "Move to processed",
             "type": "main",
             "index": 0
           }
