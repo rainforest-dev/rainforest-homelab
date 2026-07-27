@@ -127,3 +127,38 @@ Four constraints worth preserving when editing:
   (pure JS, no network) that reads `$('List processed')` and passes binary through.
 - **An empty inbox is a clean no-op.** `Read audio files` has `continueOnFail`, so a run
   with nothing to do still ends `success` and never spams the execution log.
+
+### `ha-event-bridge.json` — webhook (always active)
+
+The n8n side of the Home Assistant → n8n bridge (Theme A Component 2). A `POST` webhook
+receives home events and appends one bullet to the Obsidian daily note.
+
+**Endpoint (LAN, no Cloudflare):** `http://192.168.0.126:5678/webhook/ha-events`
+(the Mac Mini's LAN IP; Docker Desktop publishes the n8n LoadBalancer on `*:5678`, so the
+Pi — where Home Assistant runs — reaches it directly).
+
+**Payload contract** (all fields optional; defensive defaults in the Code node):
+
+```json
+{ "event": "bambii_music_on", "detail": "living room", "ts": "2026-07-27T15:30:45+08:00" }
+```
+
+`ts` is HA's own local-time string — n8n extracts `HH:MM` from it verbatim rather than
+doing timezone math (the container clock is UTC and `GENERIC_TIMEZONE` is America/New_York,
+neither of which is home time). Result in the daily note:
+`- 15:30 **bambii_music_on** — living room #home-event`.
+
+Design: `docs/superpowers/specs/2026-07-26-theme-a-homelab-health-digest-design.md` (Component 2)
+
+Two constraints worth preserving when editing:
+
+- **Webhooks register only at n8n startup.** `update:workflow --active=true` flips the DB
+  flag but the running process will not serve the route until it reloads active workflows —
+  `n8n` itself prints *"Please restart n8n for changes to take effect."* After importing or
+  activating a webhook workflow, `kubectl rollout restart deployment/homelab-n8n` (this
+  re-registers every active workflow, not just this one). Verify with a real POST, not the
+  DB flag.
+- **The Home Assistant side is separate.** HA reaches this endpoint via a `rest_command`
+  called from an HA automation; that config lives in the `rainforest-iot` repo
+  (`modules/homeassistant`), injected into `/config/configuration.yaml` with the same
+  `null_resource` + base64-append pattern as the existing proxy/prometheus blocks.
