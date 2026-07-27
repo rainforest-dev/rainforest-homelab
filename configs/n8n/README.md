@@ -191,3 +191,41 @@ Three constraints worth preserving when editing:
 
 > Note: on a fresh n8n database the open-incident state is empty, so the first poll logs
 > every currently-firing alert once as `🔴 down` — an intentional initial snapshot.
+
+### `ai-home-query.json` — webhook (always active)
+
+Answers a natural-language home question by having Ollama write a PromQL query, running it
+against Prometheus, and having Ollama phrase the result. Component 5.
+
+**Ask:** `POST http://192.168.0.126:5678/webhook/home-query` with `{"question": "how is the humidity?"}`
+→ responds `{"answer": "The humidity is currently 42.", "promql": "...", "data": "..."}`.
+
+Two constraints worth preserving when editing:
+
+- **Guard the small model with deterministic code, don't trust it to reason.** `gemma4:e4b-mlx`
+  will over-filter (`up{job=~".*homelab.*"}` matches nothing) unless the prompt explicitly
+  forbids it, so the PromQL prompt carries hard rules + examples and `temperature: 0`. The
+  empty-result meaning is decided in the `Build answer prompt` Code node (`up == 0` empty =
+  "all healthy", not "sensor missing"), never left to the model.
+- **Best at current-state questions.** Instant queries about sensors/services are reliable;
+  historical/range questions ("was it humid last night?") are not yet supported.
+
+### `bambii-care-reminder.json` — daily 08:15
+
+Appends a Bambii care checklist to the Obsidian daily note each morning (Component 4, the
+reminder half; the activity-logging half is the HA `bambii_music` → webhook path). The
+checklist in the `Build reminder` node is a **starter template — edit it** to match Bambii's
+real routine (meds, vet dates).
+
+## Re-importing a workflow (IMPORTANT)
+
+`n8n import:workflow` **sets the workflow `active = false`**, silently unregistering any
+webhook (`POST` returns `404 "Active version not found"`) and dropping schedule triggers.
+After re-importing an active workflow, always:
+
+```bash
+kubectl exec -n homelab "$POD" -- n8n update:workflow --id=<id> --active=true
+kubectl rollout restart deployment/homelab-n8n -n homelab   # re-registers routes/schedules
+```
+
+Then verify with a real call, never the DB flag alone.
