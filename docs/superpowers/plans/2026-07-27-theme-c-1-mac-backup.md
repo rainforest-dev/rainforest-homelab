@@ -29,6 +29,26 @@ docker-volume-backup, MinIO (S3), Postgres 16 (`pg_dumpall`), Docker Desktop k8s
 
 ---
 
+## Status — reframed 2026-07-27 (Task 1 audit found a live outage)
+
+Task 1's audit revealed the whole backup pipeline was **broken**, not just missing the Mac:
+MinIO had **zero buckets**, so nightly Velero backups were `FailedValidation` and the Pi's
+`docker-volume-backup` failed every night with `NoSuchBucket` — for days, silently.
+
+**Done (commit `0ebae8d`):**
+- Created the missing `velero` + `pi5-docker-backup` buckets → Pi backup now uploads (144MiB
+  object landed), Velero backup `verify-upload` → `Completed` (9 objects in `velero`).
+- Made buckets IaC-managed in `modules/minio` via a `null_resource` that ensures them and
+  **self-heals on reinstall** (re-runs on release-revision change). Also pre-created
+  `mac-docker-backup` for Task 2.
+
+**Remaining:** Tasks 2–5 below (Mac Docker volumes + Postgres dump + prove restore) proceed as
+written. Note the Synology nuance surfaced by the audit: only the `velero` bucket sits on the
+Synology mount (`/data/velero`); `pi5-docker-backup` and `mac-docker-backup` are local-MinIO
+only — Task 2 should decide whether Mac/Docker-volume backups also need the offsite copy.
+
+---
+
 ### Task 1: Audit coverage and pin the exact wiring
 
 No code yet — resolve the live values the later tasks depend on, and confirm the gap.
