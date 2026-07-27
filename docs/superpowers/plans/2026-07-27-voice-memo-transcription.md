@@ -2,7 +2,7 @@
 
 > **For agentic workers:** Theme A Component 3. Built iteratively in-session (the
 > workflow is tightly coupled and its file/binary handling needs runtime testing), not
-> dispatched task-by-task. Steps use checkbox (`- [ ]`) tracking.
+> dispatched task-by-task. Steps use checkbox (`- [x]`) tracking.
 
 **Goal:** Drop an audio file into a watched folder on the T7; n8n transcribes it with the
 (now-working) Whisper service and files the transcript as an Obsidian note, then moves the
@@ -18,13 +18,39 @@ REST API (`host.docker.internal:27124`), a hostPath mount of the Samsung T7.
 
 ---
 
+## As-built (completed 2026-07-27) — diverged from plan in three ways
+
+Two preconditions below turned out to be wrong at runtime, and the fixes reshaped the design.
+The task steps that follow are kept as the original plan; this is what actually shipped:
+
+1. **Mount path: `/data/voice-inbox` → `/home/node/.n8n-files/voice-inbox`.** n8n 2.x
+   sandboxes the `readWriteFile` node to `/home/node/.n8n-files`. Reading from `/data`
+   failed with *"Access to the file is not allowed."* Mounting inside the sandbox fixes it
+   without widening n8n's file-access allowlist.
+
+2. **No `executeCommand` "move to processed" — idempotency is by note existence instead.**
+   The precondition *"executeCommand available"* was false: it is unregistered under n8n's
+   task-runner mode, and `readWriteFile` cannot delete. Files now stay in the inbox
+   permanently; a `List processed` node lists `Voice memos/` once and a `Filter new` Code
+   node drops any audio whose note already exists. Verified idempotent (the note's
+   `transcribed:` timestamp is frozen across re-runs).
+
+3. **Dedup key is the audio basename, not a date-prefixed name.** A `YYYY-MM-DD <name>`
+   note name would re-transcribe any file lingering past midnight. Keying on the basename
+   (`standup-notes.md`) makes "processed" permanent; the date lives in frontmatter.
+
+Net node graph: `trigger → List processed → Read audio files → Filter new → Whisper →
+Build note → Create note`. See `configs/n8n/README.md` for the maintained description.
+
+---
+
 ## Preconditions (verified 2026-07-27)
 
 | Fact | Result |
 |---|---|
 | `/Volumes/Samsung T7 Touch/homelab-data/voice-inbox` (+ `processed/`) | created |
 | Docker Desktop hostPath surfaces Mac T7 files in the n8n pod | confirmed via marker file |
-| `executeCommand` node available (no `NODES_EXCLUDE`) | yes — needed for `mv` |
+| `executeCommand` node available | ~~yes~~ **NO** — unregistered under task-runner mode (see As-built #2) |
 | Obsidian `PUT /vault/{path}` creates a note | 204 |
 | Obsidian credential `obsidianrestapi1` exists in n8n | yes (from Component 1) |
 
@@ -35,7 +61,7 @@ REST API (`host.docker.internal:27124`), a hostPath mount of the Samsung T7.
 **Files:**
 - Modify: `modules/n8n/main.tf` (add volume_mount + volume)
 
-- [ ] **Step 1: Add a volume_mount to the container**
+- [x] **Step 1: Add a volume_mount to the container**
 
 In the container spec, after the existing `volume_mount { name = "n8n-data" ... }`:
 
@@ -46,7 +72,7 @@ In the container spec, after the existing `volume_mount { name = "n8n-data" ... 
           }
 ```
 
-- [ ] **Step 2: Add the volume**
+- [x] **Step 2: Add the volume**
 
 After the existing `volume { name = "n8n-data" ... }` block:
 
@@ -63,7 +89,7 @@ After the existing `volume { name = "n8n-data" ... }` block:
         }
 ```
 
-- [ ] **Step 3: Apply**
+- [x] **Step 3: Apply**
 
 ```bash
 cd ~/Repositories/rainforest-homelab
@@ -71,7 +97,7 @@ terraform apply -target=module.n8n -auto-approve
 kubectl rollout status deployment/homelab-n8n -n homelab --timeout=180s
 ```
 
-- [ ] **Step 4: Verify the pod sees the folder**
+- [x] **Step 4: Verify the pod sees the folder**
 
 ```bash
 POD=$(kubectl get pod -n homelab -l app=n8n -o jsonpath='{.items[0].metadata.name}')
@@ -81,7 +107,7 @@ kubectl exec -n homelab "$POD" -- sh -c 'ls -la /data/voice-inbox && echo "---" 
 Expected: the directory listing, including `processed/`. If "No such file", the mount
 failed — check `external_storage_path` resolves to the T7.
 
-- [ ] **Step 5: Commit** (isolate the hunk — `main.tf`/module files carry unrelated in-flight work)
+- [x] **Step 5: Commit** (isolate the hunk — `main.tf`/module files carry unrelated in-flight work)
 
 ```
 feat(n8n): mount voice-inbox drop folder for transcription workflow
@@ -94,7 +120,7 @@ feat(n8n): mount voice-inbox drop folder for transcription workflow
 **Files:**
 - Create: `configs/n8n/workflows/voice-memo-transcription.json`
 
-- [ ] **Step 1: Write the JSON**
+- [x] **Step 1: Write the JSON**
 
 ```json
 {
@@ -215,7 +241,7 @@ Component 1 needed three such fixes):
 - **Move to processed** — filename quoting for names with spaces (the `--` and quotes guard
   this).
 
-- [ ] **Step 2: Validate JSON + no secrets**
+- [x] **Step 2: Validate JSON + no secrets**
 
 ```bash
 cd ~/Repositories/rainforest-homelab
@@ -225,7 +251,7 @@ grep -ciE 'bearer [a-z0-9]{20,}|eyJ|glsa_' configs/n8n/workflows/voice-memo-tran
 
 Expected: `valid`, then `0`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```
 feat(n8n): add voice memo transcription workflow definition
@@ -238,7 +264,7 @@ feat(n8n): add voice memo transcription workflow definition
 Iterative, using the CLI-in-pod pattern from `configs/n8n/README.md`. Do NOT trust node
 success — verify the note exists and the file moved.
 
-- [ ] **Step 1: Import**
+- [x] **Step 1: Import**
 
 ```bash
 POD=$(kubectl get pod -n homelab -l app=n8n -o jsonpath='{.items[0].metadata.name}')
@@ -246,7 +272,7 @@ kubectl cp configs/n8n/workflows/voice-memo-transcription.json "homelab/$POD:/tm
 kubectl exec -n homelab "$POD" -- n8n import:workflow --input=/tmp/vm.json
 ```
 
-- [ ] **Step 2: Drop a test audio file**
+- [x] **Step 2: Drop a test audio file**
 
 ```bash
 say -o "/Volumes/Samsung T7 Touch/homelab-data/voice-inbox/test-memo.aiff" \
@@ -254,7 +280,7 @@ say -o "/Volumes/Samsung T7 Touch/homelab-data/voice-inbox/test-memo.aiff" \
 ls -lh "/Volumes/Samsung T7 Touch/homelab-data/voice-inbox/"
 ```
 
-- [ ] **Step 3: Execute**
+- [x] **Step 3: Execute**
 
 ```bash
 kubectl exec -n homelab "$POD" -- sh -c '
@@ -267,7 +293,7 @@ Expected: `"status": "success"`. On failure, read the error, fix the JSON, re-im
 Component 1: binary-field path, multipart shape, or fan-in — but here it is a serial chain
 already.
 
-- [ ] **Step 4: Verify the OUTPUT (the note and the move)**
+- [x] **Step 4: Verify the OUTPUT (the note and the move)**
 
 ```bash
 OBS_KEY=$(grep -oE 'obsidian_api_key *= *"[^"]*"' ~/Repositories/rainforest-homelab/terraform.tfvars | sed -E 's/.*"(.*)"/\1/')
@@ -280,7 +306,7 @@ ls "/Volumes/Samsung T7 Touch/homelab-data/voice-inbox/" "/Volumes/Samsung T7 To
 Expected: a note dated today containing "Buy milk and call the vet about Bambii", inbox
 empty, file now under `processed/`.
 
-- [ ] **Step 5: Commit any JSON fixes**
+- [x] **Step 5: Commit any JSON fixes**
 
 ```
 fix(n8n): make voice memo workflow run end to end
@@ -290,7 +316,7 @@ fix(n8n): make voice memo workflow run end to end
 
 ### Task 4: Activate and document
 
-- [ ] **Step 1: Activate + restart**
+- [x] **Step 1: Activate + restart**
 
 ```bash
 kubectl exec -n homelab "$POD" -- n8n update:workflow --id=voicememotranscr --active=true
@@ -298,17 +324,17 @@ kubectl rollout restart deployment/homelab-n8n -n homelab
 kubectl rollout status deployment/homelab-n8n -n homelab --timeout=180s
 ```
 
-- [ ] **Step 2: Confirm active**
+- [x] **Step 2: Confirm active**
 
 Use `n8n_list_workflows` (active only) or the CLI. Expected: `Voice memo transcription`,
 active.
 
-- [ ] **Step 3: Add to the n8n README workflows section**
+- [x] **Step 3: Add to the n8n README workflows section**
 
 Append an entry describing the workflow, its 2-minute poll, the drop folder, and the
 `processed/` idempotency, pointing at the Theme A spec.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```
 docs(n8n): document the voice memo transcription workflow

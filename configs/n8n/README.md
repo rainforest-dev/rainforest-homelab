@@ -96,3 +96,34 @@ Two constraints worth preserving when editing:
   second node is still unexecuted when `$('Fetch sensors')` is evaluated.
 - **The raw alert list is written alongside the model's summary** on purpose. The summary
   can be vague or wrong; the underlying facts must survive.
+
+### `voice-memo-transcription.json` — every 2 min
+
+Watches a drop folder, transcribes any new audio with the self-hosted Whisper STT service,
+and writes one Obsidian note per recording into the `Voice memos/` folder.
+
+**Usage:** drop an audio file (`.m4a`, `.aiff`, `.mp3`, …) into
+`/Volumes/Samsung T7 Touch/homelab-data/voice-inbox/` on the Mac Mini. Within ~2 minutes a
+note named after the file (e.g. `standup-notes.md`) appears in `Voice memos/`, with the
+transcript in the body and `source` / `date` / `transcribed` frontmatter.
+
+Design: `docs/superpowers/specs/2026-07-26-theme-a-homelab-health-digest-design.md` (Component 3)
+
+Four constraints worth preserving when editing:
+
+- **The inbox is mounted inside `/home/node/.n8n-files`, not `/data`.** n8n 2.x sandboxes
+  the `readWriteFile` node to `/home/node/.n8n-files`; the hostPath mount
+  (`modules/n8n/main.tf`) and the node's `fileSelector` must both stay under that prefix,
+  or the read fails with *"Access to the file is not allowed."*
+- **Idempotency is by note existence, not by moving files.** `executeCommand` is
+  unregistered under task-runner mode and `readWriteFile` cannot delete, so files are never
+  removed from the inbox. Instead, `List processed` fetches the `Voice memos/` folder once
+  and the `Filter new` Code node drops any audio whose note already exists. The dedup key is
+  the **basename** (no date prefix) so a file is transcribed exactly once, even if it lingers
+  past midnight.
+- **The existence check is a single folder listing, done before the read.** An inline
+  per-file GET cannot be used: n8n's HTTP node replaces an item's binary with the response,
+  which would destroy the audio before Whisper sees it. Filtering happens in a Code node
+  (pure JS, no network) that reads `$('List processed')` and passes binary through.
+- **An empty inbox is a clean no-op.** `Read audio files` has `continueOnFail`, so a run
+  with nothing to do still ends `success` and never spams the execution log.
