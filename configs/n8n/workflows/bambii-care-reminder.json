@@ -1,0 +1,129 @@
+{
+  "id": "bambiicare01",
+  "name": "Bambii care reminder",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sched",
+      "name": "Daily 08:15",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 8,
+              "triggerAtMinute": 15
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "run",
+      "name": "Run now",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        460
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "build",
+      "name": "Build reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        380
+      ],
+      "parameters": {
+        "jsCode": "// Daily Bambii care prompt appended to the Obsidian daily note. This is a\n// STARTER template — edit the checklist items to match Bambii's real routine\n// (meds, vet dates, etc.). Bambii is a 15yo red poodle, so the default leans gentle.\nconst body = [\n  '',\n  '## 🐾 Bambii care',\n  '- [ ] Fresh water',\n  '- [ ] Breakfast + any meds',\n  '- [ ] Short gentle walk',\n  '- [ ] Evening calming music',\n  '',\n].join('\\n');\nreturn [{ json: { body } }];"
+      }
+    },
+    {
+      "id": "append",
+      "name": "Append to daily note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        380
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://host.docker.internal:27124/periodic/daily/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/markdown"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/markdown",
+        "body": "={{ $json.body }}",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obsidianrestapi1",
+          "name": "Obsidian Local REST API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 08:15": {
+      "main": [
+        [
+          {
+            "node": "Build reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run now": {
+      "main": [
+        [
+          {
+            "node": "Build reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build reminder": {
+      "main": [
+        [
+          {
+            "node": "Append to daily note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
