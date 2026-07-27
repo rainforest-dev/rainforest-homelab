@@ -162,3 +162,32 @@ Two constraints worth preserving when editing:
   called from an HA automation; that config lives in the `rainforest-iot` repo
   (`modules/homeassistant`), injected into `/config/configuration.yaml` with the same
   `null_resource` + base64-append pattern as the existing proxy/prometheus blocks.
+
+### `homelab-incident-log.json` — every 5 min
+
+Polls Prometheus for firing alerts and logs each service that needs fixing **when it
+breaks and when it recovers** — the event-driven complement to the once-a-day health
+digest. Covers both machines (the Pi's Prometheus scrapes the Mac). Reuses Component 1's
+alert query `ALERTS{alertstate="firing",alertname!="Watchdog"}` against
+`http://192.168.0.128:30090`. Result in the daily note, e.g.:
+
+```
+- 15:29 🔴 down: **KubePodCrashLooping** monitoring/speedtest-exporter-… _(sev: warning)_ #homelab-incident
+- 15:41 🟢 recovered: **KubePodCrashLooping** monitoring/speedtest-exporter-… _(sev: warning)_ #homelab-incident
+```
+
+Three constraints worth preserving when editing:
+
+- **Only state *transitions* are logged, never the standing set.** The `Diff + build` Code
+  node keeps the open-incident set in `$getWorkflowStaticData('global').firing` and emits
+  only the edges (newly down / newly recovered), so a chronically-broken service is logged
+  once, not every 5 minutes. Verified: static data persists across runs, and
+  `import:workflow` preserves it (so re-importing the definition does not reset the state).
+- **One incident per `alertname|namespace|pod|instance`.** Prometheus emits several
+  label-series per alert; the fingerprint collapses them so a single failure is one bullet.
+- **No Ollama summary here — raw facts only.** The daily digest does the prose; this log is
+  the ground truth that must survive a vague summary. Timestamps are `Asia/Taipei`
+  (n8n's `GENERIC_TIMEZONE` is America/New_York, which is not home time).
+
+> Note: on a fresh n8n database the open-incident state is empty, so the first poll logs
+> every currently-firing alert once as `🔴 down` — an intentional initial snapshot.
