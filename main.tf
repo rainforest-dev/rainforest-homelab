@@ -36,9 +36,6 @@ module "postgresql" {
   storage_size          = "20Gi"
   external_storage_path = var.external_storage_path
 
-  # pgAdmin configuration
-  enable_pgadmin = false
-  pgadmin_email  = "contact@rainforest.tools"
 
   # Monitoring
   enable_metrics = false
@@ -281,9 +278,9 @@ module "n8n" {
 module "whisper" {
   source = "./modules/whisper"
 
-  project_name         = var.project_name
-  environment          = var.environment
-  model_size           = "base" # Optimal for Mac CPU: fast (36x), low memory, good quality
+  project_name = var.project_name
+  environment  = var.environment
+  model_size   = "base" # Optimal for Mac CPU: fast (36x), low memory, good quality
   # Port 9000 reserved for MinIO (infrastructure > app).
   # Cloudflare Tunnel routes to whisper.rainforest.tools regardless of port.
   external_port        = 9090
@@ -338,11 +335,11 @@ module "teleport" {
 module "cloudflare_tunnel" {
   source = "./modules/cloudflare-tunnel"
 
-  project_name          = var.project_name
-  domain_suffix         = var.domain_suffix
-  cloudflare_account_id = var.cloudflare_account_id
-  cloudflare_api_token  = var.cloudflare_api_token
-  kubernetes_namespace  = "homelab"
+  project_name               = var.project_name
+  domain_suffix              = var.domain_suffix
+  cloudflare_account_id      = var.cloudflare_account_id
+  cloudflare_api_token       = var.cloudflare_api_token
+  kubernetes_namespace       = "homelab"
   allowed_email_domains      = var.allowed_email_domains
   allowed_emails             = var.allowed_emails
   service_token_ids          = var.service_token_ids

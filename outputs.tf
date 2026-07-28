@@ -22,22 +22,6 @@ output "postgresql_admin_password" {
   sensitive   = true
 }
 
-output "pgadmin_access_info" {
-  description = "pgAdmin access information (null when enable_pgadmin = false)"
-  value = module.postgresql.pgadmin_service_name == null ? null : {
-    email            = "contact@rainforest.tools"
-    internal_url     = module.postgresql.pgadmin_url
-    service_name     = module.postgresql.pgadmin_service_name
-    port_forward_cmd = "kubectl port-forward -n homelab svc/${module.postgresql.pgadmin_service_name} 8080:80"
-  }
-}
-
-output "pgadmin_password" {
-  description = "pgAdmin login password (sensitive, null when enable_pgadmin = false)"
-  value       = module.postgresql.pgadmin_password
-  sensitive   = true
-}
-
 # Homepage outputs removed - homepage moved to rainforest-iot folder
 
 output "minio_connection_info" {

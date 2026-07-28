@@ -53,23 +53,6 @@ output "postgres_password" {
   sensitive   = true
 }
 
-output "pgadmin_password" {
-  description = "pgAdmin login password"
-  value       = var.enable_pgadmin ? random_password.pgadmin_password.result : null
-  sensitive   = true
-}
-
-# pgAdmin outputs
-output "pgadmin_service_name" {
-  description = "pgAdmin service name"
-  value       = var.enable_pgadmin ? "${var.project_name}-pgadmin-pgadmin4" : null
-}
-
-output "pgadmin_url" {
-  description = "pgAdmin service URL"
-  value       = var.enable_pgadmin ? "http://${var.project_name}-pgadmin-pgadmin4.${var.namespace}.svc.cluster.local" : null
-}
-
 # Storage outputs
 output "pv_name" {
   description = "PostgreSQL persistent volume name"
