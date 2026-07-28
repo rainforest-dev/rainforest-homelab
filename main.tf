@@ -428,3 +428,11 @@ module "docker_volume_backup" {
   minio_secret_key        = module.minio.secret_key
   postgres_dump_host_path = "${var.external_storage_path}/postgres-backups"
 }
+
+# Mirrors MinIO onto the T7 so Synology Drive Client carries the backups offsite.
+# Runs last (03:45), after the Pi and Mac backups have finished uploading.
+module "minio_t7_sync" {
+  source    = "./modules/minio-t7-sync"
+  namespace = "homelab"
+  t7_path   = "${var.external_storage_path}/minio-backup"
+}
