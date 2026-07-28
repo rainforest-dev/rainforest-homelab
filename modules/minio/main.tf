@@ -43,27 +43,27 @@ resource "helm_release" "minio" {
         }
       }
 
-      # Persistence configuration  
-      persistence = var.use_external_storage ? {
-        enabled       = false # Disable helm persistence when using external storage
-        existingClaim = ""    # No existing claim
-        storageClass  = ""    # No storage class
-        } : {
-        enabled = var.enable_persistence
+      # Persistence MUST be a single object with a real boolean.
+      # This was a ternary between two differently-shaped objects, so Terraform
+      # unified the types to string and Helm received enabled: "false". That broke
+      # the chart's volume logic: the PVC existed but was never mounted at /export,
+      # so `minio server /export` wrote to the container filesystem and died with
+      # "Unable to write to the backend" the moment the pod was recreated.
+      #
+      # Offsite is NOT done by relocating this volume (the chart owns the /export
+      # mount): the data is synced to the T7 separately, and Synology Drive Client
+      # backs that folder up to the NAS.
+      persistence = {
+        enabled = true
         size    = var.storage_size
       }
 
-      # External storage configuration
+      # NOTE: do NOT add an extraVolumeMount for the T7 here. This chart renders
+      # extraVolumeMounts in place of its own volumeMounts, so mounting anything
+      # here silently removes the `export -> /export` mount and MinIO then writes
+      # to the container filesystem and crashes. The T7 copy is made by an external
+      # sync, not by mounting it into MinIO.
       extraVolumes = concat(
-        var.use_external_storage ? [
-          {
-            name = "external-storage"
-            hostPath = {
-              path = "/Volumes/Samsung T7 Touch/homelab-data/minio"
-              type = "DirectoryOrCreate"
-            }
-          }
-        ] : [],
         var.synology_drive_path != "" ? [
           {
             name = "synology-velero"
@@ -76,12 +76,6 @@ resource "helm_release" "minio" {
       )
 
       extraVolumeMounts = concat(
-        var.use_external_storage ? [
-          {
-            name      = "external-storage"
-            mountPath = "/data"
-          }
-        ] : [],
         var.synology_drive_path != "" ? [
           {
             name      = "synology-velero"
