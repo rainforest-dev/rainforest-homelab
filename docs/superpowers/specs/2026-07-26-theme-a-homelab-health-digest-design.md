@@ -78,7 +78,7 @@ API and Whisper.
 
 | Target | Address |
 |---|---|
-| Prometheus | `http://192.168.0.128:30090/api/v1/query` |
+| Prometheus | `http://<PI_IP>:30090/api/v1/query` |
 | Whisper | `http://host.docker.internal:9090/v1` |
 | Ollama | `http://host.docker.internal:11434` |
 | Obsidian Local REST API | `https://host.docker.internal:27124` + existing `obsidian_api_key` |

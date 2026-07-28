@@ -354,7 +354,7 @@ module "cloudflare_tunnel" {
 # grafana-mcp folded into the Docker MCP Gateway (default profile). The standalone
 # container was retired; Grafana MCP tools now arrive via docker-mcp.rainforest.tools.
 # grafana.url and grafana.api_key live in the gateway profile + Keychain, not Terraform:
-#   docker mcp profile config default --set grafana.url=http://192.168.0.128:30080
+#   docker mcp profile config default --set grafana.url=http://<PI_IP>:30080
 #   printf '<viewer-token>' | docker mcp secret set grafana.api_key
 
 module "speedtest_exporter" {
