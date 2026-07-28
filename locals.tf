@@ -50,6 +50,18 @@ locals {
     },
 
     {
+      # loop-observatory — autonomous-task-loop dashboard (Astro SSR + Vue).
+      # Runs as a host launchd service on the mini (PORT=3099), reached via
+      # host.docker.internal like calibre-web. Zero Trust gated by allowed_emails.
+      "loop-observatory" = {
+        hostname    = "loop"
+        service_url = "http://host.docker.internal:3099"
+        enable_auth = true
+        type        = "docker"
+      }
+    },
+
+    {
       "calibre" = {
         hostname    = "calibre"
         service_url = module.personal-calibre.tunnel_service_url
@@ -79,9 +91,8 @@ locals {
     {
       "docker-mcp-internal" = {
         hostname    = "docker-mcp-internal"
-        service_url = module.docker_mcp_gateway.tunnel_service_url
-        enable_auth = false # Auth handled by OAuth Worker layer
-        internal    = true  # No public DNS record — only reachable via the OAuth Worker
+        service_url = "http://host.docker.internal:3101" # launchd managed gateway (docker mcp gateway run)
+        enable_auth = false                              # Auth handled by OAuth Worker layer
         type        = "docker"
       }
     },
@@ -104,6 +115,15 @@ locals {
       }
     },
 
+    {
+      agy = {
+        hostname    = "agy"
+        service_url = "http://host.docker.internal:3000"
+        enable_auth = true
+        type        = "docker"
+      }
+    },
+
     var.enable_comfyui_adapter ? {
       "image-gen" = {
         hostname    = "image-gen"
@@ -113,14 +133,8 @@ locals {
       }
     } : {},
 
-    var.grafana_mcp_api_key != "" ? {
-      "grafana-mcp" = {
-        hostname    = "grafana-mcp"
-        service_url = "http://host.docker.internal:8765"
-        enable_auth = true
-        type        = "docker"
-      }
-    } : {},
+    # grafana-mcp removed: folded into the Docker MCP Gateway (default profile).
+    # Grafana MCP tools now arrive via docker-mcp.rainforest.tools, not a separate host.
 
     {
       pgadmin = {
@@ -190,6 +204,16 @@ locals {
         allowed_emails = ["ting1110001@gmail.com"]
       }
     } : {},
+
+    # Observability UIs on Pi (K3s NodePort services)
+    {
+      "gfn" = {
+        hostname    = "gfn"
+        service_url = "http://${var.raspberry_pi_ip}:30080"
+        enable_auth = true
+        type        = "iot"
+      }
+    },
 
   )
 

@@ -205,23 +205,21 @@ variable "vault_registry_path" {
   default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/_system"
 }
 
-variable "grafana_mcp_version" {
-  description = "Grafana MCP server Docker image version"
-  type        = string
-  default     = "0.5.0"
-}
-
-variable "grafana_mcp_api_key" {
-  description = "Grafana read-only service account token for MCP server"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
+# grafana_mcp_version / grafana_mcp_api_key removed with the standalone grafana-mcp
+# module. Grafana MCP is now part of the Docker MCP Gateway: its image is pinned by the
+# Docker catalog digest, and its Viewer token lives in Docker Desktop's Keychain
+# (docker mcp secret set grafana.api_key), not in Terraform.
 
 variable "rpi_grafana_port" {
   description = "RPi Grafana NodePort"
   type        = number
   default     = 30080
+}
+
+variable "macos_username" {
+  description = "macOS username — used for LaunchAgents plist paths"
+  type        = string
+  default     = "rainforest"
 }
 
 variable "grafana_alloy_version" {
