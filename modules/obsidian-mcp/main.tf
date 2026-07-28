@@ -45,6 +45,10 @@ resource "docker_container" "obsidian_mcp" {
     can(regex("Mi", var.memory_limit)) ? 1024 * 1024 : 1
   )
 
+  lifecycle {
+    ignore_changes = [memory_swap]
+  }
+
   healthcheck {
     test         = ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:${var.port}/health')\" || exit 1"]
     interval     = "30s"
