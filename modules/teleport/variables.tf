@@ -49,3 +49,27 @@ variable "external_storage_path" {
   type        = string
   default     = "/var/lib/teleport"
 }
+
+variable "bootstrap_admin_user" {
+  description = "Automatically create an initial admin user if the cluster has none (still requires opening the printed invite URL once to set a password/passkey)"
+  type        = bool
+  default     = true
+}
+
+variable "admin_username" {
+  description = "Username for the auto-bootstrapped initial admin user"
+  type        = string
+  default     = "admin"
+}
+
+variable "admin_roles" {
+  description = "Comma-separated roles for the auto-bootstrapped admin user"
+  type        = string
+  default     = "editor,access"
+}
+
+variable "admin_logins" {
+  description = "Comma-separated OS logins for the auto-bootstrapped admin user"
+  type        = string
+  default     = "root"
+}

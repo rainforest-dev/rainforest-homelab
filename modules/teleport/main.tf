@@ -1,12 +1,6 @@
 # Teleport OSS deployment for secure access to homelab resources
 # Provides SSH, Kubernetes, Application, and Database access
 
-# Generate random tokens for Teleport auth
-resource "random_password" "teleport_auth_token" {
-  length  = 32
-  special = false
-}
-
 # Create persistent volume for Teleport data (session recordings, etc.)
 resource "kubernetes_persistent_volume" "teleport_pv" {
   count = var.use_external_storage ? 1 : 0
@@ -203,20 +197,32 @@ resource "kubernetes_service" "teleport_web" {
   depends_on = [helm_release.teleport]
 }
 
-# Create Secret with initial admin user invitation token
-resource "kubernetes_secret" "teleport_admin_token" {
-  metadata {
-    name      = "${var.project_name}-teleport-admin-token"
-    namespace = var.namespace
-    labels = {
-      app     = "teleport"
-      project = var.project_name
-    }
+# Bootstrap an initial admin user if the cluster has none. Terraform can't complete the
+# interactive half of Teleport's invite flow (setting a password / registering a passkey),
+# but it CAN make sure an account always exists — this is what actually caused the
+# "invalid username or password" outage: the cluster was deployed but this step, previously
+# a manual CLAUDE.md instruction, was never run. Re-checks (and re-bootstraps if needed)
+# whenever the Helm release changes, e.g. after a PVC wipe/recreate.
+resource "null_resource" "bootstrap_admin_user" {
+  count = var.bootstrap_admin_user ? 1 : 0
+
+  triggers = {
+    helm_release_id = helm_release.teleport.id
   }
 
-  data = {
-    token = base64encode(random_password.teleport_auth_token.result)
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -e
+      DEPLOY="deploy/${var.project_name}-teleport-auth"
+      if kubectl exec -n ${var.namespace} "$DEPLOY" -- tctl users ls 2>/dev/null | grep -q "No users found"; then
+        echo "No Teleport users found -- creating initial admin user '${var.admin_username}'"
+        kubectl exec -n ${var.namespace} "$DEPLOY" -- tctl users add ${var.admin_username} --roles=${var.admin_roles} --logins=${var.admin_logins}
+        echo "^ Open that signup URL in a browser once to set a password and register a passkey."
+      else
+        echo "Teleport already has users configured -- skipping bootstrap."
+      fi
+    EOT
   }
 
-  type = "Opaque"
+  depends_on = [helm_release.teleport, kubernetes_service.teleport_web]
 }
