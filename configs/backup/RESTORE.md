@@ -15,6 +15,26 @@ that self-heals on reinstall — see the 2026-07 outage note below).
 > `modules/minio`'s `null_resource "minio_buckets"`. If backups ever fail with `NoSuchBucket`
 > or Velero shows `FailedValidation`, run `terraform apply -target=module.minio.null_resource.minio_buckets`.
 
+## Offsite: how the backups leave this machine
+
+MinIO stores its data on a Kubernetes PVC (inside the Docker Desktop VM). The
+`minio-t7-sync` CronJob (03:45 daily, `modules/minio-t7-sync`) mirrors every bucket
+through the S3 API onto the T7 at `homelab-data/minio-backup/`, and **Synology Drive
+Client backs the whole `homelab-data` folder up to the NAS** — that is the offsite copy.
+
+Two deliberate properties:
+
+- **Mirrored via the S3 API, not by copying MinIO's live data directory.** A file-level
+  copy of a running object store can capture torn writes, which would make the NAS copy —
+  the real last line of defence — unrestorable.
+- **An empty source bucket is skipped, never mirrored.** A MinIO fault can therefore never
+  propagate a deletion and wipe the offsite copy. A `SKIP <bucket>: source empty` line in
+  the CronJob log is the guard doing its job, not an error.
+
+MinIO's own storage is deliberately NOT pointed at the T7: the chart owns the `/export`
+mount, and mounting the T7 there silently removes MinIO's data mount (see the comments in
+`modules/minio/main.tf`).
+
 ## Credentials
 
 MinIO root creds live in the k8s secret `homelab-minio` (namespace `homelab`), keys
