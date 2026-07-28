@@ -10,19 +10,6 @@ prometheus.scrape "unix" {
   job_name        = "mac-mini-node"
 }
 
-// ─── Prometheus: Docker container metrics (cAdvisor) ────────────────────────
-
-prometheus.exporter.cadvisor "containers" {
-  docker_host = "unix:///var/run/docker.sock"
-}
-
-prometheus.scrape "cadvisor" {
-  targets         = prometheus.exporter.cadvisor.containers.targets
-  forward_to      = [prometheus.remote_write.rpi.receiver]
-  scrape_interval = "30s"
-  job_name        = "mac-mini-cadvisor"
-}
-
 // ─── Prometheus: Push to RPi ────────────────────────────────────────────────
 
 prometheus.remote_write "rpi" {
