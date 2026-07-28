@@ -24,7 +24,7 @@ module "calibre_books_volume" {
 resource "docker_container" "calibre-web" {
   image   = "${var.image_name}:${var.image_tag}"
   name    = "${var.project_name}-calibre-web"
-  restart = "unless-stopped"
+  restart = "always"
 
   memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (
     can(regex("Gi", var.memory_limit)) ? 1024 * 1024 * 1024 :
