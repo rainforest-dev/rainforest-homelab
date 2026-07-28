@@ -7,7 +7,7 @@ resource "docker_container" "speedtest_exporter" {
   name  = "${var.project_name}-speedtest-exporter"
   image = docker_image.speedtest_exporter.image_id
 
-  restart = "unless-stopped"
+  restart = "always"
 
   ports {
     internal = 9798
@@ -22,11 +22,15 @@ resource "docker_container" "speedtest_exporter" {
   memory     = 128
   cpu_shares = 256
 
+  lifecycle {
+    ignore_changes = [memory_swap]
+  }
+
   log_driver = "json-file"
   log_opts   = var.log_opts
 
   healthcheck {
-    test         = ["CMD", "wget", "-qO-", "http://localhost:${var.port}/health"]
+    test         = ["CMD", "wget", "-qO-", "http://127.0.0.1:${var.port}/"]
     interval     = "60s"
     timeout      = "10s"
     retries      = 3
