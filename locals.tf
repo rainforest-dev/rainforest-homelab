@@ -136,14 +136,9 @@ locals {
     # grafana-mcp removed: folded into the Docker MCP Gateway (default profile).
     # Grafana MCP tools now arrive via docker-mcp.rainforest.tools, not a separate host.
 
-    {
-      pgadmin = {
-        hostname    = "pgadmin"
-        service_url = "http://homelab-pgadmin-pgadmin4.homelab.svc.cluster.local"
-        enable_auth = true # Protect with Zero Trust
-        type        = "kubernetes"
-      }
-    },
+    # pgadmin removed: it is disabled (enable_pgadmin = false) and never deployed,
+    # but the entry kept publishing a DNS record and Zero Trust app for a service
+    # that does not exist. Re-add this block if pgadmin is ever enabled.
 
     var.obsidian_api_key != "" ? {
       "obsidian-internal" = {
