@@ -50,7 +50,8 @@
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 	 */
 	"vars": {
-		"GITHUB_CALLBACK_URL": "https://docker-mcp.rainforest.tools/callback"
+		"GITHUB_CALLBACK_URL": "https://docker-mcp.rainforest.tools/callback",
+		"ALLOWED_GITHUB_LOGINS": "rainforest-dev"
 	},
 	/**
 	 * Note: Use secrets to store sensitive data.
