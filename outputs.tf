@@ -68,12 +68,6 @@ output "teleport_url" {
   value       = var.enable_teleport ? module.teleport[0].public_url : null
 }
 
-output "teleport_admin_token" {
-  description = "Teleport admin invitation token (keep secret!)"
-  value       = var.enable_teleport ? module.teleport[0].admin_token : null
-  sensitive   = true
-}
-
 output "teleport_connection_instructions" {
   description = "Instructions for connecting to Teleport"
   value       = var.enable_teleport ? module.teleport[0].connection_instructions : "Teleport is not enabled. Set enable_teleport = true in terraform.tfvars to deploy."
