@@ -150,7 +150,7 @@ move out of `config.yaml`.**
 credentials supplied only via `.env` and `config.yaml` holding no secrets at all:
 
 ```
-grafana: url=http://192.168.0.128:30080  api_key_set=true
+grafana: url=http://<PI_IP>:30080  api_key_set=true
 grafana: [GET /datasources][401] "Invalid API key"    <- dummy token rejected by real Grafana
 > grafana: (65 tools)
 > n8n:     (42 tools)
@@ -215,7 +215,7 @@ UI keeps its Zero Trust protection unchanged.
 
 - Add `grafana` to `registry.yaml`.
 - Config `grafana.url` from `var.raspberry_pi_ip` and `var.rpi_grafana_port`, giving
-  `http://192.168.0.128:30080`. The existing module uses `raspberrypi-5.local`; mDNS did
+  `http://<PI_IP>:30080`. The existing module uses `raspberrypi-5.local`; mDNS did
   resolve inside containers during testing, but a literal address removes an avoidable
   dependency.
 - Secret `grafana.api_key` from the existing `grafana_mcp_api_key` variable.

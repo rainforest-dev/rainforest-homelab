@@ -45,7 +45,7 @@
         200
       ],
       "parameters": {
-        "url": "http://192.168.0.128:30090/api/v1/query",
+        "url": "http://PROMETHEUS_HOST_SUBSTITUTE_ME:30090/api/v1/query",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -70,7 +70,7 @@
         400
       ],
       "parameters": {
-        "url": "http://192.168.0.128:30090/api/v1/query",
+        "url": "http://PROMETHEUS_HOST_SUBSTITUTE_ME:30090/api/v1/query",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [

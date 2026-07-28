@@ -48,10 +48,21 @@ every workflow read the Postgres password.
 
 ### 2. Import the workflow
 
+**Substitute the Prometheus host first.** This repository is public, so the committed
+workflows carry the placeholder `PROMETHEUS_HOST_SUBSTITUTE_ME` instead of the Pi's LAN
+address. The placeholder is deliberately un-resolvable: an un-substituted import fails
+loudly instead of silently querying nothing. Put the real address in `PI_IP`:
+
 ```bash
-kubectl cp configs/n8n/workflows/homelab-health-digest.json "homelab/$POD:/tmp/wf.json"
+PI_IP=<the Pi's LAN IP>   # same value as raspberry_pi_ip in terraform.tfvars
+sed "s/PROMETHEUS_HOST_SUBSTITUTE_ME/$PI_IP/g" \
+  configs/n8n/workflows/homelab-health-digest.json > /tmp/wf.json
+kubectl cp /tmp/wf.json "homelab/$POD:/tmp/wf.json"
 kubectl exec -n homelab "$POD" -- n8n import:workflow --input=/tmp/wf.json
 ```
+
+Workflows carrying the placeholder: `homelab-health-digest`, `homelab-incident-log`,
+`ai-home-query`. The others have no hard-coded host.
 
 The JSON carries a stable `id`, so re-importing updates in place rather than creating a
 duplicate.
@@ -133,7 +144,7 @@ Four constraints worth preserving when editing:
 The n8n side of the Home Assistant → n8n bridge (Theme A Component 2). A `POST` webhook
 receives home events and appends one bullet to the Obsidian daily note.
 
-**Endpoint (LAN, no Cloudflare):** `http://192.168.0.126:5678/webhook/ha-events`
+**Endpoint (LAN, no Cloudflare):** `http://<MAC_MINI_IP>:5678/webhook/ha-events`
 (the Mac Mini's LAN IP; Docker Desktop publishes the n8n LoadBalancer on `*:5678`, so the
 Pi — where Home Assistant runs — reaches it directly).
 
@@ -169,7 +180,7 @@ Polls Prometheus for firing alerts and logs each service that needs fixing **whe
 breaks and when it recovers** — the event-driven complement to the once-a-day health
 digest. Covers both machines (the Pi's Prometheus scrapes the Mac). Reuses Component 1's
 alert query `ALERTS{alertstate="firing",alertname!="Watchdog"}` against
-`http://192.168.0.128:30090`. Result in the daily note, e.g.:
+`http://<PI_IP>:30090`. Result in the daily note, e.g.:
 
 ```
 - 15:29 🔴 down: **KubePodCrashLooping** monitoring/speedtest-exporter-… _(sev: warning)_ #homelab-incident
@@ -197,7 +208,7 @@ Three constraints worth preserving when editing:
 Answers a natural-language home question by having Ollama write a PromQL query, running it
 against Prometheus, and having Ollama phrase the result. Component 5.
 
-**Ask:** `POST http://192.168.0.126:5678/webhook/home-query` with `{"question": "how is the humidity?"}`
+**Ask:** `POST http://<MAC_MINI_IP>:5678/webhook/home-query` with `{"question": "how is the humidity?"}`
 → responds `{"answer": "The humidity is currently 42.", "promql": "...", "data": "..."}`.
 
 Two constraints worth preserving when editing:

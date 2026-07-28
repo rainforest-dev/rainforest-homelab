@@ -87,7 +87,7 @@ resource "helm_release" "minio" {
       # Service configuration for MinIO S3 API
       service = {
         # LoadBalancer so Docker Desktop binds port 9000 on all host interfaces,
-        # making MinIO reachable at 192.168.0.126:9000 from the Pi network.
+        # making MinIO reachable at <MAC_MINI_IP>:9000 from the Pi network.
         type = "LoadBalancer"
         port = 9000
       }

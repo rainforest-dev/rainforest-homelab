@@ -12,7 +12,7 @@ fire correctly), no Alertmanager receiver, no new credentials. The workflow JSON
 exported to this repo so it is version-controlled and reproducible.
 
 **Tech Stack:** n8n (Kubernetes, `homelab` namespace), Prometheus on the Pi
-(`192.168.0.128:30090`), Ollama on the Mac (`host.docker.internal:11434`), Obsidian Local
+(`<PI_IP>:30090`), Ollama on the Mac (`host.docker.internal:11434`), Obsidian Local
 REST API (`host.docker.internal:27124`).
 
 ---
@@ -24,7 +24,7 @@ re-verify only if a task fails.
 
 | Endpoint | Verified result |
 |---|---|
-| `http://192.168.0.128:30090/api/v1/query?query=up` | 200, full JSON |
+| `http://<PI_IP>:30090/api/v1/query?query=up` | 200, full JSON |
 | `http://host.docker.internal:11434/api/tags` | 200, 8 models |
 | `https://host.docker.internal:27124/periodic/daily/` | 200 (self-signed TLS) |
 
@@ -50,7 +50,7 @@ step.
 - [ ] **Step 1: Query the alerts the digest will surface**
 
 ```bash
-curl -s "http://192.168.0.128:30090/api/v1/query" \
+curl -s "http://<PI_IP>:30090/api/v1/query" \
   --data-urlencode 'query=ALERTS{alertstate="firing",alertname!="Watchdog"}' \
   | python3 -m json.tool | grep -E '"alertname"|"pod"|"job_name"' | sort -u
 ```
@@ -62,7 +62,7 @@ heartbeat and would be noise in every digest.
 - [ ] **Step 2: Query the home sensors the digest will report**
 
 ```bash
-curl -s "http://192.168.0.128:30090/api/v1/query" \
+curl -s "http://<PI_IP>:30090/api/v1/query" \
   --data-urlencode 'query=homeassistant_sensor_humidity_percent or homeassistant_sensor_temperature_celsius' \
   | python3 -m json.tool | grep -E '"friendly_name"|"value"' | head
 ```
@@ -197,7 +197,7 @@ Create `configs/n8n/workflows/homelab-health-digest.json` with exactly this cont
       "typeVersion": 4.2,
       "position": [220, 200],
       "parameters": {
-        "url": "http://192.168.0.128:30090/api/v1/query",
+        "url": "http://<PI_IP>:30090/api/v1/query",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -214,7 +214,7 @@ Create `configs/n8n/workflows/homelab-health-digest.json` with exactly this cont
       "typeVersion": 4.2,
       "position": [220, 400],
       "parameters": {
-        "url": "http://192.168.0.128:30090/api/v1/query",
+        "url": "http://<PI_IP>:30090/api/v1/query",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -380,7 +380,7 @@ Expected: all seven nodes complete.
 - [ ] **Step 2: Verify the alert query returned real data**
 
 ```bash
-curl -s "http://192.168.0.128:30090/api/v1/query" \
+curl -s "http://<PI_IP>:30090/api/v1/query" \
   --data-urlencode 'query=count(ALERTS{alertstate="firing",alertname!="Watchdog"})' \
   | python3 -c "import sys,json; print('alerts firing:', json.load(sys.stdin)['data']['result'][0]['value'][1])"
 ```
@@ -479,7 +479,7 @@ endpoints currently have no alerting. This is the one rule that must be written.
 - [ ] **Step 1: Confirm the gap still exists**
 
 ```bash
-curl -s "http://192.168.0.128:30090/api/v1/rules" | python3 -c "
+curl -s "http://<PI_IP>:30090/api/v1/rules" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
 names=[r['name'] for g in d['data']['groups'] for r in g['rules'] if r.get('type')=='alerting']
@@ -535,7 +535,7 @@ Expected: `Apply complete!` with `helm_release.prometheus_stack` changed.
 
 ```bash
 sleep 30
-curl -s "http://192.168.0.128:30090/api/v1/rules" | python3 -c "
+curl -s "http://<PI_IP>:30090/api/v1/rules" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
 names=[r['name'] for g in d['data']['groups'] for r in g['rules'] if r.get('type')=='alerting']
@@ -573,7 +573,7 @@ Expected: all five nodes show green.
 ```bash
 OBS_KEY=$(grep -oE 'obsidian_api_key *= *"[^"]*"' ~/Repositories/rainforest-homelab/terraform.tfvars | sed -E 's/.*"(.*)"/\1/')
 curl -sk -H "Authorization: Bearer $OBS_KEY" https://localhost:27124/periodic/daily/ | tail -25
-curl -s "http://192.168.0.128:30090/api/v1/query" \
+curl -s "http://<PI_IP>:30090/api/v1/query" \
   --data-urlencode 'query=count(ALERTS{alertstate="firing",alertname!="Watchdog"})' \
   | python3 -m json.tool | grep -A2 '"value"'
 ```

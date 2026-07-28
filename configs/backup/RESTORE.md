@@ -1,7 +1,7 @@
 # Backup & restore runbook
 
 The homelab backs up to **MinIO on the Mac Mini** (`host.docker.internal:9000`, LAN
-`192.168.0.126:9000`). Buckets are guaranteed to exist by `modules/minio` (a `null_resource`
+`<MAC_MINI_IP>:9000`). Buckets are guaranteed to exist by `modules/minio` (a `null_resource`
 that self-heals on reinstall — see the 2026-07 outage note below).
 
 | Bucket | Contents | Offsite (Synology `/data/velero`)? |

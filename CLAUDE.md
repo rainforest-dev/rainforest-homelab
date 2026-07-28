@@ -307,7 +307,7 @@ Config values live in the `default` profile; secrets live in the Keychain:
 
 ```bash
 # Config (non-secret) — profile
-docker mcp profile config default --set grafana.url=http://192.168.0.128:30080
+docker mcp profile config default --set grafana.url=http://<PI_IP>:30080
 docker mcp profile config default --set n8n.api_url=http://host.docker.internal:5678
 
 # Secrets — Keychain (value from stdin, never echoed)
@@ -340,7 +340,7 @@ only an authenticated call like `n8n_list_workflows` proves the token works.
 ### Grafana specifics
 
 Grafana itself runs on the Raspberry Pi. `grafana.url` must be the Pi's LAN address
-(`http://192.168.0.128:30080`), not `gfn.rainforest.tools` — the gateway's grafana
+(`http://<PI_IP>:30080`), not `gfn.rainforest.tools` — the gateway's grafana
 container connects directly, and going through Cloudflare would hit Access. Use a
 **Viewer** (read-only) service-account token; the gateway exposes all tools including
 writes, so a read-only token is the guard against accidental mutation.
@@ -400,7 +400,7 @@ each server as a container, so the value is resolved *from inside a container*:
 - Service on **this Mac's host** (a `docker run -p` container, or a K8s `LoadBalancer`
   service Docker Desktop binds to localhost) → `http://host.docker.internal:<port>`.
   K8s `ClusterIP` is NOT reachable — switch it to `LoadBalancer` first.
-- Service on **another machine** (e.g. the Pi) → its LAN IP, `http://192.168.0.128:<port>`.
+- Service on **another machine** (e.g. the Pi) → its LAN IP, `http://<PI_IP>:<port>`.
 - **Never** point at a `*.rainforest.tools` tunnel URL for the API — Cloudflare Access will
   302-redirect and the MCP server will choke on the HTML.
 
@@ -713,7 +713,7 @@ docker ps --filter "name=homelab-whisper"
 
 ## Grafana Alloy (Observability Agent)
 
-Grafana Alloy runs as a Docker container on the Mac Mini, shipping Docker container logs to Loki and container metrics (cAdvisor) to Prometheus on the Pi at 192.168.0.128.
+Grafana Alloy runs as a Docker container on the Mac Mini, shipping Docker container logs to Loki and container metrics (cAdvisor) to Prometheus on the Pi at <PI_IP>.
 
 **Module:** `modules/grafana-alloy/` — managed by Terraform via the kreuzwerker/docker provider.
 

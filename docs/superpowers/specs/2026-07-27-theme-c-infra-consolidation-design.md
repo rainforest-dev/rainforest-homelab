@@ -56,7 +56,7 @@ HomePod), so HomeKit is a live surface.
 
 `grafana-alloy` (Mac) and `grafana-alloy-pi` (Pi) are near-identical River configs: both ship
 Docker container logs to Loki and container/host metrics to Prometheus on the Pi
-(`192.168.0.128`), maintained separately in two repos. `node_exporter` runs natively on the
+(`<PI_IP>`), maintained separately in two repos. `node_exporter` runs natively on the
 Mac. Grafana dashboards live as configmaps in `prometheus-stack` (a refactor is in flight).
 
 ### MCP infrastructure (Mac)
