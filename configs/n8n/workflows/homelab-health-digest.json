@@ -1,7 +1,7 @@
 {
   "id": "homelabhealthdig",
   "name": "Homelab health digest",
-  "active": false,
+  "active": true,
   "nodes": [
     {
       "id": "schedule",
