@@ -27,10 +27,13 @@ resource "docker_container" "docker_mcp_gateway" {
   ]
   
   # Port mapping for Cloudflare Tunnel access
+  # internal: container listens on var.port (3100)
+  # external: host port 3101 avoids conflict with Tailscale which occupies 3100 on 0.0.0.0
+  # ip: 0.0.0.0 required so cloudflared K8s pods can reach via host.docker.internal
   ports {
     internal = var.port
-    external = var.port
-    ip       = "127.0.0.1"  # Only bind to localhost for security
+    external = var.port + 1
+    ip       = "0.0.0.0"
   }
   
   # Docker socket access (required for MCP operations)
@@ -64,7 +67,11 @@ resource "docker_container" "docker_mcp_gateway" {
     can(regex("Gi", var.memory_limit)) ? 1024 * 1024 * 1024 :
     can(regex("Mi", var.memory_limit)) ? 1024 * 1024 : 1
   )
-  
+
+  lifecycle {
+    ignore_changes = [memory_swap]
+  }
+
   # Health check
   healthcheck {
     test = ["CMD-SHELL", "nc -z localhost ${var.port} || exit 1"]

@@ -7,7 +7,11 @@ resource "docker_container" "grafana_mcp" {
   name  = "${var.project_name}-grafana-mcp"
   image = docker_image.grafana_mcp.image_id
 
-  restart = "unless-stopped"
+  restart = "always"
+
+  # The image's default CMD ignores env-based port config — it only listens on
+  # the port passed via -address, defaulting to localhost:8000 otherwise.
+  command = ["-t", "sse", "-address", "0.0.0.0:${var.mcp_port}"]
 
   ports {
     internal = var.mcp_port
@@ -18,10 +22,13 @@ resource "docker_container" "grafana_mcp" {
   env = [
     "GRAFANA_URL=${var.grafana_url}",
     "GRAFANA_API_KEY=${var.grafana_api_key}",
-    "MCP_PORT=${var.mcp_port}",
   ]
 
   memory = 64
+
+  lifecycle {
+    ignore_changes = [memory_swap]
+  }
 
   log_driver = "json-file"
   log_opts   = var.log_opts

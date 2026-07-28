@@ -28,8 +28,8 @@ output "tunnel_hostname" {
 }
 
 output "tunnel_service_url" {
-  description = "Service URL for Cloudflare Tunnel routing (platform-compatible)"
-  value       = "http://${var.docker_host_address}:${var.port}"
+  description = "Service URL for Cloudflare Tunnel routing (uses external port to avoid Tailscale conflict on 3100)"
+  value       = "http://${var.docker_host_address}:${var.port + 1}"
 }
 
 # Container information outputs
