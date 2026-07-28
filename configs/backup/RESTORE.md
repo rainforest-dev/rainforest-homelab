@@ -35,6 +35,20 @@ MinIO's own storage is deliberately NOT pointed at the T7: the chart owns the `/
 mount, and mounting the T7 there silently removes MinIO's data mount (see the comments in
 `modules/minio/main.tf`).
 
+## Monitoring — how you find out when a backup stops
+
+`backup-monitor` (09:00 daily, `modules/backup-monitor`) checks the age of the newest
+file in each bucket directory of the T7 offsite copy. If nothing has arrived in 26 hours
+it POSTs to the n8n `ha-events` webhook, which appends a `backup_stale` bullet to the
+Obsidian daily note, and the job exits non-zero so it also shows up in `kubectl get jobs`.
+
+That one check covers the entire chain: a backup that never ran, an upload that failed,
+a broken sync, or a missing bucket all surface the same way — the offsite copy stops
+getting newer. This is the gap that let the 2026-07 outage run silently for days.
+
+It is deliberately not a Prometheus alert: Velero's metrics are not scraped, and the Mac's
+Kubernetes cluster is not in Prometheus at all, so neither pipeline is observable there.
+
 ## Credentials
 
 MinIO root creds live in the k8s secret `homelab-minio` (namespace `homelab`), keys

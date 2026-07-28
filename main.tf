@@ -433,3 +433,11 @@ module "minio_t7_sync" {
   namespace = "homelab"
   t7_path   = "${var.external_storage_path}/minio-backup"
 }
+
+# Alerts into the Obsidian daily note when a backup stops arriving. Closes the gap
+# that let the 2026-07 backup outage run silently for days.
+module "backup_monitor" {
+  source    = "./modules/backup-monitor"
+  namespace = "homelab"
+  t7_path   = "${var.external_storage_path}/minio-backup"
+}
