@@ -50,7 +50,7 @@
           "parameters": [
             {
               "name": "query",
-              "value": "ALERTS{alertstate=\"firing\",alertname!=\"Watchdog\"}"
+              "value": "ALERTS{alertstate=\"firing\",severity!=\"none\"}"
             }
           ]
         },
