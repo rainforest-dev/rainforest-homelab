@@ -32,10 +32,6 @@
     "docker-remote": {
       "type": "sse",
       "url": "https://docker-mcp.rainforest.tools/sse"
-    },
-    "obsidian-remote": {
-      "type": "http",
-      "url": "https://obsidian.rainforest.tools/mcp"
     }
   }
 }

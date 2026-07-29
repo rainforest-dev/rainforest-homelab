@@ -41,17 +41,6 @@ module "postgresql" {
   enable_metrics = false
 }
 
-module "obsidian_mcp" {
-  count  = var.obsidian_api_key != "" ? 1 : 0
-  source = "./modules/obsidian-mcp"
-
-  project_name        = var.project_name
-  environment         = var.environment
-  obsidian_api_key    = var.obsidian_api_key
-  memory_limit        = var.default_memory_limit
-  docker_host_address = "host.docker.internal"
-}
-
 # Docker MCP Gateway runs as a launchd host service (the "managed" gateway), NOT a
 # Terraform-managed container. It executes:
 #   docker mcp gateway run --profile default --transport sse --port 3101 --host 0.0.0.0
