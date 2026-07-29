@@ -14,6 +14,7 @@ interface ExtendedEnv {
 	GITHUB_CLIENT_SECRET: string;
 	COOKIE_ENCRYPTION_KEY: string;
 	GITHUB_CALLBACK_URL: string;
+	ALLOWED_GITHUB_LOGINS: string;
 	OAUTH_PROVIDER: OAuthHelpers;
 }
 
@@ -281,6 +282,19 @@ app.get("/callback", async (c) => {
 
 		const { login, name, email } = user.data;
 		console.log(`[OAuth] GitHub user authenticated: ${login} (${email})`);
+
+		// Reject any GitHub account not on the allowlist before issuing a token
+		const allowedLogins = (c.env.ALLOWED_GITHUB_LOGINS || "")
+			.split(",")
+			.map((l) => l.trim())
+			.filter(Boolean);
+		if (allowedLogins.length > 0 && !allowedLogins.includes(login)) {
+			console.warn(`[OAuth] Rejected unauthorized GitHub user: ${login}`);
+			return c.json({
+				error: "access_denied",
+				error_description: "This GitHub account is not authorized to access this service"
+			}, 403);
+		}
 
 		// Return back to the MCP client a new token
 		try {

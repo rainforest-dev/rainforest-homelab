@@ -166,9 +166,23 @@ resource "kubernetes_deployment" "n8n" {
             value = var.timezone
           }
 
+          env {
+            name  = "OBSIDIAN_API_KEY"
+            value = var.obsidian_api_key
+          }
+
           volume_mount {
             name       = "n8n-data"
             mount_path = "/home/node/.n8n"
+          }
+
+          # Drop folder for the voice-memo transcription workflow. Direct hostPath
+          # (not a PV/PVC) — it is a shared inbox, not stateful data. Docker Desktop
+          # n8n 2.x sandboxes the readWriteFile node to /home/node/.n8n-files, so mount
+          # inside that path. Docker Desktop surfaces the Mac's T7 path into the pod (verified via marker file).
+          volume_mount {
+            name       = "voice-inbox"
+            mount_path = "/home/node/.n8n-files/voice-inbox"
           }
 
           resources {
@@ -207,19 +221,27 @@ resource "kubernetes_deployment" "n8n" {
 
         volume {
           name = "n8n-data"
-          
+
           dynamic "persistent_volume_claim" {
             for_each = var.use_external_storage ? [1] : []
             content {
               claim_name = kubernetes_persistent_volume_claim.n8n_pvc[0].metadata[0].name
             }
           }
-          
+
           dynamic "empty_dir" {
             for_each = var.use_external_storage ? [] : [1]
             content {
               size_limit = var.storage_size
             }
+          }
+        }
+
+        volume {
+          name = "voice-inbox"
+          host_path {
+            path = "${var.external_storage_path}/voice-inbox"
+            type = "DirectoryOrCreate"
           }
         }
       }
@@ -251,6 +273,12 @@ resource "kubernetes_service" "n8n" {
       protocol    = "TCP"
     }
 
-    type = "ClusterIP"
+    # LoadBalancer (not ClusterIP) so Docker Desktop binds the service on the
+    # host at localhost:5678. This lets the Docker MCP gateway reach n8n's API
+    # via host.docker.internal:5678, bypassing the Cloudflare Access 302 that
+    # intercepts https://n8n.rainforest.tools/api/v1/*. LoadBalancer is a
+    # superset of ClusterIP, so the in-cluster DNS the tunnel uses
+    # (homelab-n8n.homelab.svc.cluster.local:5678) is unchanged.
+    type = "LoadBalancer"
   }
 }

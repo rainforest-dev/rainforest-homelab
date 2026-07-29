@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Docker MCP Gateway — managed (host) gateway, run as a launchd user agent.
+
+  Why launchd instead of the old Terraform docker_container:
+  The managed gateway (`docker mcp gateway run`) executes on the host, so it can
+  read secrets from Docker Desktop's Keychain store (docker-credential-desktop)
+  and use the `default` profile. A plain `docker run` container CANNOT reach the
+  Keychain, which is why the standalone container needed plaintext secrets in
+  config.yaml. This host process is Docker Desktop's gateway, driven by the
+  profile + Keychain.
+
+  Port 3101 (not 3100): kept for parity with the retired standalone container so
+  the Cloudflare Tunnel route (host.docker.internal:3101) is unchanged. The
+  managed gateway is a single host process, so it binds 3101 directly.
+
+  --host 0.0.0.0 is REQUIRED: cloudflared runs in the Docker Desktop K8s cluster
+  and reaches the host over the bridge gateway (host.docker.internal), not
+  loopback. A 127.0.0.1 bind would be unreachable from the tunnel.
+
+  --allow-unauthenticated: parity with the old container ("auth disabled in
+  container"). Access control is the OAuth Worker in front of
+  docker-mcp.rainforest.tools; LAN exposure of :3101 is a pre-existing,
+  accepted risk (see docs/superpowers/specs).
+
+  Secrets live in the Keychain (docker mcp secret set), config in the `default`
+  profile (docker mcp profile config default --set). Neither is in this file or
+  in git.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.homelab.docker-mcp-gateway</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/docker</string>
+        <string>mcp</string>
+        <string>gateway</string>
+        <string>run</string>
+        <string>--profile</string>
+        <string>default</string>
+        <string>--transport</string>
+        <string>sse</string>
+        <string>--port</string>
+        <string>3101</string>
+        <string>--host</string>
+        <string>0.0.0.0</string>
+        <string>--allow-unauthenticated</string>
+        <string>--watch</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/rainforest</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/rainforest/Library/Logs/docker-mcp-gateway.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/rainforest/Library/Logs/docker-mcp-gateway.log</string>
+</dict>
+</plist>

@@ -18,12 +18,6 @@ output "public_url" {
   value       = "https://${var.public_hostname}"
 }
 
-output "admin_token" {
-  description = "Initial admin invitation token (keep secret!)"
-  value       = random_password.teleport_auth_token.result
-  sensitive   = true
-}
-
 output "cluster_name" {
   description = "Teleport cluster name"
   value       = var.public_hostname
@@ -40,14 +34,16 @@ output "connection_instructions" {
     Teleport is now deployed! Here's how to get started:
 
     1. Web UI: https://${var.public_hostname}
-    2. Create admin user:
-       kubectl exec -n ${var.namespace} -it deploy/${var.project_name}-teleport-auth -- tctl users add admin --roles=editor,access --logins=root
+    2. Admin user '${var.admin_username}' is auto-bootstrapped by Terraform if the cluster
+       has none. Check `terraform apply` output for a one-time signup URL to set a
+       password/passkey. Lost or expired it? Reissue a fresh one with:
+       kubectl exec -n ${var.namespace} deploy/${var.project_name}-teleport-auth -- tctl users reset ${var.admin_username}
 
     3. Install tsh client:
        brew install teleport
 
     4. Login via CLI:
-       tsh login --proxy=${var.public_hostname}:443 --user=admin
+       tsh login --proxy=${var.public_hostname}:443 --user=${var.admin_username}
 
     5. Access Kubernetes:
        tsh kube login ${var.kubernetes_cluster_name}

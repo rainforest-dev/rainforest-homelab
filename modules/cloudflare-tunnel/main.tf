@@ -9,6 +9,9 @@ data "cloudflare_zones" "domain" {
 
 locals {
   zone_id = data.cloudflare_zones.domain.zones[0].id
+  # Hash of the services config — injected into the cloudflared pod template annotation so
+  # any service routing change triggers an automatic rolling restart of cloudflared pods.
+  services_checksum = sha256(jsonencode(var.services))
 }
 
 # Google SSO identity provider (only created when credentials are provided)
@@ -202,6 +205,8 @@ spec:
     metadata:
       labels:
         app: cloudflared
+      annotations:
+        checksum/config: "${local.services_checksum}"
     spec:
       containers:
       - name: cloudflared

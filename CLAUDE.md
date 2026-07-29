@@ -142,7 +142,7 @@ Services are available at (using `rainforest.tools` domain):
 - `https://n8n.yourdomain.com` - n8n automation platform
 - `https://calibre-web.yourdomain.com` - Calibre Web ebook server
 - `https://whisper.yourdomain.com` - Whisper STT (Speech-to-Text) API
-- `https://docker-mcp.yourdomain.com` - Docker MCP Gateway (port 3100)
+- `https://docker-mcp.yourdomain.com` - Docker MCP Gateway (managed gateway via launchd, host port 3101)
 
 **Local Development Access:**
 - Use `kubectl port-forward` for internal service access during development
@@ -279,6 +279,137 @@ This pattern ensures consistency and eliminates the need to update multiple loca
 - **Domain Restrictions**: Limit access by email domain or specific addresses
 - **Access Policies**: Granular control per service
 
+## Docker MCP Gateway (n8n, Grafana, and more)
+
+The Docker MCP Gateway aggregates many MCP servers (n8n, Grafana, GitHub, Obsidian,
+Notion, memory, terraform, …) behind one SSE endpoint, exposed at
+`https://docker-mcp.rainforest.tools` via the Cloudflare Tunnel + OAuth Worker.
+
+**Architecture: the gateway is a launchd host service, NOT a Terraform container.**
+It runs `docker mcp gateway run --profile default --transport sse --port 3101
+--host 0.0.0.0 --allow-unauthenticated`. This is the *managed* gateway — it executes on
+the host, so it reads config from the Docker Desktop `default` profile and secrets from
+the macOS Keychain (via `docker-credential-desktop`). A plain `docker run` container
+cannot reach the Keychain, which is why the retired standalone container had to keep
+plaintext secrets in `~/.docker/mcp/config.yaml`.
+
+- **Plist (version-controlled):** `configs/docker-mcp-gateway/com.homelab.docker-mcp-gateway.plist`
+- **Install:** `cp` it to `~/Library/LaunchAgents/`, then `launchctl load -w <plist>`
+- **Port:** listens on `3101` (host). Tunnel route `docker-mcp-internal` in `locals.tf`
+  points at `host.docker.internal:3101`. `--host 0.0.0.0` is required — cloudflared runs
+  in the K8s cluster and reaches the host over the bridge gateway, not loopback.
+- **Restart / apply config changes:** `launchctl kickstart -k gui/$(id -u)/com.homelab.docker-mcp-gateway`
+- **Logs:** `~/Library/Logs/docker-mcp-gateway.log`
+
+### Config and secrets (profile + Keychain, never in git)
+
+Config values live in the `default` profile; secrets live in the Keychain:
+
+```bash
+# Config (non-secret) — profile
+docker mcp profile config default --set grafana.url=http://<PI_IP>:30080
+docker mcp profile config default --set n8n.api_url=http://host.docker.internal:5678
+
+# Secrets — Keychain (value from stdin, never echoed)
+printf '<grafana-viewer-token>' | docker mcp secret set grafana.api_key
+printf '<n8n-api-key>'          | docker mcp secret set n8n.api_key
+
+# Inspect (secrets show as redacted / not printed)
+docker mcp profile config default --get-all
+docker mcp secret ls
+```
+
+Verify a server end-to-end (host CLI reads the same profile + Keychain):
+
+```bash
+docker mcp tools call --gateway-arg="--servers=grafana" list_datasources
+docker mcp tools call --gateway-arg="--servers=n8n" --gateway-arg="--config=<url-only.yaml>" n8n_list_workflows
+```
+
+### n8n specifics — bypassing Cloudflare Access
+
+n8n runs in Kubernetes. Its public URL (`n8n.rainforest.tools`) sits behind Cloudflare
+Access, which 302-redirects `/api/v1/*` to a login page — `n8n-mcp` parses that HTML as
+JSON and fails (`response is not an object`). The fix: the `homelab-n8n` Service is
+`type = LoadBalancer` (`modules/n8n/main.tf`), so Docker Desktop binds it on the host at
+`localhost:5678`. The gateway reaches it via `host.docker.internal:5678`, staying
+Mac-local and never touching Cloudflare. The public UI keeps its Zero Trust protection.
+`n8n_health_check` returns `ok` even when auth is broken (`/healthz` is outside Access) —
+only an authenticated call like `n8n_list_workflows` proves the token works.
+
+### Grafana specifics
+
+Grafana itself runs on the Raspberry Pi. `grafana.url` must be the Pi's LAN address
+(`http://<PI_IP>:30080`), not `gfn.rainforest.tools` — the gateway's grafana
+container connects directly, and going through Cloudflare would hit Access. Use a
+**Viewer** (read-only) service-account token; the gateway exposes all tools including
+writes, so a read-only token is the guard against accidental mutation.
+
+### Gotcha: tool-name collisions
+
+The managed gateway refuses to start on a tool-name collision (older gateway versions
+silently deduped). `memory` and `n8n` both expose `search_nodes`. Resolved by disabling
+one: `docker mcp profile tools default --disable memory.search_nodes` (n8n's is kept —
+it's core to workflow building). A `--dry-run` does NOT surface this — the collision
+check runs at "loading configuration", after tool listing.
+
+### Adding a new MCP server that needs config or secrets
+
+Recipe for any catalog server (n8n and Grafana were done exactly this way):
+
+**1. Find out what it needs.** Two reliable ways to see a server's `config` (non-secret)
+and `secrets` keys:
+- **Docker Desktop UI** — MCP Toolkit → the server → **Configuration** tab lists
+  "Configuration" (config keys) and "Secrets" (secret keys).
+- **CLI** — grep the local catalog:
+  ```bash
+  grep -A30 '^  <server>:' ~/.docker/mcp/catalogs/docker-mcp.yaml | grep -A6 -E 'config:|secrets:'
+  ```
+  Each `secrets:` entry maps a `name` (e.g. `grafana.api_key`) to an `env` var
+  (`GRAFANA_API_KEY`); each `config:` property (e.g. `grafana.url`) becomes an env var too.
+
+**2. Add the server to the profile** (or use the UI "Add to"):
+```bash
+docker mcp profile server add default --server catalog://mcp/docker-mcp-catalog/<server>
+```
+
+**3. Set config values** (non-secret → stored in the profile):
+```bash
+docker mcp profile config default --set <server>.<key>=<value>
+```
+
+**4. Set secrets** (→ macOS Keychain, value via stdin so it is never echoed or shell-logged):
+```bash
+printf '<secret-value>' | docker mcp secret set <server>.<secret_key>
+```
+
+**5. Restart the gateway** to pick up profile/secret changes:
+```bash
+launchctl kickstart -k gui/$(id -u)/com.homelab.docker-mcp-gateway
+```
+
+**6. Verify it loaded and authenticated** (the dry-run log reads the same profile + Keychain
+and tolerates unrelated broken servers, unlike a full `tools call`):
+```bash
+docker mcp gateway run --profile default --dry-run --verbose 2>&1 | grep -iE '<server>:|api_key_set|401|Invalid'
+```
+Then confirm from a client (Claude Code's `MCP_DOCKER`) by calling one of its tools.
+
+**Networking rule of thumb** for the `*.url` / `*.api_url` config value — the gateway spawns
+each server as a container, so the value is resolved *from inside a container*:
+- Service on **this Mac's host** (a `docker run -p` container, or a K8s `LoadBalancer`
+  service Docker Desktop binds to localhost) → `http://host.docker.internal:<port>`.
+  K8s `ClusterIP` is NOT reachable — switch it to `LoadBalancer` first.
+- Service on **another machine** (e.g. the Pi) → its LAN IP, `http://<PI_IP>:<port>`.
+- **Never** point at a `*.rainforest.tools` tunnel URL for the API — Cloudflare Access will
+  302-redirect and the MCP server will choke on the HTML.
+
+**Two traps** (both bit us): a full `docker mcp tools call --profile default` fails with
+`initialize: EOF` if any profile server is broken (e.g. an unauthorized remote) — isolate
+with `--gateway-arg="--servers=<name>"` or use the dry-run above; and `--servers=<name>`
+reads `config.yaml`, not the profile, so it won't see profile-set config — the dry-run with
+`--profile default` is the faithful check.
+
 ## MCP Client Authentication
 
 ### For Non-Web MCP Clients (Claude Code, etc.)
@@ -322,7 +453,7 @@ This pattern ensures consistency and eliminates the need to update multiple loca
 # In locals.tf - set enable_auth = false for docker-mcp
 "docker-mcp" = {
   hostname     = "docker-mcp"
-  service_url  = "http://host.docker.internal:3100"
+  service_url  = "http://host.docker.internal:3101"
   enable_auth  = false  # No Zero Trust authentication
   type         = "docker"
 }
@@ -334,7 +465,7 @@ This pattern ensures consistency and eliminates the need to update multiple loca
   "mcpServers": {
     "docker-local": {
       "type": "sse",
-      "url": "http://localhost:3100/sse"  // Bypasses Cloudflare entirely
+      "url": "http://localhost:3101/sse"  // Bypasses Cloudflare entirely
     }
   }
 }
@@ -582,7 +713,7 @@ docker ps --filter "name=homelab-whisper"
 
 ## Grafana Alloy (Observability Agent)
 
-Grafana Alloy runs as a Docker container on the Mac Mini, shipping Docker container logs to Loki and container metrics (cAdvisor) to Prometheus on the Pi at 192.168.0.128.
+Grafana Alloy runs as a Docker container on the Mac Mini, shipping Docker container logs to Loki and container metrics (cAdvisor) to Prometheus on the Pi at <PI_IP>.
 
 **Module:** `modules/grafana-alloy/` — managed by Terraform via the kreuzwerker/docker provider.
 

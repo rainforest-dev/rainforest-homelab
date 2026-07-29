@@ -1,0 +1,256 @@
+{
+  "id": "homelabhealthdig",
+  "name": "Homelab health digest",
+  "active": true,
+  "nodes": [
+    {
+      "id": "schedule",
+      "name": "Daily 08:10",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 8,
+              "triggerAtMinute": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "manual",
+      "name": "Run now",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        120
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "alerts",
+      "name": "Fetch alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        200
+      ],
+      "parameters": {
+        "url": "http://PROMETHEUS_HOST_SUBSTITUTE_ME:30090/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "ALERTS{alertstate=\"firing\",severity!=\"none\"}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "sensors",
+      "name": "Fetch sensors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        400
+      ],
+      "parameters": {
+        "url": "http://PROMETHEUS_HOST_SUBSTITUTE_ME:30090/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "homeassistant_sensor_humidity_percent or homeassistant_sensor_temperature_celsius"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "prompt",
+      "name": "Build prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const alerts = $('Fetch alerts').first().json.data.result || [];\nconst sensors = $('Fetch sensors').first().json.data.result || [];\n\nconst alertLines = alerts.map(a => {\n  const m = a.metric;\n  const what = m.pod || m.job_name || m.instance || 'unknown';\n  return `- ${m.alertname} (${m.severity || 'n/a'}): ${what}`;\n});\n\nconst sensorLines = sensors.map(s => {\n  const name = s.metric.friendly_name || s.metric.entity || 'sensor';\n  const val = Number(s.value[1]).toFixed(1);\n  return `- ${name}: ${val}`;\n});\n\nconst prompt = [\n  'Summarise this homelab status in at most 4 short sentences.',\n  'State plainly what is wrong and what looks normal. No preamble, no bullet points.',\n  '',\n  `Firing alerts (${alertLines.length}):`,\n  alertLines.length ? alertLines.join('\\n') : '- none',\n  '',\n  'Home sensors:',\n  sensorLines.length ? sensorLines.join('\\n') : '- none',\n].join('\\n');\n\nreturn [{ json: { prompt, alertCount: alertLines.length, alertLines, sensorLines } }];"
+      }
+    },
+    {
+      "id": "summarise",
+      "name": "Summarise",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gemma4:e4b-mlx', prompt: $json.prompt, stream: false }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "format",
+      "name": "Format section",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const summary = ($('Summarise').first().json.response || '').trim();\nconst p = $('Build prompt').first().json;\nconst stamp = new Date().toISOString().slice(11, 16);\n\nconst body = [\n  '',\n  '## Homelab health',\n  '',\n  `*checked ${stamp} UTC*`,\n  '',\n  summary || '_summary unavailable_',\n  '',\n  `**Firing alerts:** ${p.alertCount}`,\n  ...(p.alertLines.length ? p.alertLines : ['- none']),\n  '',\n  '**Sensors**',\n  ...(p.sensorLines.length ? p.sensorLines : ['- none']),\n  '',\n].join('\\n');\n\nreturn [{ json: { body } }];"
+      }
+    },
+    {
+      "id": "append",
+      "name": "Append to daily note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://host.docker.internal:27124/periodic/daily/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/markdown"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/markdown",
+        "body": "={{ $json.body }}",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 30000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obsidianrestapi1",
+          "name": "Obsidian Local REST API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 08:10": {
+      "main": [
+        [
+          {
+            "node": "Fetch alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run now": {
+      "main": [
+        [
+          {
+            "node": "Fetch alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch alerts": {
+      "main": [
+        [
+          {
+            "node": "Fetch sensors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch sensors": {
+      "main": [
+        [
+          {
+            "node": "Build prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build prompt": {
+      "main": [
+        [
+          {
+            "node": "Summarise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarise": {
+      "main": [
+        [
+          {
+            "node": "Format section",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format section": {
+      "main": [
+        [
+          {
+            "node": "Append to daily note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

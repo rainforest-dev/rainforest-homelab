@@ -1,0 +1,103 @@
+{
+  "id": "haeventbridge01",
+  "name": "HA event bridge",
+  "active": true,
+  "nodes": [
+    {
+      "id": "hook",
+      "name": "HA webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "ha-events",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ha-events",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "build",
+      "name": "Build log line",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Turn an HA event payload into one markdown bullet for the Obsidian daily note.\n// HA sends its own local-time string in `ts` (e.g. now() -> 2026-07-27 15:30:45+08:00);\n// pull HH:MM straight out of the string so no timezone math is needed on the n8n side\n// (the container clock is UTC and GENERIC_TIMEZONE is America/New_York \u2014 neither is home).\nconst b = ($json.body && typeof $json.body === 'object') ? $json.body : $json;\nconst event = String(b.event || 'event').replace(/[\\r\\n]+/g, ' ').trim();\nconst detail = b.detail != null ? String(b.detail).replace(/[\\r\\n]+/g, ' ').trim() : '';\nconst raw = b.ts ? String(b.ts) : '';\nconst m = raw.match(/(\\d{2}):(\\d{2})/);\nconst time = m ? `${m[1]}:${m[2]}` : (new Date().toISOString().slice(11, 16) + ' UTC');\nconst line = `\\n- ${time} **${event}**${detail ? ' \\u2014 ' + detail : ''} #home-event`;\nreturn [{ json: { body: line, event, detail } }];"
+      }
+    },
+    {
+      "id": "append",
+      "name": "Append to daily note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://host.docker.internal:27124/periodic/daily/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/markdown"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/markdown",
+        "body": "={{ $json.body }}",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obsidianrestapi1",
+          "name": "Obsidian Local REST API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "HA webhook": {
+      "main": [
+        [
+          {
+            "node": "Build log line",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build log line": {
+      "main": [
+        [
+          {
+            "node": "Append to daily note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

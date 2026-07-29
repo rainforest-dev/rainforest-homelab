@@ -1,0 +1,164 @@
+{
+  "id": "homelabincidlog",
+  "name": "Homelab incident log",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sched",
+      "name": "Every 5 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "run",
+      "name": "Run now",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        360
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "fetch",
+      "name": "Fetch alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        280
+      ],
+      "parameters": {
+        "url": "http://PROMETHEUS_HOST_SUBSTITUTE_ME:30090/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "ALERTS{alertstate=\"firing\",severity!=\"none\"}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "diff",
+      "name": "Diff + build",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        280
+      ],
+      "parameters": {
+        "jsCode": "// Homelab incident log: poll Prometheus firing alerts and record only STATE\n// TRANSITIONS (new outage / recovery) so the daily note is not spammed every poll.\n// Dedup state lives in workflow static data (verified to persist across runs).\n// Fingerprint collapses the multiple label-series Prometheus emits per alert down\n// to one incident per alertname+namespace+pod+instance.\nconst TZ = 'Asia/Taipei';\nconst time = new Date().toLocaleTimeString('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });\n\nconst result = ($json.data && Array.isArray($json.data.result)) ? $json.data.result : [];\nconst current = {};\nfor (const r of result) {\n  const m = r.metric || {};\n  const fp = [m.alertname || '', m.namespace || '', m.pod || '', m.instance || ''].join('|');\n  const where = m.namespace ? `${m.namespace}/${m.pod || m.instance || ''}` : (m.pod || m.instance || '');\n  current[fp] = `**${m.alertname || 'alert'}**${where ? ' ' + where : ''} _(sev: ${m.severity || 'none'})_`;\n}\n\nconst store = $getWorkflowStaticData('global');\nconst prev = store.firing || {};\n\nconst lines = [];\nfor (const fp of Object.keys(current)) {\n  if (!(fp in prev)) lines.push(`- ${time} 🔴 down: ${current[fp]} #homelab-incident`);\n}\nfor (const fp of Object.keys(prev)) {\n  if (!(fp in current)) lines.push(`- ${time} 🟢 recovered: ${prev[fp]} #homelab-incident`);\n}\n\nstore.firing = current;\n\nif (!lines.length) { return []; }\nreturn [{ json: { body: '\\n' + lines.join('\\n') } }];\n"
+      }
+    },
+    {
+      "id": "append",
+      "name": "Append to daily note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        280
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://host.docker.internal:27124/periodic/daily/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/markdown"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/markdown",
+        "body": "={{ $json.body }}",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obsidianrestapi1",
+          "name": "Obsidian Local REST API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 5 min": {
+      "main": [
+        [
+          {
+            "node": "Fetch alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run now": {
+      "main": [
+        [
+          {
+            "node": "Fetch alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch alerts": {
+      "main": [
+        [
+          {
+            "node": "Diff + build",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Diff + build": {
+      "main": [
+        [
+          {
+            "node": "Append to daily note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

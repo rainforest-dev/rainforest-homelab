@@ -7,32 +7,27 @@ resource "random_password" "postgres_password" {
   special = true
 }
 
-resource "random_password" "pgadmin_password" {
-  length  = 16
-  special = false  # Avoid special chars that might cause issues in web UI
-}
-
 # Create PVC for PostgreSQL data on external storage
 resource "kubernetes_persistent_volume" "postgresql_pv" {
   metadata {
     name = "${var.project_name}-postgresql-pv"
   }
-  
+
   spec {
     capacity = {
       storage = var.storage_size
     }
-    
+
     access_modes = ["ReadWriteOnce"]
-    
+
     persistent_volume_source {
       host_path {
         path = "${var.external_storage_path}/postgresql"
         type = "DirectoryOrCreate"
       }
     }
-    
-    storage_class_name = "manual"
+
+    storage_class_name               = "manual"
     persistent_volume_reclaim_policy = "Retain"
   }
 }
@@ -47,13 +42,13 @@ resource "kubernetes_persistent_volume_claim" "postgresql_pvc" {
 
   spec {
     access_modes = ["ReadWriteOnce"]
-    
+
     resources {
       requests = {
         storage = var.storage_size
       }
     }
-    
+
     storage_class_name = "manual"
     volume_name        = kubernetes_persistent_volume.postgresql_pv.metadata[0].name
   }
@@ -84,6 +79,18 @@ resource "helm_release" "postgresql" {
 
   values = [
     yamlencode({
+      # Bitnami moved its free images to the `bitnamilegacy` org in 2025, and
+      # docker.io/bitnami/postgresql:16.2.0-debian-12-r15 is no longer pullable.
+      # The pod only kept running because the image was already cached locally
+      # (imagePullPolicy: IfNotPresent) — a Docker Desktop reset, which has
+      # already happened once on this machine, would have left the database
+      # unable to start at all. bitnamilegacy serves the identical image
+      # (same digest sha256:64f44cd1…), so this is a repository change only.
+      image = {
+        repository = "bitnamilegacy/postgresql"
+        tag        = var.postgres_image_tag
+      }
+
       # Global settings
       global = {
         postgresql = {
@@ -105,20 +112,20 @@ resource "helm_release" "postgresql" {
             postgresql = 5432
           }
         }
-        
+
         persistence = {
-          enabled          = true
-          existingClaim    = kubernetes_persistent_volume_claim.postgresql_pvc.metadata[0].name
-          size             = var.storage_size
-          storageClass     = "manual"
-          accessModes      = ["ReadWriteOnce"]
+          enabled       = true
+          existingClaim = kubernetes_persistent_volume_claim.postgresql_pvc.metadata[0].name
+          size          = var.storage_size
+          storageClass  = "manual"
+          accessModes   = ["ReadWriteOnce"]
         }
-        
+
         # Enable volume permissions for external storage
         volumePermissions = {
           enabled = true
         }
-        
+
         resources = {
           limits = {
             cpu    = "${var.cpu_limit}m"
@@ -129,38 +136,38 @@ resource "helm_release" "postgresql" {
             memory = "128Mi"
           }
         }
-        
+
         # PostgreSQL configuration
         postgresql = {
           configuration = {
             # Enable extensions for advanced features
             shared_preload_libraries = "pg_cron"
-            
+
             # Performance tuning
-            max_connections          = 100
-            shared_buffers          = "128MB"
-            effective_cache_size    = "384MB"
-            work_mem               = "4MB"
-            maintenance_work_mem   = "64MB"
-            
+            max_connections      = 100
+            shared_buffers       = "128MB"
+            effective_cache_size = "384MB"
+            work_mem             = "4MB"
+            maintenance_work_mem = "64MB"
+
             # WAL settings for backup
-            wal_level               = "replica"
-            max_wal_size           = "1GB"
-            min_wal_size           = "80MB"
-            archive_mode           = "on"
-            archive_timeout        = 60
-            
+            wal_level       = "replica"
+            max_wal_size    = "1GB"
+            min_wal_size    = "80MB"
+            archive_mode    = "on"
+            archive_timeout = 60
+
             # Logging
             log_min_duration_statement = 1000
-            log_checkpoints        = "on"
-            log_connections        = "on"
-            log_disconnections     = "on"
-            
+            log_checkpoints            = "on"
+            log_connections            = "on"
+            log_disconnections         = "on"
+
             # Timezone
             timezone = var.timezone
           }
         }
-        
+
         initdb = {
           scripts = {
             "01-extensions.sql" = <<-SQL
@@ -192,67 +199,4 @@ resource "helm_release" "postgresql" {
     kubernetes_persistent_volume_claim.postgresql_pvc,
     kubernetes_secret.postgresql_auth
   ]
-}
-
-# pgAdmin for GUI management (lean setup without external PVC)
-resource "helm_release" "pgadmin" {
-  count = var.enable_pgadmin ? 1 : 0
-  
-  name             = "${var.project_name}-pgadmin"
-  repository       = "https://helm.runix.net"
-  chart            = "pgadmin4"
-  version          = var.pgadmin_chart_version
-  create_namespace = false
-  namespace        = var.namespace
-
-  values = [
-    yamlencode({
-      env = {
-        email    = var.pgadmin_email
-        password = random_password.pgadmin_password.result
-      }
-      
-      service = {
-        type = "ClusterIP"
-        port = 80
-      }
-      
-      # Lean setup: use default storage class for pgAdmin data
-      persistentVolume = {
-        enabled      = true
-        size         = "2Gi"
-        storageClass = ""  # Use default Docker Desktop storage class
-        accessModes  = ["ReadWriteOnce"]
-      }
-      
-      resources = {
-        limits = {
-          cpu    = "500m"
-          memory = "512Mi"
-        }
-        requests = {
-          cpu    = "100m"
-          memory = "128Mi"
-        }
-      }
-
-      # Pre-configure PostgreSQL server connection for immediate access
-      serverDefinitions = {
-        enabled = true
-        servers = {
-          "1" = {
-            Name          = "HomeLab PostgreSQL"
-            Group         = "Servers" 
-            Host          = "${var.project_name}-postgresql"
-            Port          = 5432
-            MaintenanceDB = var.postgres_database
-            Username      = "postgres"
-            SSLMode       = "prefer"
-          }
-        }
-      }
-    })
-  ]
-
-  depends_on = [helm_release.postgresql]
 }

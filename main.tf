@@ -5,10 +5,6 @@
 #   special = true
 # }
 
-resource "random_password" "flowise_password" {
-  length  = 24
-  special = true
-}
 
 resource "random_password" "n8n_password" {
   length  = 24
@@ -40,46 +36,21 @@ module "postgresql" {
   storage_size          = "20Gi"
   external_storage_path = var.external_storage_path
 
-  # pgAdmin configuration
-  enable_pgadmin = false
-  pgadmin_email  = "contact@rainforest.tools"
 
   # Monitoring
   enable_metrics = false
 }
 
-module "obsidian_mcp" {
-  count  = var.obsidian_api_key != "" ? 1 : 0
-  source = "./modules/obsidian-mcp"
-
-  project_name        = var.project_name
-  environment         = var.environment
-  obsidian_api_key    = var.obsidian_api_key
-  memory_limit        = var.default_memory_limit
-  docker_host_address = "host.docker.internal"
-}
-
-module "docker_mcp_gateway" {
-  source = "./modules/docker-mcp-gateway"
-
-  project_name = var.project_name
-  environment  = var.environment
-
-  # Resource configuration
-  memory_limit = var.default_memory_limit
-
-  # External access configuration
-  enable_cloudflare_tunnel = true
-  tunnel_hostname          = "docker-mcp"
-  domain_suffix            = var.domain_suffix
-  docker_host_address      = "host.docker.internal" # Configurable for platform compatibility
-
-  # Logging configuration
-  log_level = "info"
-
-  # Obsidian REST API access
-  obsidian_api_key = var.obsidian_api_key
-}
+# Docker MCP Gateway runs as a launchd host service (the "managed" gateway), NOT a
+# Terraform-managed container. It executes:
+#   docker mcp gateway run --profile default --transport sse --port 3101 --host 0.0.0.0
+# which reads config from the `default` profile and secrets from Docker Desktop's
+# Keychain — something a plain `docker run` container cannot reach, which is why the
+# old standalone container needed plaintext secrets in config.yaml.
+#   Plist (version-controlled): configs/docker-mcp-gateway/com.homelab.docker-mcp-gateway.plist
+#   Install: cp that plist to ~/Library/LaunchAgents/ && launchctl load -w <plist>
+# The Cloudflare Tunnel route (docker-mcp-internal in locals.tf) points at
+# host.docker.internal:3101 — unchanged from the retired container's published port.
 
 # OAuth Worker for Docker MCP Gateway
 # Clients (Claude.ai, Claude Code) auto-register via RFC 7591 Dynamic Client Registration
@@ -92,8 +63,6 @@ module "oauth_worker" {
   cloudflare_zone_id    = module.cloudflare_tunnel.zone_id
   cloudflare_team_name  = var.cloudflare_team_name
   domain_suffix         = var.domain_suffix
-
-  depends_on = [module.docker_mcp_gateway]
 }
 
 # Open WebUI Database - DISABLED (using SQLite instead of PostgreSQL)
@@ -154,8 +123,11 @@ module "open-webui" {
   use_external_storage  = true
   external_storage_path = var.external_storage_path
 
-  # Whisper STT integration
-  whisper_stt_url = "https://whisper.${var.domain_suffix}"
+  # Whisper STT integration — use the INTERNAL address, not the public tunnel URL.
+  # whisper.<domain> is behind Cloudflare Access, which 302-redirects API calls to a
+  # login page; open-webui then fails to transcribe (same failure mode n8n's API hit).
+  # Both services run on this machine, so there is no reason to leave the LAN.
+  whisper_stt_url = "http://host.docker.internal:9090"
   domain_suffix   = var.domain_suffix
 
 
@@ -169,38 +141,6 @@ module "open-webui" {
   # No longer depends on PostgreSQL database - using SQLite
 }
 
-# Flowise Database Self-Registration
-module "flowise_database" {
-  source = "./modules/database-init"
-
-  service_name         = "flowise"
-  database_name        = "flowise_db"
-  postgres_host        = module.postgresql.postgresql_host
-  postgres_user        = module.postgresql.postgresql_username
-  postgres_secret_name = module.postgresql.postgresql_secret_name
-  postgres_secret_key  = "postgres-password"
-  namespace            = "homelab"
-
-  # Create service-specific user for better security
-  service_user     = "flowise_user"
-  service_password = random_password.flowise_password.result
-
-  # Custom initialization SQL for Flowise
-  init_sql = <<-SQL
-    -- Create extensions for Flowise
-    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-    
-    -- Grant permissions for application operations
-    GRANT ALL ON SCHEMA public TO flowise_user;
-    
-    -- Comment on database
-    COMMENT ON DATABASE flowise_db IS 'Flowise AI workflow automation database';
-  SQL
-
-  force_recreate = "2" # Recreate after PostgreSQL password fix
-
-  depends_on = [module.postgresql]
-}
 
 # n8n Database Self-Registration
 module "n8n_database" {
@@ -235,33 +175,6 @@ module "n8n_database" {
   depends_on = [module.postgresql]
 }
 
-module "flowise" {
-  source = "./modules/flowise"
-
-  project_name       = var.project_name
-  environment        = var.environment
-  cpu_limit          = var.default_cpu_limit
-  memory_limit       = var.default_memory_limit
-  enable_persistence = var.enable_persistence
-  storage_size       = var.default_storage_size
-  chart_repository   = "https://cowboysysop.github.io/charts"
-  chart_version      = "6.0.0"
-
-  # External storage configuration
-  use_external_storage  = true
-  external_storage_path = var.external_storage_path
-
-  # PostgreSQL configuration
-  database_type        = "postgres"
-  database_host        = module.postgresql.postgresql_host
-  database_port        = "5432"
-  database_name        = "flowise_db"
-  database_user        = "postgres"
-  database_secret_name = module.postgresql.postgresql_secret_name
-  database_secret_key  = "postgres-password"
-
-  depends_on = [module.flowise_database]
-}
 
 
 module "minio" {
@@ -342,6 +255,9 @@ module "n8n" {
   # Encryption
   encryption_key = "n8n-homelab-encryption-key-2024"
 
+  # Obsidian Local REST API key, exposed to workflows as $env.OBSIDIAN_API_KEY
+  obsidian_api_key = var.obsidian_api_key
+
   depends_on = [module.postgresql, module.n8n_database]
 }
 
@@ -351,9 +267,9 @@ module "n8n" {
 module "whisper" {
   source = "./modules/whisper"
 
-  project_name         = var.project_name
-  environment          = var.environment
-  model_size           = "base" # Optimal for Mac CPU: fast (36x), low memory, good quality
+  project_name = var.project_name
+  environment  = var.environment
+  model_size   = "base" # Optimal for Mac CPU: fast (36x), low memory, good quality
   # Port 9000 reserved for MinIO (infrastructure > app).
   # Cloudflare Tunnel routes to whisper.rainforest.tools regardless of port.
   external_port        = 9090
@@ -408,11 +324,11 @@ module "teleport" {
 module "cloudflare_tunnel" {
   source = "./modules/cloudflare-tunnel"
 
-  project_name          = var.project_name
-  domain_suffix         = var.domain_suffix
-  cloudflare_account_id = var.cloudflare_account_id
-  cloudflare_api_token  = var.cloudflare_api_token
-  kubernetes_namespace  = "homelab"
+  project_name               = var.project_name
+  domain_suffix              = var.domain_suffix
+  cloudflare_account_id      = var.cloudflare_account_id
+  cloudflare_api_token       = var.cloudflare_api_token
+  kubernetes_namespace       = "homelab"
   allowed_email_domains      = var.allowed_email_domains
   allowed_emails             = var.allowed_emails
   service_token_ids          = var.service_token_ids
@@ -424,17 +340,11 @@ module "cloudflare_tunnel" {
   depends_on = [kubernetes_namespace.homelab]
 }
 
-module "grafana_mcp" {
-  count  = var.grafana_mcp_api_key != "" ? 1 : 0
-  source = "./modules/grafana-mcp"
-
-  project_name    = var.project_name
-  image_version   = var.grafana_mcp_version
-  grafana_url     = "http://raspberrypi-5.local:${var.rpi_grafana_port}"
-  grafana_api_key = var.grafana_mcp_api_key
-  mcp_port        = 8765
-  log_opts        = {}
-}
+# grafana-mcp folded into the Docker MCP Gateway (default profile). The standalone
+# container was retired; Grafana MCP tools now arrive via docker-mcp.rainforest.tools.
+# grafana.url and grafana.api_key live in the gateway profile + Keychain, not Terraform:
+#   docker mcp profile config default --set grafana.url=http://<PI_IP>:30080
+#   printf '<viewer-token>' | docker mcp secret set grafana.api_key
 
 module "speedtest_exporter" {
   source = "./modules/speedtest-exporter"
@@ -454,6 +364,12 @@ module "grafana_alloy" {
   log_opts                    = {}
 }
 
+module "docker_stats_metrics" {
+  source = "./modules/docker-stats-metrics"
+
+  macos_username = var.macos_username
+}
+
 # ComfyUI — standalone Python server managed by launchd (macOS)
 # Port 8000 is now free since ComfyUI Desktop (Electron) is uninstalled.
 # Access UI at http://localhost:8000; comfyui-adapter reaches it via host.docker.internal:8000
@@ -468,7 +384,7 @@ module "comfyui" {
 resource "docker_container" "dockerproxy" {
   image   = "ghcr.io/tecnativa/docker-socket-proxy:latest"
   name    = "dockerproxy"
-  restart = "unless-stopped"
+  restart = "always"
   env     = ["CONTAINERS=1", "SERVICES=1", "TASKS=1", "POST=0"]
   ports {
     internal = 2375
@@ -479,4 +395,38 @@ resource "docker_container" "dockerproxy" {
     container_path = "/var/run/docker.sock"
     read_only      = true
   }
+}
+
+# ─── Mac-side backup (Theme C1) ─────────────────────────────────────────────
+# Nightly logical dump of Postgres (all n8n/flowise data), then an offen backup
+# container ships the app volumes + that dump to MinIO. Closes the Mac-side gap
+# the Theme C audit found (the Pi was covered; the Mac was not).
+
+module "postgres_backup" {
+  source         = "./modules/postgres-backup"
+  namespace      = "homelab"
+  dump_host_path = "${var.external_storage_path}/postgres-backups"
+}
+
+module "docker_volume_backup" {
+  source                  = "./modules/docker-volume-backup"
+  minio_access_key        = module.minio.access_key
+  minio_secret_key        = module.minio.secret_key
+  postgres_dump_host_path = "${var.external_storage_path}/postgres-backups"
+}
+
+# Mirrors MinIO onto the T7 so Synology Drive Client carries the backups offsite.
+# Runs last (03:45), after the Pi and Mac backups have finished uploading.
+module "minio_t7_sync" {
+  source    = "./modules/minio-t7-sync"
+  namespace = "homelab"
+  t7_path   = "${var.external_storage_path}/minio-backup"
+}
+
+# Alerts into the Obsidian daily note when a backup stops arriving. Closes the gap
+# that let the 2026-07 backup outage run silently for days.
+module "backup_monitor" {
+  source    = "./modules/backup-monitor"
+  namespace = "homelab"
+  t7_path   = "${var.external_storage_path}/minio-backup"
 }

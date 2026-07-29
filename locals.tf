@@ -50,6 +50,18 @@ locals {
     },
 
     {
+      # loop-observatory — autonomous-task-loop dashboard (Astro SSR + Vue).
+      # Runs as a host launchd service on the mini (PORT=3099), reached via
+      # host.docker.internal like calibre-web. Zero Trust gated by allowed_emails.
+      "loop-observatory" = {
+        hostname    = "loop"
+        service_url = "http://host.docker.internal:3099"
+        enable_auth = true
+        type        = "docker"
+      }
+    },
+
+    {
       "calibre" = {
         hostname    = "calibre"
         service_url = module.personal-calibre.tunnel_service_url
@@ -79,9 +91,8 @@ locals {
     {
       "docker-mcp-internal" = {
         hostname    = "docker-mcp-internal"
-        service_url = module.docker_mcp_gateway.tunnel_service_url
-        enable_auth = false # Auth handled by OAuth Worker layer
-        internal    = true  # No public DNS record — only reachable via the OAuth Worker
+        service_url = "http://host.docker.internal:3101" # launchd managed gateway (docker mcp gateway run)
+        enable_auth = false                              # Auth handled by OAuth Worker layer
         type        = "docker"
       }
     },
@@ -89,8 +100,8 @@ locals {
     {
       whisper = {
         hostname    = "whisper"
-        service_url = "http://host.docker.internal:9000"
-        enable_auth = true # Protect with Zero Trust
+        service_url = "http://host.docker.internal:9090" # container publishes 9090; :9000 is MinIO
+        enable_auth = true                               # Protect with Zero Trust
         type        = "docker"
       }
     },
@@ -99,6 +110,15 @@ locals {
       comfyui = {
         hostname    = "comfyui"
         service_url = "http://host.docker.internal:8000"
+        enable_auth = true
+        type        = "docker"
+      }
+    },
+
+    {
+      agy = {
+        hostname    = "agy"
+        service_url = "http://host.docker.internal:3000"
         enable_auth = true
         type        = "docker"
       }
@@ -113,32 +133,13 @@ locals {
       }
     } : {},
 
-    var.grafana_mcp_api_key != "" ? {
-      "grafana-mcp" = {
-        hostname    = "grafana-mcp"
-        service_url = "http://host.docker.internal:8765"
-        enable_auth = true
-        type        = "docker"
-      }
-    } : {},
+    # grafana-mcp removed: folded into the Docker MCP Gateway (default profile).
+    # Grafana MCP tools now arrive via docker-mcp.rainforest.tools, not a separate host.
 
-    {
-      pgadmin = {
-        hostname    = "pgadmin"
-        service_url = "http://homelab-pgadmin-pgadmin4.homelab.svc.cluster.local"
-        enable_auth = true # Protect with Zero Trust
-        type        = "kubernetes"
-      }
-    },
-
-    var.obsidian_api_key != "" ? {
-      "obsidian-internal" = {
-        hostname    = "obsidian-internal"
-        service_url = module.obsidian_mcp[0].service_url
-        enable_auth = false # Auth handled by OAuth Worker layer
-        type        = "docker"
-      }
-    } : {},
+    # pgadmin removed: it is disabled (enable_pgadmin = false) and never deployed,
+    # but the entry kept publishing a DNS record and Zero Trust app for a service
+    # that does not exist. Re-add this block if pgadmin is ever enabled.
+    # obsidian-internal removed: the Docker MCP gateway now serves Obsidian tools.
 
     {
       "bambii" = {
@@ -190,6 +191,16 @@ locals {
         allowed_emails = ["ting1110001@gmail.com"]
       }
     } : {},
+
+    # Observability UIs on Pi (K3s NodePort services)
+    {
+      "gfn" = {
+        hostname    = "gfn"
+        service_url = "http://${var.raspberry_pi_ip}:30080"
+        enable_auth = true
+        type        = "iot"
+      }
+    },
 
   )
 
