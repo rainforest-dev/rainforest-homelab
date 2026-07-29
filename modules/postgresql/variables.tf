@@ -72,3 +72,8 @@ variable "enable_metrics" {
   type        = bool
   default     = false
 }
+variable "postgres_image_tag" {
+  description = "PostgreSQL image tag. Pinned so a chart bump cannot silently change the database version under a live data directory."
+  type        = string
+  default     = "16.2.0-debian-12-r15"
+}
