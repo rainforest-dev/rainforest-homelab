@@ -139,15 +139,7 @@ locals {
     # pgadmin removed: it is disabled (enable_pgadmin = false) and never deployed,
     # but the entry kept publishing a DNS record and Zero Trust app for a service
     # that does not exist. Re-add this block if pgadmin is ever enabled.
-
-    var.obsidian_api_key != "" ? {
-      "obsidian-internal" = {
-        hostname    = "obsidian-internal"
-        service_url = module.obsidian_mcp[0].service_url
-        enable_auth = false # Auth handled by OAuth Worker layer
-        type        = "docker"
-      }
-    } : {},
+    # obsidian-internal removed: the Docker MCP gateway now serves Obsidian tools.
 
     {
       "bambii" = {

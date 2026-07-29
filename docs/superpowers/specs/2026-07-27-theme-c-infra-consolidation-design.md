@@ -128,6 +128,24 @@ deployment.
 **Accepted limitation:** this is an audit that may conclude "keep all" — the deliverable is
 the map and a justified decision per piece, not a mandatory deletion.
 
+### Outcome (2026-07-29) — Component 4 done
+
+The Docker MCP gateway's `default` profile already carries eleven servers, `obsidian` and
+`grafana` among them, so both standalone servers were redundant:
+
+| Piece | Decision |
+|---|---|
+| `docker-mcp-gateway` (module) | **Retired.** Superseded by the launchd-managed gateway on port 3101, which the Cloudflare route now points at directly. |
+| `grafana-mcp` | **Retired.** Its tools arrive through the gateway profile. |
+| `obsidian-mcp` | **Retired.** Verified the gateway's catalog Obsidian server reads the vault, then removed the module, its `obsidian-internal` tunnel route, the `obsidian.<domain>` Workers domain, and the `.mcp.json` client entry. The n8n workflows were never affected — they talk to the Obsidian REST API directly, not through MCP. |
+| `oauth-worker` | **Kept.** Still fronts the gateway (and calibre-mcp) for remote clients. |
+
+**Known trade-off:** the gateway starts each MCP server container on demand, so the first
+Obsidian call after an idle period can exceed the client's short read timeout and fail;
+a retry hits the warm container and succeeds. The retired container was always-on and did
+not have this behaviour. The vault API itself is not the cause — it answers in ~0.02 s from
+a container.
+
 ## Build order
 
 1. **Backup** — real data-loss risk; independently shippable and the highest value.
