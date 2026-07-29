@@ -49,7 +49,7 @@ variable "chart_repository" {
 variable "chart_version" {
   description = "MinIO Helm chart version"
   type        = string
-  default     = "5.2.0"
+  default     = "5.4.0"
 }
 
 variable "minio_root_user" {

@@ -79,6 +79,18 @@ resource "helm_release" "postgresql" {
 
   values = [
     yamlencode({
+      # Bitnami moved its free images to the `bitnamilegacy` org in 2025, and
+      # docker.io/bitnami/postgresql:16.2.0-debian-12-r15 is no longer pullable.
+      # The pod only kept running because the image was already cached locally
+      # (imagePullPolicy: IfNotPresent) — a Docker Desktop reset, which has
+      # already happened once on this machine, would have left the database
+      # unable to start at all. bitnamilegacy serves the identical image
+      # (same digest sha256:64f44cd1…), so this is a repository change only.
+      image = {
+        repository = "bitnamilegacy/postgresql"
+        tag        = var.postgres_image_tag
+      }
+
       # Global settings
       global = {
         postgresql = {
