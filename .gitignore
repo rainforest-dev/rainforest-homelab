@@ -71,3 +71,8 @@ __pycache__/
 .venv/
 dist/
 build/
+# Terraform plan artifact (binary, regenerated each plan)
+tfplan
+
+# agy-streamer is its own project — not tracked here
+agy-streamer/

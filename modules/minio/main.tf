@@ -43,27 +43,27 @@ resource "helm_release" "minio" {
         }
       }
 
-      # Persistence configuration  
-      persistence = var.use_external_storage ? {
-        enabled        = false  # Disable helm persistence when using external storage
-        existingClaim  = ""     # No existing claim
-        storageClass   = ""     # No storage class
-      } : {
-        enabled = var.enable_persistence
+      # Persistence MUST be a single object with a real boolean.
+      # This was a ternary between two differently-shaped objects, so Terraform
+      # unified the types to string and Helm received enabled: "false". That broke
+      # the chart's volume logic: the PVC existed but was never mounted at /export,
+      # so `minio server /export` wrote to the container filesystem and died with
+      # "Unable to write to the backend" the moment the pod was recreated.
+      #
+      # Offsite is NOT done by relocating this volume (the chart owns the /export
+      # mount): the data is synced to the T7 separately, and Synology Drive Client
+      # backs that folder up to the NAS.
+      persistence = {
+        enabled = true
         size    = var.storage_size
       }
 
-      # External storage configuration
+      # NOTE: do NOT add an extraVolumeMount for the T7 here. This chart renders
+      # extraVolumeMounts in place of its own volumeMounts, so mounting anything
+      # here silently removes the `export -> /export` mount and MinIO then writes
+      # to the container filesystem and crashes. The T7 copy is made by an external
+      # sync, not by mounting it into MinIO.
       extraVolumes = concat(
-        var.use_external_storage ? [
-          {
-            name = "external-storage"
-            hostPath = {
-              path = "/Volumes/Samsung T7 Touch/homelab-data/minio"
-              type = "DirectoryOrCreate"
-            }
-          }
-        ] : [],
         var.synology_drive_path != "" ? [
           {
             name = "synology-velero"
@@ -76,12 +76,6 @@ resource "helm_release" "minio" {
       )
 
       extraVolumeMounts = concat(
-        var.use_external_storage ? [
-          {
-            name      = "external-storage"
-            mountPath = "/data"
-          }
-        ] : [],
         var.synology_drive_path != "" ? [
           {
             name      = "synology-velero"
@@ -93,7 +87,7 @@ resource "helm_release" "minio" {
       # Service configuration for MinIO S3 API
       service = {
         # LoadBalancer so Docker Desktop binds port 9000 on all host interfaces,
-        # making MinIO reachable at 192.168.0.126:9000 from the Pi network.
+        # making MinIO reachable at <MAC_MINI_IP>:9000 from the Pi network.
         type = "LoadBalancer"
         port = 9000
       }
@@ -137,4 +131,32 @@ resource "helm_release" "minio" {
   ]
 
   depends_on = []
+}
+
+# Guarantee the backup-pipeline buckets exist. MinIO's chart `defaultBuckets` only
+# provisions on FIRST install, so the 2026-07 MinIO reinstall silently dropped
+# `velero` and `pi5-docker-backup` — every nightly Velero and docker-volume-backup
+# upload failed with NoSuchBucket for days before it was caught. This idempotently
+# (re)creates them via `mc mb -p` after MinIO is up, and re-runs whenever the MinIO
+# release changes (so a future reinstall self-heals). Creds are read from the k8s
+# secret at run time so no secret lands in the Terraform config or state.
+resource "null_resource" "minio_buckets" {
+  triggers = {
+    buckets  = join(",", var.provisioned_buckets)
+    revision = helm_release.minio.metadata[0].revision
+  }
+
+  provisioner "local-exec" {
+    command = <<-BASH
+      set -e
+      RU=$(kubectl get secret ${var.project_name}-minio -n ${var.namespace} -o jsonpath='{.data.rootUser}' | base64 -d)
+      RP=$(kubectl get secret ${var.project_name}-minio -n ${var.namespace} -o jsonpath='{.data.rootPassword}' | base64 -d)
+      for b in ${join(" ", var.provisioned_buckets)}; do
+        docker run --rm -e RU="$RU" -e RP="$RP" --entrypoint sh minio/mc -c \
+          'mc alias set m http://host.docker.internal:9000 "$RU" "$RP" >/dev/null 2>&1 && mc mb -p m/'"$b"' 2>&1 | tail -1'
+      done
+    BASH
+  }
+
+  depends_on = [helm_release.minio]
 }

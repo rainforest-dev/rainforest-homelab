@@ -31,7 +31,7 @@ resource "docker_image" "comfyui_adapter" {
 resource "docker_container" "comfyui_adapter" {
   image   = docker_image.comfyui_adapter.name
   name    = "${var.project_name}-comfyui-adapter"
-  restart = "unless-stopped"
+  restart = "always"
 
   ports {
     internal = 7860
@@ -57,6 +57,10 @@ resource "docker_container" "comfyui_adapter" {
   labels {
     label = "environment"
     value = var.environment
+  }
+
+  lifecycle {
+    ignore_changes = [memory_swap]
   }
 
   depends_on = [docker_image.comfyui_adapter]

@@ -1,0 +1,200 @@
+{
+  "id": "homequeryai01",
+  "name": "AI home query",
+  "active": true,
+  "nodes": [
+    {
+      "id": "hook",
+      "name": "Home question",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "home-query",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "home-query",
+        "responseMode": "lastNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "ask",
+      "name": "Ask model for PromQL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gemma4:e4b-mlx', prompt: \"You translate a home question into ONE Prometheus instant query (PromQL). Output ONLY the query on a single line, no explanation, no markdown, no backticks.\\nMetrics available:\\n- homeassistant_sensor_temperature_celsius{friendly_name=\\\"...\\\"}  home temperatures (Celsius)\\n- homeassistant_sensor_humidity_percent{friendly_name=\\\"...\\\"}  home humidity (percent)\\n- homeassistant_sensor_battery_percent{friendly_name=\\\"...\\\"}  device battery (percent)\\n- up  1 if a monitored service is up, 0 if down\\n- ALERTS{alertstate=\\\"firing\\\"}  currently firing alerts\\nRules: Use friendly_name=~\\\".*Word.*\\\" only when the question names a specific room/device. NEVER add a job= or friendly_name= filter to `up` or `ALERTS` (the words 'homelab', 'service', 'anything', 'everything' are NOT service names). Keep queries minimal.\\nExamples:\\nQ: is it humid? -> homeassistant_sensor_humidity_percent\\nQ: bedroom temperature? -> homeassistant_sensor_temperature_celsius{friendly_name=~\\\".*Bedroom.*\\\"}\\nQ: is anything down in my homelab? -> up == 0\\nQ: are all services healthy? -> up == 0\\nQ: what is firing? -> ALERTS{alertstate=\\\"firing\\\",alertname!=\\\"Watchdog\\\"}\\nQuestion: \" + ($json.body && $json.body.question ? $json.body.question : ''), stream: false, options: { temperature: 0 } }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "extract",
+      "name": "Extract PromQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Ollama returns the PromQL in `response`; strip markdown/backticks/labels and\n// keep the first non-empty line so the Prometheus query node gets a bare query.\nlet q = String(($json.response || '')).trim();\nq = q.replace(/```[a-zA-Z]*/g, '').replace(/`/g, '').trim();\nq = q.split('\\n').map(s => s.trim()).filter(Boolean)[0] || 'up';\nq = q.replace(/^(promql|query)\\s*[:=]\\s*/i, '').trim();\nconst question = $('Home question').item.json.body ? ($('Home question').item.json.body.question || '') : '';\nreturn [{ json: { promql: q, question } }];"
+      }
+    },
+    {
+      "id": "run",
+      "name": "Run PromQL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "url": "http://PROMETHEUS_HOST_SUBSTITUTE_ME:30090/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.promql }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "bp",
+      "name": "Build answer prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Build the phrasing prompt from the question + the Prometheus result. Handle the\n// empty-result case deterministically: an empty `up == 0` / ALERTS query means all\n// healthy (good news), which is different from a missing sensor value.\nconst q = $('Extract PromQL').item.json.question || '';\nconst promql = $('Extract PromQL').item.json.promql || '';\nconst result = ($json.data && $json.data.result) ? $json.data.result : [];\nlet rows;\nif (result.length === 0) {\n  rows = /\\bup\\b|ALERTS/i.test(promql)\n    ? 'RESULT: nothing matched — every monitored service is up and no alerts are firing.'\n    : 'RESULT: no data — that sensor was not found.';\n} else {\n  rows = result.map(r => {\n    const m = r.metric || {};\n    const name = m.friendly_name || m.instance || m.alertname || m.job || JSON.stringify(m);\n    const val = Array.isArray(r.value) ? r.value[1] : '';\n    return `${name} = ${val}`;\n  }).slice(0, 25).join('\\n');\n}\nconst prompt = [\n  'You are a home assistant. Answer the question in ONE short, friendly sentence based only on RESULT.',\n  'If RESULT says every service is up, reassure that everything is healthy.',\n  'Do not mention PromQL or metric names.',\n  '',\n  `Question: ${q}`,\n  rows,\n].join('\\n');\nreturn [{ json: { prompt, question: q, promql, rows } }];"
+      }
+    },
+    {
+      "id": "phrase",
+      "name": "Phrase answer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gemma4:e4b-mlx', prompt: $json.prompt, stream: false }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "ans",
+      "name": "Answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Final node: webhook responseMode=lastNode returns this JSON to the caller.\nconst answer = String(($json.response || '')).trim() || 'Sorry, I could not work that out.';\nreturn [{ json: { answer, promql: $('Build answer prompt').item.json.promql, data: $('Build answer prompt').item.json.rows } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Home question": {
+      "main": [
+        [
+          {
+            "node": "Ask model for PromQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask model for PromQL": {
+      "main": [
+        [
+          {
+            "node": "Extract PromQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PromQL": {
+      "main": [
+        [
+          {
+            "node": "Run PromQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run PromQL": {
+      "main": [
+        [
+          {
+            "node": "Build answer prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build answer prompt": {
+      "main": [
+        [
+          {
+            "node": "Phrase answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Phrase answer": {
+      "main": [
+        [
+          {
+            "node": "Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

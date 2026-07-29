@@ -41,6 +41,33 @@ resource "null_resource" "uv_setup" {
   }
 }
 
+# Apply local patches to the vendored ComfyUI. The patches live here (tracked),
+# NOT as uncommitted edits inside the submodule, so the submodule stays clean and
+# the fix survives a `git submodule update`. Idempotent: skips if already applied.
+resource "null_resource" "apply_patches" {
+  triggers = {
+    patch = filesha256("${local.module_dir}/patches/darwin27-psutil-compat.patch")
+  }
+
+  provisioner "local-exec" {
+    command = <<-BASH
+      set -e
+      cd "${local.server_dir}"
+      P="${local.module_dir}/patches/darwin27-psutil-compat.patch"
+      if git apply --check "$P" 2>/dev/null; then
+        git apply "$P" && echo "comfyui: applied darwin27-psutil-compat.patch"
+      elif git apply --reverse --check "$P" 2>/dev/null; then
+        echo "comfyui: darwin27-psutil-compat.patch already applied"
+      else
+        echo "comfyui: WARNING darwin27-psutil-compat.patch does not apply cleanly (ComfyUI upstream changed?)" >&2
+        exit 1
+      fi
+    BASH
+  }
+
+  depends_on = [null_resource.uv_setup]
+}
+
 # Write the launchd plist to ~/Library/LaunchAgents/
 resource "local_file" "plist" {
   filename = local.plist_path
@@ -55,7 +82,7 @@ resource "local_file" "plist" {
     extra_args   = var.extra_args
   })
 
-  depends_on = [null_resource.uv_setup]
+  depends_on = [null_resource.uv_setup, null_resource.apply_patches]
 }
 
 # Load the launchd service; reload when plist content changes

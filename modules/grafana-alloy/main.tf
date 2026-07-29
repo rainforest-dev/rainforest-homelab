@@ -7,7 +7,7 @@ resource "docker_container" "alloy" {
   name  = "${var.project_name}-alloy"
   image = docker_image.alloy.image_id
 
-  restart = "unless-stopped"
+  restart = "always"
 
   command = [
     "run",
@@ -48,11 +48,15 @@ resource "docker_container" "alloy" {
   memory     = 192
   cpu_shares = 512
 
+  lifecycle {
+    ignore_changes = [memory_swap]
+  }
+
   log_driver = "json-file"
   log_opts   = var.log_opts
 
   healthcheck {
-    test         = ["CMD", "wget", "-qO-", "http://localhost:12345/-/healthy"]
+    test         = ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/12345' 2>/dev/null && echo healthy"]
     interval     = "30s"
     timeout      = "10s"
     retries      = 3

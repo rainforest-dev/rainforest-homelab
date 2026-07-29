@@ -20,7 +20,7 @@ variable "namespace" {
 variable "chart_version" {
   description = "PostgreSQL Helm chart version"
   type        = string
-  default     = "15.2.5"  # PostgreSQL 16.2.0 - keep current stable version
+  default     = "15.2.5" # PostgreSQL 16.2.0 - keep current stable version
 }
 
 variable "postgres_password" {
@@ -66,35 +66,14 @@ variable "timezone" {
   default     = "America/New_York"
 }
 
-# pgAdmin Configuration
-variable "enable_pgadmin" {
-  description = "Enable pgAdmin GUI"
-  type        = bool
-  default     = true
-}
-
-variable "pgadmin_chart_version" {
-  description = "pgAdmin Helm chart version"
-  type        = string
-  default     = "1.50.0"  # Updated to latest version
-}
-
-variable "pgadmin_email" {
-  description = "pgAdmin login email"
-  type        = string
-  default     = "contact@rainforest.tools"
-}
-
-variable "pgadmin_password" {
-  description = "pgAdmin login password"
-  type        = string
-  sensitive   = true
-  default     = "pgadmin_secure_password_2024"
-}
-
 # Monitoring
 variable "enable_metrics" {
   description = "Enable PostgreSQL metrics"
   type        = bool
   default     = false
+}
+variable "postgres_image_tag" {
+  description = "PostgreSQL image tag. Pinned so a chart bump cannot silently change the database version under a live data directory."
+  type        = string
+  default     = "16.2.0-debian-12-r15"
 }

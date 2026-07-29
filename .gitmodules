@@ -1,3 +1,7 @@
 [submodule "modules/comfyui/server"]
 	path = modules/comfyui/server
 	url = https://github.com/comfyanonymous/ComfyUI.git
+	# Local Darwin-27 psutil patch is applied at deploy from modules/comfyui/patches/
+	# (tracked there). Ignore the resulting working-tree dirt so `git status` stays
+	# clean; a real submodule POINTER change will still show.
+	ignore = dirty

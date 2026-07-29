@@ -1,0 +1,262 @@
+{
+  "id": "voicememotranscr",
+  "name": "Voice memo transcription",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sched",
+      "name": "Every 2 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -220,
+        200
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "run",
+      "name": "Run now",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -220,
+        360
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "listnotes",
+      "name": "List processed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        280
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://host.docker.internal:27124/vault/Voice%20memos/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obsidianrestapi1",
+          "name": "Obsidian Local REST API"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "read",
+      "name": "Read audio files",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        240,
+        280
+      ],
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/home/node/.n8n-files/voice-inbox/*.*",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "filternew",
+      "name": "Filter new",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        280
+      ],
+      "parameters": {
+        "jsCode": "// Idempotency gate. 'List processed' fetched the Voice memos folder once;\n// keep only audio files whose note does not exist yet. The stable dedup key is\n// the audio basename (no date prefix) so a file is transcribed exactly once,\n// no matter how long it lingers in the inbox. Binary is passed through so\n// Whisper downstream still receives the audio.\nconst listed = $('List processed').first().json;\nconst existing = new Set(Array.isArray(listed.files) ? listed.files : []);\nconst out = [];\nfor (const item of $input.all()) {\n  const src = item.binary && item.binary.data ? item.binary.data.fileName : null;\n  if (!src) { continue; }\n  const base = src.replace(/\\.[^.]+$/, '').replace(/[\\\\/:*?\"<>|]/g, '-');\n  if (existing.has(base + '.md')) { continue; }\n  out.push({ json: { src, noteName: base }, binary: item.binary });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "transcribe",
+      "name": "Whisper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        280
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9090/v1/audio/transcriptions",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "model",
+              "value": "whisper-1"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "build",
+      "name": "Build note",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        280
+      ],
+      "parameters": {
+        "jsCode": "const text = ($json.text || '').trim();\nconst src = $('Filter new').item.json.src;\nconst noteName = $('Filter new').item.json.noteName;\nconst now = new Date().toISOString();\nconst date = now.slice(0, 10);\nconst body = [\n  '---',\n  'type: voice-memo',\n  `source: ${src}`,\n  `date: ${date}`,\n  `transcribed: ${now}`,\n  '---',\n  '',\n  text || '_(empty transcription)_',\n  '',\n].join('\\n');\nreturn [{ json: { noteName, body, src } }];"
+      }
+    },
+    {
+      "id": "note",
+      "name": "Create note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        280
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://host.docker.internal:27124/vault/Voice%20memos/{{ encodeURIComponent($json.noteName) }}.md",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/markdown"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/markdown",
+        "body": "={{ $json.body }}",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obsidianrestapi1",
+          "name": "Obsidian Local REST API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 2 min": {
+      "main": [
+        [
+          {
+            "node": "List processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run now": {
+      "main": [
+        [
+          {
+            "node": "List processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List processed": {
+      "main": [
+        [
+          {
+            "node": "Read audio files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read audio files": {
+      "main": [
+        [
+          {
+            "node": "Filter new",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter new": {
+      "main": [
+        [
+          {
+            "node": "Whisper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whisper": {
+      "main": [
+        [
+          {
+            "node": "Build note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build note": {
+      "main": [
+        [
+          {
+            "node": "Create note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

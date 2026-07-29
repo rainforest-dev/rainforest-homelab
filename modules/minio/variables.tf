@@ -49,7 +49,7 @@ variable "chart_repository" {
 variable "chart_version" {
   description = "MinIO Helm chart version"
   type        = string
-  default     = "5.2.0"
+  default     = "5.4.0"
 }
 
 variable "minio_root_user" {
@@ -97,4 +97,10 @@ variable "synology_drive_path" {
   description = "Host path for Synology Drive sync — MinIO velero bucket data will land here"
   type        = string
   default     = ""
+}
+
+variable "provisioned_buckets" {
+  description = "Buckets guaranteed to exist after every apply. The backup pipeline hard-depends on these — a missing bucket silently fails every nightly upload (NoSuchBucket)."
+  type        = list(string)
+  default     = ["default", "velero", "pi5-docker-backup", "mac-docker-backup"]
 }
