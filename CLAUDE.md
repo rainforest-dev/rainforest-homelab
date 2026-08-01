@@ -286,7 +286,7 @@ Notion, memory, terraform, …) behind one SSE endpoint, exposed at
 `https://docker-mcp.rainforest.tools` via the Cloudflare Tunnel + OAuth Worker.
 
 **Architecture: the gateway is a launchd host service, NOT a Terraform container.**
-It runs `docker mcp gateway run --profile default --transport sse --port 3101
+It runs `docker mcp gateway run --profile default --transport streaming --port 3101
 --host 0.0.0.0 --allow-unauthenticated`. This is the *managed* gateway — it executes on
 the host, so it reads config from the Docker Desktop `default` profile and secrets from
 the macOS Keychain (via `docker-credential-desktop`). A plain `docker run` container
@@ -298,8 +298,52 @@ plaintext secrets in `~/.docker/mcp/config.yaml`.
 - **Port:** listens on `3101` (host). Tunnel route `docker-mcp-internal` in `locals.tf`
   points at `host.docker.internal:3101`. `--host 0.0.0.0` is required — cloudflared runs
   in the K8s cluster and reaches the host over the bridge gateway, not loopback.
-- **Restart / apply config changes:** `launchctl kickstart -k gui/$(id -u)/com.homelab.docker-mcp-gateway`
+- **Restart after a profile/Keychain change:** `launchctl kickstart -k gui/$(id -u)/com.homelab.docker-mcp-gateway`
+- **Reload after editing the plist:** `kickstart` does **not** re-read the plist from
+  disk — it restarts from launchd's in-memory job definition, so the gateway keeps
+  running the old arguments while appearing to succeed. Use:
+  ```bash
+  launchctl bootout gui/$(id -u)/com.homelab.docker-mcp-gateway 2>/dev/null
+  launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.homelab.docker-mcp-gateway.plist
+  ```
+  Then confirm with `ps -o command= -p "$(pgrep -f 'mcp gateway run' | head -1)"`.
 - **Logs:** `~/Library/Logs/docker-mcp-gateway.log`
+
+### Transport: streamable HTTP only
+
+The gateway serves **streamable HTTP at `/mcp`**. `docker mcp gateway run
+--transport` takes a **single** value (`stdio|sse|streaming`) — it is not a
+multiplexer, so SSE and streaming cannot coexist on one process. Clients must use
+`"type": "http"` with the `/mcp` path.
+
+**Gotcha — the redirect makes failures look like successes.** The redirect is
+symmetric: an SSE gateway 307s `/mcp` → `/sse`, and a streaming gateway 307s
+`/sse` → `/mcp`. A stale SSE client therefore does *not* get a clean 404. It
+follows the redirect into a transport it cannot speak and fails obscurely. When
+debugging a client, never read a `307` as "the endpoint works".
+
+**Gotcha — never probe with `"params":{}`.** Gateway v0.43.3 has an upstream bug:
+`telemetry.RecordInitialize` (`pkg/telemetry/telemetry.go:549`) dereferences
+`clientInfo` without a nil check, so an `initialize` with empty params SIGSEGVs
+the gateway process. This was invisible under SSE (the 307 fires before the body
+is parsed) but crashes the streaming server, and `KeepAlive` restarts it — which
+looks exactly like "streaming is broken". Always send a full `protocolVersion` +
+`capabilities` + `clientInfo`. Real clients do. Unauthenticated internet requests
+cannot reach this: the OAuth Worker returns 401 first. LAN access to `:3101` can,
+which is the pre-existing accepted risk of `--allow-unauthenticated`.
+
+**Gemini Spark does not need Protected Resource Metadata.** Spark's custom-MCP
+connector requires streamable HTTP, but *not* RFC 9728 PRM. The OAuth Worker
+returns 404 for `/.well-known/oauth-protected-resource` and omits
+`resource_metadata=` from its 401 challenge, and Spark connects anyway by falling
+back to `/.well-known/oauth-authorization-server` (200) and completing Dynamic
+Client Registration at `/register`. `calibre-mcp.rainforest.tools` is the
+precedent — same Worker, same 0.0.6 library, connected and syncing. Do not
+upgrade `@cloudflare/workers-oauth-provider` on the theory that Spark requires
+it; that was investigated and refuted on 2026-08-01.
+
+**Add to Gemini Spark:** gemini.google.com/apps → Custom apps for Spark → Add a
+custom app → `https://docker-mcp.rainforest.tools/mcp`.
 
 ### Config and secrets (profile + Keychain, never in git)
 
@@ -429,8 +473,8 @@ reads `config.yaml`, not the profile, so it won't see profile-set config — the
    {
      "mcpServers": {
        "docker-remote": {
-         "type": "sse",
-         "url": "https://docker-mcp.yourdomain.com/sse",
+         "type": "http",
+         "url": "https://docker-mcp.yourdomain.com/mcp",
          "headers": {
            "CF-Access-Client-Id": "your-service-token-id",
            "CF-Access-Client-Secret": "your-service-token-secret"
@@ -464,8 +508,8 @@ reads `config.yaml`, not the profile, so it won't see profile-set config — the
 {
   "mcpServers": {
     "docker-local": {
-      "type": "sse",
-      "url": "http://localhost:3101/sse"  // Bypasses Cloudflare entirely
+      "type": "http",
+      "url": "http://localhost:3101/mcp"  // Bypasses Cloudflare entirely
     }
   }
 }
@@ -515,8 +559,8 @@ Use the Terraform-generated credentials for permanent OAuth setup:
 {
   "mcpServers": {
     "docker-remote": {
-      "type": "sse",
-      "url": "https://docker-mcp.rainforest.tools/sse",
+      "type": "http",
+      "url": "https://docker-mcp.rainforest.tools/mcp",
       "oauth": {
         "client_id": "3E4n4MoSYkyIXXBo",
         "client_secret": "jkpYLZKtgGJfi0gT6wKgIqEm8KGBimGt"
