@@ -30,8 +30,8 @@
       "url": "https://docs.mcp.cloudflare.com/sse"
     },
     "docker-remote": {
-      "type": "sse",
-      "url": "https://docker-mcp.rainforest.tools/sse"
+      "type": "http",
+      "url": "https://docker-mcp.rainforest.tools/mcp"
     }
   }
 }
