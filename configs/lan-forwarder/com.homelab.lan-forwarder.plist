@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LAN forwarder — launchd user agent giving Docker containers a route to the Pi.
+
+  The problem: Docker Desktop containers on this Mac cannot reach the LAN.
+  Tailscale and WireGuard hold `default` routes on utun interfaces and container
+  egress does not follow them. Measured: from inside a container,
+  `ping 192.168.0.128` is 100% packet loss and
+  `curl http://192.168.0.128:30080` fails, while the same curl from the host
+  returns 200 over en1.
+
+  This broke the Docker MCP Gateway's `grafana` server, whose container must
+  reach Grafana on the Pi. It reported:
+    list datasources: Get "http://192.168.0.128:30080/api/datasources":
+      dial tcp 192.168.0.128:30080: connect: connection refused
+
+  The fix: containers CAN reach `host.docker.internal`, so the host relays.
+  This agent listens on host port 30080 and forwards to the Pi's 30080. The
+  gateway profile then points at `http://host.docker.internal:30080`, matching
+  the pattern CLAUDE.md already documents for host-side services.
+
+  Port 30080 mirrors the Pi's port on purpose, so the two sides of the relay
+  read the same in config and logs.
+
+  --host 0.0.0.0 equivalent: the script binds 0.0.0.0, which is REQUIRED. A
+  127.0.0.1 bind is not reachable from the Docker Desktop VM.
+
+  If Tailscale/WireGuard routing is ever fixed so containers reach the LAN
+  directly, this agent and the host.docker.internal indirection can both be
+  dropped — set grafana.url back to the Pi's LAN address.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.homelab.lan-forwarder</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/rainforest/Repositories/rainforest-homelab/configs/lan-forwarder/lan-forwarder.py</string>
+        <string>30080</string>
+        <string>192.168.0.128</string>
+        <string>30080</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/rainforest</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/rainforest/Library/Logs/homelab-lan-forwarder.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/rainforest/Library/Logs/homelab-lan-forwarder.log</string>
+</dict>
+</plist>
