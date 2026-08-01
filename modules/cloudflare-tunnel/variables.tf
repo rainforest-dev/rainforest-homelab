@@ -61,12 +61,16 @@ variable "google_oauth_client_secret" {
 variable "services" {
   description = "Map of services to expose through Cloudflare Tunnel"
   type = map(object({
-    hostname     = string
-    service_url  = string
-    enable_auth  = bool
-    type         = string
+    hostname       = string
+    service_url    = string
+    enable_auth    = bool
+    type           = string
     internal       = optional(bool, false)
     allowed_emails = optional(list(string), [])
+    # Rewrite the Host header sent to the origin. Required by origins that reject
+    # unexpected Host values — e.g. the Docker MCP Gateway's streaming transport,
+    # whose DNS-rebinding guard accepts only localhost/127.0.0.1.
+    http_host_header = optional(string, "")
   }))
   default = {}
 }

@@ -94,6 +94,10 @@ locals {
         service_url = "http://host.docker.internal:3101" # launchd managed gateway (docker mcp gateway run)
         enable_auth = false                              # Auth handled by OAuth Worker layer
         type        = "docker"
+        # The streaming transport's DNS-rebinding guard accepts only localhost/127.0.0.1
+        # as Host. Without this rewrite cloudflared forwards the public hostname and the
+        # gateway answers 403 "invalid Host header" — after OAuth has already succeeded.
+        http_host_header = "localhost:3101"
       }
     },
 

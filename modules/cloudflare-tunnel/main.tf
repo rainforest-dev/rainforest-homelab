@@ -70,10 +70,15 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         hostname = "${ingress_rule.value.hostname}.${var.domain_suffix}"
         service  = ingress_rule.value.service_url
 
+        # NOTE: this remote (API-managed) tunnel configuration is what cloudflared
+        # actually serves. It overrides the ingress rules in the cloudflared-config
+        # ConfigMap even though the Deployment passes --config, so per-route options
+        # MUST be set here. Editing only the ConfigMap silently has no effect.
         dynamic "origin_request" {
-          for_each = startswith(ingress_rule.value.service_url, "https://") ? [1] : []
+          for_each = startswith(ingress_rule.value.service_url, "https://") || ingress_rule.value.http_host_header != "" ? [1] : []
           content {
-            no_tls_verify = true
+            no_tls_verify    = startswith(ingress_rule.value.service_url, "https://")
+            http_host_header = ingress_rule.value.http_host_header
           }
         }
       }
@@ -90,7 +95,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
 resource "cloudflare_record" "services" {
   for_each = {
     for name, config in var.services : name => config
-    if !lookup(config, "internal", false)  # Skip services marked as internal
+    if !lookup(config, "internal", false) # Skip services marked as internal
   }
 
   zone_id = local.zone_id
@@ -269,9 +274,14 @@ data:
 %{for name, config in var.services~}
       - hostname: ${config.hostname}.${var.domain_suffix}
         service: ${config.service_url}
-%{if startswith(config.service_url, "https://")~}
+%{if startswith(config.service_url, "https://") || config.http_host_header != ""~}
         originRequest:
+%{if startswith(config.service_url, "https://")~}
           noTLSVerify: true
+%{endif~}
+%{if config.http_host_header != ""~}
+          httpHostHeader: ${config.http_host_header}
+%{endif~}
 %{endif~}
 %{endfor~}
       - service: http_status:404
