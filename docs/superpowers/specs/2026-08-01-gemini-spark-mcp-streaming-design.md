@@ -1,16 +1,29 @@
 # Wiring the Docker MCP Gateway to Gemini Spark (SSE → Streamable HTTP)
 
 **Date:** 2026-08-01
-**Status:** DESIGN — approved, not yet implemented.
+**Status:** DESIGN — approved. **Revised after live verification: scope reduced to one change.**
 **Goal:** Make `docker-mcp.rainforest.tools` connectable as a Gemini Spark custom app.
 **Verified against:** the live stack on 2026-08-01 — running launchd gateway (pid 25711,
-`:3101`), the deployed OAuth Worker, and worktree `relaxed-cannon-823fd0` at `ed751ba`.
+`:3101`), the deployed OAuth Worker, the operator's Gemini Connected Apps page, and worktree
+`relaxed-cannon-823fd0` at `ed751ba`.
+
+## Revision note (read first)
+
+The first draft of this design identified **three** gaps and planned a risky
+`@cloudflare/workers-oauth-provider` upgrade to close one of them. Live verification refuted
+that gap and closed another. **Only the transport gap is real.**
+
+The decisive evidence: `calibre-mcp.rainforest.tools` is **already connected to Gemini Spark
+and syncing** (modal reads `Connected`, `Last synced: 8/1/2026, 2:42:51 PM`) while running the
+*same* OAuth Worker, the *same* `0.0.6` library, and serving *no* Protected Resource Metadata.
+It is a working reference implementation on our own infrastructure.
+
+Scope is therefore one plist string plus documentation. The Worker is not touched.
 
 ## Why this work exists
 
 Gemini Spark accepts custom MCP servers by URL under **Connected Apps → Custom apps for
-Spark**. Two properties of our gateway currently make it unconnectable, and a third is an
-external gate we do not control.
+Spark**. The gateway serves the wrong transport.
 
 ## Findings (measured, not assumed)
 
@@ -20,19 +33,38 @@ Every row below was probed against the live stack, not inferred from documentati
 |---|---|
 | Gateway `/sse` on `localhost:3101` | `200`, `text/event-stream` — works |
 | Gateway `/mcp` on `localhost:3101` | `307 → /sse`, then `400` — **not** streamable HTTP |
-| Worker `/.well-known/oauth-authorization-server` | `200`, advertises `registration_endpoint` (DCR works) |
-| Worker `/.well-known/oauth-protected-resource` | **`404`** |
-| Public `401` challenge on `/sse` and `/mcp` | `WWW-Authenticate: Bearer realm="OAuth"` — **no `resource_metadata=` parameter** |
 | Trial gateway with `--transport streaming` on `:3199` | `200` + `Mcp-Session-Id`, **163 tools** enumerated |
+| Worker `/.well-known/oauth-authorization-server` | `200`, advertises `registration_endpoint` (DCR works) |
+| Worker `/.well-known/oauth-protected-resource` | `404` — **and this turns out not to matter** |
+| Public `401` on `/sse` and `/mcp` | `WWW-Authenticate: Bearer realm="OAuth"`, no `resource_metadata=` |
+| Gemini → Connected Apps → Custom apps for Spark | **present**, with `Add a custom app` |
+| `calibre-mcp.rainforest.tools` in Spark | **Connected**, `Last synced: 8/1/2026, 2:42:51 PM` |
 
-### Gap 1 — transport
+### The reference implementation
+
+`calibre-mcp.rainforest.tools` and `docker-mcp.rainforest.tools` are served by the same OAuth
+Worker (`HOSTNAME_BACKENDS` in `workers/oauth-gateway/src/index.ts` routes `calibre-mcp` to
+`personal-calibre-internal`). Their `/.well-known/oauth-authorization-server` documents are
+byte-identical after hostname normalization, confirming one shared `0.0.6` stack.
+
+| Property | `calibre-mcp` (works in Spark) | `docker-mcp` (target) |
+|---|---|---|
+| OAuth Worker version | `0.0.6` | `0.0.6` (identical) |
+| `/.well-known/oauth-protected-resource` | `404` | `404` |
+| `/.well-known/oauth-authorization-server` | `200` | `200` |
+| `/mcp` unauthenticated | `401`, no `resource_metadata=` | `401`, no `resource_metadata=` |
+| Transport | **streamable HTTP** | **SSE** ← the only difference |
+
+The single controlled variable is transport. That is the whole fix.
+
+### Gap 1 — transport (REAL, the only blocker)
 
 Google's custom-MCP connector supports **Streamable HTTP only**. The gateway runs
 `--transport sse`.
 
 `docker mcp gateway run --transport` takes exactly one of `stdio|sse|streaming`. It is not a
-multiplexer: **one process cannot serve both transports.** This is the constraint that forces
-a cutover rather than an additive change.
+multiplexer: **one process cannot serve both transports.** This is what forces a cutover
+rather than an additive change.
 
 The redirect behaviour is symmetric and worth recording, because it makes failures look like
 successes:
@@ -44,28 +76,28 @@ An old SSE client after the flip therefore does **not** get a clean `404`. It fo
 redirect into a transport it cannot speak and fails obscurely. Expect confusing client-side
 errors, not obvious ones.
 
-### Gap 2 — OAuth 2.1 discovery
+### Gap 2 — OAuth 2.1 PRM (REFUTED, no action)
 
-Spark speaks OAuth 2.1, which discovers the authorization server via RFC 9728 Protected
-Resource Metadata: the `/.well-known/oauth-protected-resource` document plus the
-`resource_metadata=` hint in the `401` challenge. Both are absent.
+The first draft assumed Spark requires RFC 9728 Protected Resource Metadata, and planned a
+`0.0.6 → 0.8.3` library upgrade to provide it.
 
-Root cause is the pinned dependency: `@cloudflare/workers-oauth-provider@^0.0.6` (latest
-`0.8.3`). RFC 9728 support — including path-aware metadata and the `resource_metadata` hint
-in `WWW-Authenticate` — landed in that gap.
+`calibre-mcp` disproves this. It serves **no** PRM (`404`) and a `401` challenge with **no**
+`resource_metadata=` parameter, yet Spark connected to it and syncs successfully. Spark falls
+back to `/.well-known/oauth-authorization-server` — which `docker-mcp` already serves with a
+`200` — and completes Dynamic Client Registration via `/register`.
 
-Dynamic Client Registration itself already works, so once PRM exists Spark should
-self-register without manually provisioned credentials.
+**The Worker is not modified.** This removes the only step capable of taking all remote MCP
+access offline.
 
-### Gap 3 — account eligibility (external, unresolved)
+The upgrade remains worthwhile as independent hygiene (`0.0.6` is far behind `0.8.3`), but it
+is unrelated to Spark and must not be bundled into this change, where a login-flow regression
+would be misattributed to the transport flip.
 
-Google gates this feature on **18+, in the US, personal Google Account** (not Workspace).
-The operator is in Taipei on `contact@rainforest.tools`.
+### Gap 3 — account eligibility (CLOSED)
 
-**This is not fixable from this repo.** Confirm that
-**gemini.google.com/apps → Custom apps for Spark → Add a custom app** is visible before
-expecting a working Spark connection. Gaps 1 and 2 remain worth closing regardless — they are
-correctness fixes for *any* modern OAuth 2.1 MCP client, not Spark-specific hacks.
+Verified directly in the operator's browser: **Connected Apps → Custom apps for Spark** is
+present, with a working `Add a custom app` control and one app already connected. The
+US-only/personal-account gate does not block this account.
 
 ## Blast radius
 
@@ -82,16 +114,17 @@ Nothing else on the machine consumes the SSE endpoint.
 
 **Explicitly unaffected:** `~/.gemini/config/mcp_config.json` runs
 `docker mcp gateway run --profile antigravity` over **stdio**, on a *different profile*. `agy`
-does not touch `:3101` or the SSE URL. Other repos' `.mcp.json` files contain no
-`docker-mcp` reference (`rainforest-monorepo` points at `calibre-mcp`, a separate service).
-Other hits under `.claude/worktrees/` are copies of this repo.
+does not touch `:3101` or the SSE URL. Other repos' `.mcp.json` files contain no `docker-mcp`
+reference (`rainforest-monorepo` points at `calibre-mcp`, a separate service — and one that
+must keep working, since it is the Spark reference implementation). Other hits under
+`.claude/worktrees/` are copies of this repo.
 
 ## Worktree safety
 
 The July gateway spec was authored from a stale worktree and nearly reverted ~26 files of
 in-flight work. That hazard was checked for here and does **not** apply:
 
-- All five target files are byte-identical between this worktree and the main checkout.
+- All target files are byte-identical between this worktree and the main checkout.
 - The worktree is at `ed751ba`, which already contains main's `39b64cd`.
 - The only dirty path in the main checkout is `modules/comfyui/server` (unrelated submodule).
 
@@ -108,79 +141,59 @@ Everything else stays: port `3101`, `--host 0.0.0.0`, `--allow-unauthenticated`,
 `docker-mcp-internal → host.docker.internal:3101` in `locals.tf` needs **no change** and no
 `terraform apply` is required.
 
-Extend the plist's comment block to record why streaming was chosen (Spark requires it; OAuth
-2.1 clients generally expect it), keeping the file's existing convention of explaining
-non-obvious choices inline.
+Extend the plist's comment block to record why streaming was chosen, keeping the file's
+existing convention of explaining non-obvious choices inline.
 
 Deploy: copy to `~/Library/LaunchAgents/`, then
 `launchctl kickstart -k gui/$(id -u)/com.homelab.docker-mcp-gateway`.
 
-### 2. Worker OAuth upgrade
+### 2. Client and documentation updates
 
-**Files:** `workers/oauth-gateway/package.json`, `workers/oauth-gateway/src/index.ts`
+Flip the seven references in the blast-radius table from `/sse` → `/mcp` and
+`"type": "sse"` → `"type": "http"`. Note `.mcp.json` needs **both** lines changed — changing
+only the URL leaves the client still negotiating SSE against a streaming endpoint.
 
-Bump `@cloudflare/workers-oauth-provider` from `^0.0.6` to `^0.8.3` and adapt the
-`new OAuthProvider({...})` construction (`index.ts:75-86`, the file's default export) to the
-current API. This yields
-`/.well-known/oauth-protected-resource` and the `resource_metadata=` hint as library
-built-ins rather than a hand-rolled shim on a pinned old dependency.
+Add a short CLAUDE.md subsection under the existing "Docker MCP Gateway" heading recording:
 
-No routing change is needed: `apiHandlers` already registers `/mcp`. That route is presently a
-dead end only because the *backend* 307s it away — step 1 fixes that, and the route starts
-working with no edit.
+- the gateway serves **streamable HTTP** at `/mcp`
+- `--transport` is single-valued, so SSE and streaming cannot coexist on one process
+- the symmetric-redirect gotcha, so a future reader does not misread a `307` as a working
+  endpoint
+- that Spark needs no PRM, with `calibre-mcp` cited as the precedent — so nobody re-derives
+  the refuted Gap 2 later
 
-`mcpProxyHandler` needs no changes. It forwards method, headers and body verbatim and is
-transport-agnostic; the `X-Forwarded-*` / `X-GitHub-*` header injection and hostname-based
-backend routing are unaffected.
-
-### 3. Client and documentation updates
-
-Flip the six references in the blast-radius table from `/sse` → `/mcp` and
-`"type": "sse"` → `"type": "http"`.
-
-Add a short CLAUDE.md subsection under the existing "Docker MCP Gateway" heading recording
-that the gateway serves **streamable HTTP**, that `--transport` is single-valued, and the
-symmetric-redirect gotcha — so a future reader debugging a client does not misread a `307` as
-a working endpoint.
-
-### 4. Sequencing
-
-Step 1 before step 2, deliberately. The transport flip is trivially reversible and
-independently verifiable; the Worker upgrade touches the auth path guarding *all* remote MCP
-access. Sequencing them separately keeps any failure attributable to one change.
-
-### 5. Verification
+### 3. Verification
 
 Each check gates the next:
 
 1. `curl` `localhost:3101/mcp` initialize → `200` + `Mcp-Session-Id` (transport flip works)
 2. `tools/list` over that session → expect ~163 tools (servers still load; no name collision)
-3. `curl` public `/mcp` unauthenticated → `401` whose `WWW-Authenticate` **contains
-   `resource_metadata=`** (upgrade works)
-4. `curl` public `/.well-known/oauth-protected-resource` → `200` (currently `404`)
-5. **Re-run the GitHub OAuth login end-to-end.** Not optional — the upgrade modifies the auth
-   path, and metadata endpoints returning `200` does not prove the login flow survived.
-6. Reconnect `docker-remote` in Claude Code; confirm tools resolve.
-7. Add `https://docker-mcp.rainforest.tools/mcp` in Gemini Spark (gated on Gap 3).
+3. `curl` public `/mcp` unauthenticated → `401` (Worker untouched, should be unchanged)
+4. Reconnect `docker-remote` in Claude Code with `"type": "http"`; confirm tools resolve
+5. Add `https://docker-mcp.rainforest.tools/mcp` in Gemini Spark → **Add a custom app**,
+   matching the URL shape `calibre-mcp` already uses successfully
+6. Confirm the new app shows `Connected` with a fresh `Last synced` timestamp
 
-### 6. Rollback
+No OAuth login re-test is required, because the Worker is not modified.
 
-- **Gateway:** revert the plist string, `launchctl kickstart -k`. ~30 seconds.
-- **Worker:** `git revert`, `wrangler deploy`. ~30 seconds.
+### 4. Rollback
 
-Both are independent, matching the sequencing rationale.
+Revert the plist string and `launchctl kickstart -k`. ~30 seconds, single file, no deploy.
 
 ## Risks
 
 | Risk | Severity | Mitigation |
 |---|---|---|
-| Worker upgrade breaks the GitHub login flow, taking `docker-mcp.rainforest.tools` offline | High | Sequenced second, verified independently, fast `git revert` + redeploy |
 | A forgotten SSE client fails obscurely via the `307` rather than a clean error | Low | Inventory is complete and small; gotcha documented in CLAUDE.md |
-| Spark rejects the server for an undocumented reason (no client-side logs) | Medium | Steps 1–6 verify our side against the spec independently of Spark |
-| Gap 3 blocks the connection entirely | Medium | External; unblocks nothing else — steps 1–3 remain correct regardless |
+| Streaming gateway behaves differently under sustained load than in the `:3199` trial | Low | Trial enumerated all 163 tools cleanly; rollback is one string |
+| Spark rejects the server for an undocumented reason | Low | `calibre-mcp` proves the exact Worker + DCR + URL shape already works |
+
+Removing the Worker upgrade eliminated the only High-severity risk in the original design.
 
 ## Out of scope
 
-- Migrating other MCP endpoints (`calibre-mcp`, `obsidian`) to streamable HTTP.
+- Upgrading `@cloudflare/workers-oauth-provider` (worthwhile hygiene; unrelated to Spark —
+  track separately so a login regression is never misattributed to this change).
+- Migrating other MCP endpoints (`obsidian`) to streamable HTTP.
 - Changing Zero Trust or tunnel topology.
 - Adding new MCP servers to the `default` profile.
