@@ -235,12 +235,12 @@ The Docker MCP Gateway provides **remote Docker operations** via the Model Conte
 - **Remote Docker Control**: Manage containers from any MCP-compatible client
 - **OAuth Authentication**: Secure access with Cloudflare Zero Trust
 - **132+ Tools**: Includes GitHub, Terraform, Obsidian, Playwright, and Sequential Thinking tools
-- **Multiple Transports**: SSE and HTTP streaming support
+- **Streamable HTTP**: single-transport gateway; `--transport` takes one value, so SSE is not served concurrently
 - **Claude Compatible**: Works with Claude web, desktop, and mobile apps
 
 ### Usage
-1. **OAuth-Protected (Recommended)**: `https://docker-mcp.rainforest.tools/sse`
-2. **Local Development**: `http://localhost:3100/sse` (bypasses authentication)
+1. **OAuth-Protected (Recommended)**: `https://docker-mcp.rainforest.tools/mcp`
+2. **Local Development**: `http://localhost:3101/mcp` (bypasses authentication)
 
 ### OAuth Setup for Docker MCP Gateway (Terraform Approach)
 
@@ -274,7 +274,7 @@ The Docker MCP Gateway provides **remote Docker operations** via the Model Conte
    - Sets up custom domain `docker-mcp.yourdomain.com`
    - Manages configuration through Infrastructure as Code
 
-4. **Access OAuth-protected endpoint**: `https://docker-mcp.yourdomain.com/sse`
+4. **Access OAuth-protected endpoint**: `https://docker-mcp.yourdomain.com/mcp`
 
 #### Manual Setup (Deprecated)
 <details>
@@ -311,7 +311,7 @@ The Terraform deployment automatically creates and configures:
 
 #### Usage After Terraform Deployment
 
-- **OAuth-Protected URL**: `https://docker-mcp.yourdomain.com/sse`
+- **OAuth-Protected URL**: `https://docker-mcp.yourdomain.com/mcp`
 - **Authentication**: Automatic OAuth flow with Cloudflare Access
 - **Configuration**: Centrally managed via `terraform.tfvars`
 
