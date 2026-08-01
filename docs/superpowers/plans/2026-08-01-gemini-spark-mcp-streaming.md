@@ -41,12 +41,26 @@
 
 Run:
 ```bash
-curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\n" -X POST http://localhost:3101/mcp -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' --max-time 8
+curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\n" -X POST http://localhost:3101/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"1"}}}' \
+  --max-time 8
 ```
 
 Expected: `307 -> http://localhost:3101/sse`
 
 This is the defect. If you instead get `200`, the flip has already been applied — skip to Task 2.
+
+> **Always send a complete `initialize` — never `"params":{}`.**
+> Gateway v0.43.3 has an upstream bug: `telemetry.RecordInitialize`
+> (`pkg/telemetry/telemetry.go:549`) dereferences `clientInfo` without a nil
+> check, so an `initialize` with empty params **SIGSEGVs the gateway process**.
+> Under SSE this is invisible (the request 307s before it is ever parsed); under
+> streaming it is parsed and kills the process, which `KeepAlive` then restarts —
+> looking exactly like "streaming transport is broken". It is not. Real clients
+> (Claude Code, Gemini Spark) always send `clientInfo`. Reproduced and confirmed
+> 2026-08-01. Every curl in this plan sends full params for this reason.
 
 - [ ] **Step 2: Change the transport string**
 
@@ -95,14 +109,34 @@ grep -A1 -- '--transport' ~/Library/LaunchAgents/com.homelab.docker-mcp-gateway.
 
 Expected output contains `<string>streaming</string>`. If it still says `sse`, the copy in Step 4 did not happen — do not continue.
 
-- [ ] **Step 6: Restart the gateway**
+- [ ] **Step 6: Reload the gateway (NOT `kickstart`)**
 
 Run:
 ```bash
-launchctl kickstart -k gui/$(id -u)/com.homelab.docker-mcp-gateway
+launchctl bootout gui/$(id -u)/com.homelab.docker-mcp-gateway 2>/dev/null
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.homelab.docker-mcp-gateway.plist
 ```
 
 Produces no output on success.
+
+> **`launchctl kickstart -k` will NOT work here.** It restarts the process from
+> launchd's already-loaded, in-memory job definition — it does not re-read the
+> plist from disk. After a `kickstart`, the gateway silently keeps running the
+> **old** `--transport sse` while reporting success, which is indistinguishable
+> from the change having worked. `bootout` + `bootstrap` is the correct sequence
+> when the plist file itself changed. (`kickstart -k` remains fine for restarting
+> after a *profile or Keychain* change, where the plist is unchanged — which is
+> why CLAUDE.md documents it; Task 4 clarifies that distinction.)
+
+- [ ] **Step 6b: Prove the running process actually picked up the new flag**
+
+Run:
+```bash
+ps -o command= -p "$(pgrep -f 'docker-mcp-gateway|mcp gateway run' | head -1)" | tr ' ' '\n' | grep -A1 -- '--transport'
+```
+
+Expected: `--transport` followed by `streaming`. If it says `sse`, Step 6 did not
+take effect — do not continue to Task 2.
 
 - [ ] **Step 7: Commit**
 
@@ -335,6 +369,29 @@ to:
       "url": "https://docker-mcp.rainforest.tools/mcp",
 ```
 
+- [ ] **Step 4b: Correct the restart instruction at line 300**
+
+CLAUDE.md currently says:
+
+```markdown
+- **Restart / apply config changes:** `launchctl kickstart -k gui/$(id -u)/com.homelab.docker-mcp-gateway`
+```
+
+That is right for profile/Keychain changes but **wrong for plist changes**, and the
+difference is silent. Replace with:
+
+```markdown
+- **Restart after a profile/Keychain change:** `launchctl kickstart -k gui/$(id -u)/com.homelab.docker-mcp-gateway`
+- **Reload after editing the plist:** `kickstart` does **not** re-read the plist from
+  disk — it restarts from launchd's in-memory job definition, so the gateway keeps
+  running the old arguments while appearing to succeed. Use:
+  ```bash
+  launchctl bootout gui/$(id -u)/com.homelab.docker-mcp-gateway 2>/dev/null
+  launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.homelab.docker-mcp-gateway.plist
+  ```
+  Then confirm with `ps -o command= -p "$(pgrep -f 'mcp gateway run' | head -1)"`.
+```
+
 - [ ] **Step 5: Add the transport subsection**
 
 Insert immediately after the `- **Logs:**` bullet (line 302) and before `### Config and secrets (profile + Keychain, never in git)`:
@@ -531,8 +588,12 @@ If anything in Tasks 1-2 misbehaves:
 ```bash
 git revert --no-edit HEAD
 cp configs/docker-mcp-gateway/com.homelab.docker-mcp-gateway.plist ~/Library/LaunchAgents/com.homelab.docker-mcp-gateway.plist
-launchctl kickstart -k gui/$(id -u)/com.homelab.docker-mcp-gateway
+launchctl bootout gui/$(id -u)/com.homelab.docker-mcp-gateway 2>/dev/null
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.homelab.docker-mcp-gateway.plist
 ```
+
+`bootout` + `bootstrap`, not `kickstart` — the plist file changed, so launchd must
+re-read it from disk.
 
 Then confirm SSE is back:
 
