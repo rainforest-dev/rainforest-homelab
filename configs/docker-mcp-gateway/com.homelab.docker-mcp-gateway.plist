@@ -27,6 +27,13 @@
   Secrets live in the Keychain (docker mcp secret set), config in the `default`
   profile (docker mcp profile config default --set). Neither is in this file or
   in git.
+
+  --transport streaming (not sse): Gemini Spark's custom-MCP connector speaks
+  Streamable HTTP only, and modern OAuth 2.1 MCP clients expect it. `--transport`
+  takes a SINGLE value — one process cannot serve both SSE and streaming — so
+  this is a cutover. The gateway now serves /mcp; /sse 307-redirects to it, which
+  means stale SSE clients fail obscurely rather than cleanly. Port 3101 is
+  unchanged, so the Cloudflare Tunnel route needs no edit.
 -->
 <plist version="1.0">
 <dict>
@@ -41,7 +48,7 @@
         <string>--profile</string>
         <string>default</string>
         <string>--transport</string>
-        <string>sse</string>
+        <string>streaming</string>
         <string>--port</string>
         <string>3101</string>
         <string>--host</string>
