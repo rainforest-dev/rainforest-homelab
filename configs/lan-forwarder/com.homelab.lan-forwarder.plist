@@ -4,11 +4,21 @@
   LAN forwarder — launchd user agent giving Docker containers a route to the Pi.
 
   The problem: Docker Desktop containers on this Mac cannot reach the LAN.
-  Tailscale and WireGuard hold `default` routes on utun interfaces and container
-  egress does not follow them. Measured: from inside a container,
-  `ping 192.168.0.128` is 100% packet loss and
+  Measured: from inside a container, `ping 192.168.0.128` is 100% packet loss and
   `curl http://192.168.0.128:30080` fails, while the same curl from the host
   returns 200 over en1.
+
+  The cause is macOS Local Network privacy, NOT routing. The same forwarder
+  script reaches the Pi when started from an already-permitted shell, and fails
+  with `[Errno 65] No route to host` when started by launchd — a launchd-spawned
+  process is its own responsible process with no Local Network grant. Tailscale
+  and WireGuard utun default routes look like a plausible cause and are not it;
+  that theory was tested and refuted.
+
+  CONSEQUENCE: this agent does nothing useful until its interpreter has been
+  granted Local Network permission (System Settings -> Privacy & Security ->
+  Local Network). Without it the agent starts, binds, accepts connections, and
+  fails every upstream connect. Check the log before trusting it.
 
   This broke the Docker MCP Gateway's `grafana` server, whose container must
   reach Grafana on the Pi. It reported:
@@ -26,7 +36,7 @@
   --host 0.0.0.0 equivalent: the script binds 0.0.0.0, which is REQUIRED. A
   127.0.0.1 bind is not reachable from the Docker Desktop VM.
 
-  If Tailscale/WireGuard routing is ever fixed so containers reach the LAN
+  If Docker Desktop ever gains Local Network access so containers reach the LAN
   directly, this agent and the host.docker.internal indirection can both be
   dropped — set grafana.url back to the Pi's LAN address.
 -->
