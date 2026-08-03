@@ -450,22 +450,54 @@ from a plain `alpine` container:
 The symptom is
 `list datasources: Get "http://192.168.0.128:30080/api/datasources": dial tcp ...: connect: connection refused`.
 
-**This is macOS Local Network privacy, not routing.** The same forwarder script
-reaches the Pi fine when started from an already-permitted shell, and fails with
-`[Errno 65] No route to host` when started by launchd — the launchd-spawned process
-is its own responsible process with no Local Network grant. Docker Desktop's VM
-egress hits the same gate. Tailscale/WireGuard `utun` default routes look like a
-plausible cause and are **not** it; that theory was tested and refuted.
+**PROVEN: the packets never leave this Mac.** Captured on `en1` while firing one
+probe from a container and one from the host, seconds apart:
 
-The workaround is a host-side relay, since containers *can* reach
-`host.docker.internal`: `configs/lan-forwarder/` forwards host `:30080` to the Pi's
-`:30080`, and `grafana.url` becomes `http://host.docker.internal:30080`.
+| Probe | Packets on `en1` | Result |
+|---|---|---|
+| from the host | **10** — full SYN / SYN-ACK / data / FIN | `200` |
+| from a container | **0** | timeout |
 
-**The launchd agent only works once its interpreter has Local Network permission**
-(System Settings → Privacy & Security → Local Network). Until then the agent starts,
-binds, accepts connections, and fails every upstream connect — check
-`~/Library/Logs/homelab-lan-forwarder.log` for `No route to host` before assuming
-the relay is healthy.
+So the drop happens **inside the Mac**. Everything downstream is innocent and
+cannot fix it: not the router, not the Pi's UFW (which explicitly allows
+`30000:32767/tcp` and `8123/tcp` from Anywhere), not CrowdSec (`cscli` is not even
+installed on the Pi). The Pi's UFW log records plenty of other traffic and **zero**
+packets from `192.168.0.126` — it never receives anything to block.
+
+Re-run this test any time the theory is in doubt — it turns "is it us or them?"
+into a binary fact in about 10 seconds:
+
+```bash
+sudo tcpdump -i en1 -nn "host <PI_IP> and tcp port 30080"
+# then, in another shell, probe once from a container and once from the host
+```
+
+Also refuted, each tested: Tailscale/WireGuard `utun` default routes; a missing
+macOS Local Network grant for Docker (the toggle is ON in System Settings);
+Docker Desktop needing a restart to pick that grant up (restarted, no change);
+the router refusing to hairpin same-subnet traffic (the packets never reach it).
+
+**Still unresolved: which Mac-side mechanism drops them.** The failure is a
+*silent* drop — containers see a timeout, not `Network unreachable` — and the
+allowed set is exactly "default gateway + routed traffic", with same-subnet peers
+blocked. Nonexistent LAN IPs correctly give no reply, so the stack is not faking.
+Do not write a root cause here until it is proven; three plausible ones were
+already wrong.
+
+The current mitigation is a host-side relay — **a workaround, not a fix**. Since the
+host reaches the Pi and containers reach `host.docker.internal`,
+`configs/lan-forwarder/` forwards host `:30080` to the Pi's `:30080`, and
+`grafana.url` becomes `http://host.docker.internal:30080`.
+
+**The relay is not yet durable.** The launchd agent hits the same Mac-side drop:
+it starts, binds, accepts connections, and fails every upstream connect with
+`[Errno 65] No route to host`, while the identical script run from an
+already-permitted shell succeeds. `launchctl list` looks healthy either way — check
+`~/Library/Logs/homelab-lan-forwarder.log` before assuming the relay works.
+
+That per-process split (permitted shell works, launchd does not) is the strongest
+remaining clue to the root cause and is worth chasing before investing more in the
+relay.
 
 The same trap applies to **any** MCP server that needs a service on another machine.
 The old rule of thumb "service on another machine → its LAN IP" does not hold on this
