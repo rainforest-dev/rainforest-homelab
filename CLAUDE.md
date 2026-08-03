@@ -477,12 +477,23 @@ macOS Local Network grant for Docker (the toggle is ON in System Settings);
 Docker Desktop needing a restart to pick that grant up (restarted, no change);
 the router refusing to hairpin same-subnet traffic (the packets never reach it).
 
-**Still unresolved: which Mac-side mechanism drops them.** The failure is a
-*silent* drop — containers see a timeout, not `Network unreachable` — and the
-allowed set is exactly "default gateway + routed traffic", with same-subnet peers
-blocked. Nonexistent LAN IPs correctly give no reply, so the stack is not faking.
-Do not write a root cause here until it is proven; three plausible ones were
-already wrong.
+**Root cause: an upstream Docker Desktop regression, not this homelab's config.**
+[docker/for-mac#7836](https://github.com/docker/for-mac/issues/7836) — containers
+reach the internet and `host.docker.internal` but cannot reach `192.168.x.x`.
+Broken in **4.57.0**, working in **4.56.0**; this Mac runs **4.84.0**, so it is
+affected. The issue is still open and untriaged, with no official fix.
+
+That issue also records the settings that do **not** help, which covers everything
+worth trying locally: `HostNetworkingEnabled` true *or* false, `KernelForUDP: true`,
+and restarting `vmnetd`. Its reporter independently landed on the same mitigation
+used here — host-side port forwarding via `host.docker.internal`.
+
+Options, none of them free:
+- **Downgrade to 4.56.0** — the only true root-cause removal, at the cost of every
+  fix and feature since, and a re-upgrade once Docker ships a patch.
+- **Wait for upstream** and keep the relay.
+- **Move the consumer to the Pi** so nothing on this Mac needs LAN access —
+  architectural avoidance rather than a fix, but not hostage to Docker's timeline.
 
 The current mitigation is a host-side relay — **a workaround, not a fix**. Since the
 host reaches the Pi and containers reach `host.docker.internal`,
