@@ -3,10 +3,17 @@
 
 Why this exists
 ---------------
-Docker Desktop containers on this Mac cannot reach the LAN. Tailscale (and
-WireGuard) hold `default` routes on utun interfaces, and container egress does
-not follow them: from inside a container `ping 192.168.0.128` is 100% loss,
-while the host reaches it fine over en1.
+Docker Desktop containers on this Mac cannot reach the LAN: from inside a
+container `ping 192.168.0.128` is 100% loss, while the host reaches it fine
+over en1.
+
+The cause is macOS Local Network privacy, not routing. This same script reaches
+the Pi when started from an already-permitted shell and fails with
+`[Errno 65] No route to host` under launchd, because a launchd-spawned process
+is its own responsible process with no Local Network grant. Grant it in
+System Settings -> Privacy & Security -> Local Network, and check the log:
+without the grant this process still starts and binds, it just cannot connect
+upstream.
 
 Containers CAN reach `host.docker.internal`. So the host relays: a container
 connects to `host.docker.internal:<local_port>` and this process forwards to

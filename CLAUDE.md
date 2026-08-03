@@ -221,6 +221,32 @@ service_url = "http://service-name.homelab.svc.cluster.local:port"
 
 This pattern ensures consistency and eliminates the need to update multiple locations when adding services.
 
+- `http_host_header`: Rewrite the `Host` sent to the origin. Needed by origins that
+  reject unexpected `Host` values — see the Docker MCP Gateway's DNS-rebinding guard.
+
+**⚠️ The remote tunnel config overrides the ConfigMap — edit the right one.**
+
+Ingress is defined in **two** places in `modules/cloudflare-tunnel/main.tf`:
+
+| Resource | Authoritative? |
+|---|---|
+| `cloudflare_zero_trust_tunnel_cloudflared_config.homelab` (API-managed) | **YES** |
+| `kubectl_manifest.cloudflared_config` (the `cloudflared-config` ConfigMap) | No |
+
+The Deployment passes `--config /etc/cloudflared/config/config.yaml`, which makes
+the ConfigMap *look* authoritative. It is not: this tunnel has a remote
+configuration, and cloudflared fetches and applies that instead, logging
+`Updated to new configuration ... version=N` at startup. **Editing only the
+ConfigMap silently does nothing** — a live `kubectl patch` of it was verified to
+have zero effect. Per-route options must go in the remote config resource, which
+means a `terraform apply`. Both are kept in sync so the local file is correct if
+the remote config is ever removed.
+
+To see what cloudflared is actually serving:
+```bash
+kubectl logs -n homelab -l app=cloudflared --tail=100 | grep -o "Updated to new configuration.*version=[0-9]*"
+```
+
 **Cloudflare Tunnel Features:**
 - **Automatic SSL**: Real certificates from Cloudflare for all services
 - **Zero Trust Ready**: Email authentication for sensitive services  
@@ -332,6 +358,25 @@ looks exactly like "streaming is broken". Always send a full `protocolVersion` +
 cannot reach this: the OAuth Worker returns 401 first. LAN access to `:3101` can,
 which is the pre-existing accepted risk of `--allow-unauthenticated`.
 
+**Gotcha — streaming validates the `Host` header (DNS-rebinding guard).** The
+streaming transport accepts only `localhost:<port>` and `127.0.0.1:<port>` as
+`Host`; anything else gets `403 Forbidden: invalid Host header "<value>"`.
+Measured against `:3101`:
+
+| `Host` | Result |
+|---|---|
+| `localhost:3101`, `127.0.0.1:3101` | `200` |
+| `docker-mcp-internal.rainforest.tools` | `403` |
+| `host.docker.internal:3101` | `403` |
+
+cloudflared forwards the public hostname, so the tunnel route **must** rewrite it.
+`locals.tf` sets `http_host_header = "localhost:3101"` on `docker-mcp-internal`
+for exactly this. SSE had no such check, so this only appears after a cutover to
+streaming — and it fires *after* OAuth succeeds, which is why a client like Spark
+fails late and opaquely. A `401` from the public endpoint proves only that the
+Worker is guarding the route; it does **not** prove the backend is reachable.
+Verify the authenticated path separately.
+
 **Gemini Spark does not need Protected Resource Metadata.** Spark's custom-MCP
 connector requires streamable HTTP, but *not* RFC 9728 PRM. The OAuth Worker
 returns 404 for `/.well-known/oauth-protected-resource` and omits
@@ -383,11 +428,91 @@ only an authenticated call like `n8n_list_workflows` proves the token works.
 
 ### Grafana specifics
 
-Grafana itself runs on the Raspberry Pi. `grafana.url` must be the Pi's LAN address
-(`http://<PI_IP>:30080`), not `gfn.rainforest.tools` — the gateway's grafana
-container connects directly, and going through Cloudflare would hit Access. Use a
-**Viewer** (read-only) service-account token; the gateway exposes all tools including
-writes, so a read-only token is the guard against accidental mutation.
+Grafana runs on the Raspberry Pi. Use a **Viewer** (read-only) service-account
+token; the gateway exposes all tools including writes, so a read-only token is the
+guard against accidental mutation. Never point `grafana.url` at
+`gfn.rainforest.tools` — that goes through Cloudflare Access and the MCP server
+chokes on the login HTML.
+
+**⚠️ Containers on this Mac cannot reach the LAN — do NOT use the Pi's LAN address.**
+
+`grafana.url = http://<PI_IP>:30080` looks right and fails. The gateway spawns each
+MCP server as a container, and containers here have no route to the LAN. Measured
+from a plain `alpine` container:
+
+| From | To | Result |
+|---|---|---|
+| container | `ping 192.168.0.128` | **100% packet loss** |
+| container | `curl 192.168.0.128:30080` | fails |
+| container | `ping host.docker.internal` | works |
+| host (this shell) | `curl 192.168.0.128:30080` | `200` in 35ms |
+
+The symptom is
+`list datasources: Get "http://192.168.0.128:30080/api/datasources": dial tcp ...: connect: connection refused`.
+
+**PROVEN: the packets never leave this Mac.** Captured on `en1` while firing one
+probe from a container and one from the host, seconds apart:
+
+| Probe | Packets on `en1` | Result |
+|---|---|---|
+| from the host | **10** — full SYN / SYN-ACK / data / FIN | `200` |
+| from a container | **0** | timeout |
+
+So the drop happens **inside the Mac**. Everything downstream is innocent and
+cannot fix it: not the router, not the Pi's UFW (which explicitly allows
+`30000:32767/tcp` and `8123/tcp` from Anywhere), not CrowdSec (`cscli` is not even
+installed on the Pi). The Pi's UFW log records plenty of other traffic and **zero**
+packets from `192.168.0.126` — it never receives anything to block.
+
+Re-run this test any time the theory is in doubt — it turns "is it us or them?"
+into a binary fact in about 10 seconds:
+
+```bash
+sudo tcpdump -i en1 -nn "host <PI_IP> and tcp port 30080"
+# then, in another shell, probe once from a container and once from the host
+```
+
+Also refuted, each tested: Tailscale/WireGuard `utun` default routes; a missing
+macOS Local Network grant for Docker (the toggle is ON in System Settings);
+Docker Desktop needing a restart to pick that grant up (restarted, no change);
+the router refusing to hairpin same-subnet traffic (the packets never reach it).
+
+**Root cause: an upstream Docker Desktop regression, not this homelab's config.**
+[docker/for-mac#7836](https://github.com/docker/for-mac/issues/7836) — containers
+reach the internet and `host.docker.internal` but cannot reach `192.168.x.x`.
+Broken in **4.57.0**, working in **4.56.0**; this Mac runs **4.84.0**, so it is
+affected. The issue is still open and untriaged, with no official fix.
+
+That issue also records the settings that do **not** help, which covers everything
+worth trying locally: `HostNetworkingEnabled` true *or* false, `KernelForUDP: true`,
+and restarting `vmnetd`. Its reporter independently landed on the same mitigation
+used here — host-side port forwarding via `host.docker.internal`.
+
+Options, none of them free:
+- **Downgrade to 4.56.0** — the only true root-cause removal, at the cost of every
+  fix and feature since, and a re-upgrade once Docker ships a patch.
+- **Wait for upstream** and keep the relay.
+- **Move the consumer to the Pi** so nothing on this Mac needs LAN access —
+  architectural avoidance rather than a fix, but not hostage to Docker's timeline.
+
+The current mitigation is a host-side relay — **a workaround, not a fix**. Since the
+host reaches the Pi and containers reach `host.docker.internal`,
+`configs/lan-forwarder/` forwards host `:30080` to the Pi's `:30080`, and
+`grafana.url` becomes `http://host.docker.internal:30080`.
+
+**The relay is not yet durable.** The launchd agent hits the same Mac-side drop:
+it starts, binds, accepts connections, and fails every upstream connect with
+`[Errno 65] No route to host`, while the identical script run from an
+already-permitted shell succeeds. `launchctl list` looks healthy either way — check
+`~/Library/Logs/homelab-lan-forwarder.log` before assuming the relay works.
+
+That per-process split (permitted shell works, launchd does not) is the strongest
+remaining clue to the root cause and is worth chasing before investing more in the
+relay.
+
+The same trap applies to **any** MCP server that needs a service on another machine.
+The old rule of thumb "service on another machine → its LAN IP" does not hold on this
+host; route it through the relay instead.
 
 ### Gotcha: tool-name collisions
 
@@ -444,7 +569,9 @@ each server as a container, so the value is resolved *from inside a container*:
 - Service on **this Mac's host** (a `docker run -p` container, or a K8s `LoadBalancer`
   service Docker Desktop binds to localhost) → `http://host.docker.internal:<port>`.
   K8s `ClusterIP` is NOT reachable — switch it to `LoadBalancer` first.
-- Service on **another machine** (e.g. the Pi) → its LAN IP, `http://<PI_IP>:<port>`.
+- Service on **another machine** (e.g. the Pi) → **NOT its LAN IP.** Containers here
+  have no route to the LAN (see "Grafana specifics"). Add a `configs/lan-forwarder/`
+  entry and use `http://host.docker.internal:<relay_port>`.
 - **Never** point at a `*.rainforest.tools` tunnel URL for the API — Cloudflare Access will
   302-redirect and the MCP server will choke on the HTML.
 
