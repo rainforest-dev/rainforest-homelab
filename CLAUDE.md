@@ -491,24 +491,75 @@ used here — host-side port forwarding via `host.docker.internal`.
 Options, none of them free:
 - **Downgrade to 4.56.0** — the only true root-cause removal, at the cost of every
   fix and feature since, and a re-upgrade once Docker ships a patch.
-- **Wait for upstream** and keep the relay.
+- **Wait for upstream** and keep the tunnel below.
 - **Move the consumer to the Pi** so nothing on this Mac needs LAN access —
   architectural avoidance rather than a fix, but not hostage to Docker's timeline.
 
-The current mitigation is a host-side relay — **a workaround, not a fix**. Since the
-host reaches the Pi and containers reach `host.docker.internal`,
-`configs/lan-forwarder/` forwards host `:30080` to the Pi's `:30080`, and
-`grafana.url` becomes `http://host.docker.internal:30080`.
+#### The mitigation: an SSH tunnel (`configs/grafana-tunnel/`)
 
-**The relay is not yet durable.** The launchd agent hits the same Mac-side drop:
-it starts, binds, accepts connections, and fails every upstream connect with
-`[Errno 65] No route to host`, while the identical script run from an
-already-permitted shell succeeds. `launchctl list` looks healthy either way — check
-`~/Library/Logs/homelab-lan-forwarder.log` before assuming the relay works.
+Containers reach `host.docker.internal`, so the host bridges the gap. A launchd
+agent holds `ssh -N rpi5-tunnel` open, binding host `0.0.0.0:30080` and forwarding
+to the Pi's `localhost:30080`; `grafana.url` is `http://host.docker.internal:30080`.
+All connection detail lives in `~/.ssh/config` under `Host rpi5-tunnel`, so the
+plist stays a one-liner.
 
-That per-process split (permitted shell works, launchd does not) is the strongest
-remaining clue to the root cause and is worth chasing before investing more in the
-relay.
+**Why ssh and not the old Python relay — the transport is the whole point.**
+`configs/lan-forwarder/` (removed, see git history) did the same job as a socket
+pump and could never work unattended: under launchd it bound the port, accepted
+connections, and failed every upstream connect with `[Errno 65] No route to host`,
+while the identical script from an interactive shell succeeded.
+
+That split was misread as a launchd problem. **It is a *binary* problem.** macOS
+Local Network privacy gates `/usr/bin/python3` as a generic interpreter with no
+grant; `/usr/bin/ssh` is an Apple-signed platform binary and is not gated the same
+way. The measurement that settles it — a launchd-spawned ssh to the Pi returns:
+
+```
+rainforest@192.168.0.128: Permission denied (publickey).
+```
+
+An **auth** rejection proves the TCP connection to `192.168.0.128:22` completed.
+A Local Network block yields `No route to host` instead — precisely what the
+Python relay got. Same launchd, same host, same LAN target, opposite outcome.
+
+So when something on this Mac must reach the LAN unattended, reach for `ssh`, not
+a hand-rolled forwarder in an interpreter.
+
+**The tunnel key is powerless by design.** It is passphrase-less so launchd needs
+no agent and no Keychain — and it is pinned on the Pi to forwarding one port:
+
+```
+restrict,port-forwarding,permitopen="localhost:30080",command="/bin/false" ssh-ed25519 …
+```
+
+Verified: shell denied (exit 1, no output) · forward to `localhost:30080` allowed
+(`200`) · forward to `:22` refused (`administratively prohibited`).
+
+⚠️ **`restrict` alone does NOT block command execution.** It expands to
+`no-agent-forwarding,no-port-forwarding,no-pty,no-user-rc,no-X11-forwarding`, and
+`no-pty` only stops *terminal allocation* — `ssh host 'cmd'` needs no PTY and runs
+fine. The forced `command="/bin/false"` is what blocks it, and it does not disturb
+the tunnel: `ssh -N` opens no session channel, so the forced command never fires.
+
+`IdentityAgent none` in the host block is deliberate — without it the tunnel could
+silently fall back to the full-shell `id_ed25519.rpi5` key in the interactive agent.
+
+**Self-healing, no autossh.** `ServerAliveInterval 15` / `ServerAliveCountMax 3`
+make ssh exit within ~45s of a wedged link and `KeepAlive` restarts it; verified by
+`kill -9`, respawned with a new PID. `ExitOnForwardFailure yes` turns a failed bind
+into an exit rather than a silent half-up tunnel.
+
+Health check — an empty log is the healthy state, so check the port and the process:
+
+```bash
+launchctl list | grep grafana-tunnel && pgrep -fl "ssh -N rpi5-tunnel" && curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:30080/api/health
+```
+
+⚠️ **Only one thing may bind `:30080`.** A leftover agent in
+`~/Library/LaunchAgents/` auto-loads at next login and will race the tunnel for the
+port — `ExitOnForwardFailure` then makes ssh exit and you are left with a listener
+that answers but reaches nothing. If Grafana breaks right after a reboot, check for
+a second listener first: `lsof -nP -iTCP:30080 -sTCP:LISTEN`.
 
 The same trap applies to **any** MCP server that needs a service on another machine.
 The old rule of thumb "service on another machine → its LAN IP" does not hold on this
@@ -570,8 +621,10 @@ each server as a container, so the value is resolved *from inside a container*:
   service Docker Desktop binds to localhost) → `http://host.docker.internal:<port>`.
   K8s `ClusterIP` is NOT reachable — switch it to `LoadBalancer` first.
 - Service on **another machine** (e.g. the Pi) → **NOT its LAN IP.** Containers here
-  have no route to the LAN (see "Grafana specifics"). Add a `configs/lan-forwarder/`
-  entry and use `http://host.docker.internal:<relay_port>`.
+  have no route to the LAN (see "Grafana specifics"). Add an SSH tunnel modelled on
+  `configs/grafana-tunnel/` and use `http://host.docker.internal:<local_port>`.
+  Use `ssh -N`, not a forwarder script — an interpreter is blocked by macOS Local
+  Network privacy under launchd, and `/usr/bin/ssh` is not.
 - **Never** point at a `*.rainforest.tools` tunnel URL for the API — Cloudflare Access will
   302-redirect and the MCP server will choke on the HTML.
 
