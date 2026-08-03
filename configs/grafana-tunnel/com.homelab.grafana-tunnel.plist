@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Grafana tunnel — launchd user agent giving Docker containers a route to the Pi.
+
+  Replaces configs/lan-forwarder/, which could never work unattended. Read that
+  file's header for the full measurement trail; the short version:
+
+  Docker Desktop containers on this Mac cannot reach the LAN at all
+  (docker/for-mac#7836, open and untriaged). Containers CAN reach
+  host.docker.internal, so the host has to bridge the gap. The old bridge was a
+  Python socket pump, and it failed under launchd with `[Errno 65] No route to
+  host` while the identical script succeeded from an interactive shell.
+
+  THE THING THAT WAS MISSED: that split is not about launchd. It is about the
+  BINARY. macOS Local Network privacy gates /usr/bin/python3 as a generic
+  interpreter with no grant, but /usr/bin/ssh is an Apple-signed platform binary
+  and is not gated the same way. Measured directly: a launchd-spawned ssh to the
+  Pi returns `Permission denied (publickey)` — an AUTH rejection, which proves
+  the TCP connection to 192.168.0.128:22 completed. A Local Network block yields
+  `No route to host` instead, which is exactly what the Python relay got.
+
+  So switching the transport from a Python pump to ssh is not cosmetic. It is
+  what makes an unattended tunnel possible on this host.
+
+  All connection detail lives in ~/.ssh/config under `Host rpi5-tunnel`, so this
+  plist stays a one-liner and the two cannot drift. That block pins a dedicated
+  passphrase-less key, binds 0.0.0.0:30080, and sets the keepalives.
+
+  KEY SECURITY: the tunnel key is passphrase-less so launchd needs no agent and
+  no Keychain, and it is powerless by design. The Pi's authorized_keys pins it to
+    restrict,port-forwarding,permitopen="localhost:30080",command="/bin/false"
+  Verified on 2026-08-03 — shell denied (exit 1, no output), forward to
+  localhost:30080 allowed (200), forward to port 22 refused ("administratively
+  prohibited"). Note that `restrict` ALONE does not block command execution:
+  its no-pty does not stop `ssh host 'cmd'`. The forced command is what does.
+
+  SELF-HEALING: ServerAliveInterval 15 / ServerAliveCountMax 3 make ssh exit
+  within ~45s of a wedged link; KeepAlive below restarts it. That is why this
+  needs no autossh dependency. ExitOnForwardFailure makes a failed bind (port
+  already taken) an exit rather than a silent half-up tunnel.
+
+  Install:
+    cp configs/grafana-tunnel/com.homelab.grafana-tunnel.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.homelab.grafana-tunnel.plist
+
+  Reload after editing THIS file (kickstart does NOT re-read it from disk):
+    launchctl bootout gui/$(id -u)/com.homelab.grafana-tunnel 2>/dev/null
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.homelab.grafana-tunnel.plist
+
+  Editing ~/.ssh/config instead only needs a restart, since ssh re-reads it:
+    launchctl kickstart -k gui/$(id -u)/com.homelab.grafana-tunnel
+
+  Logs: ~/Library/Logs/homelab-grafana-tunnel.log
+
+  If Docker Desktop ever fixes #7836 so containers reach the LAN directly, this
+  agent and the host.docker.internal indirection can both be dropped — set
+  grafana.url back to http://192.168.0.128:30080.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.homelab.grafana-tunnel</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/ssh</string>
+        <string>-N</string>
+        <string>rpi5-tunnel</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/rainforest</string>
+        <key>PATH</key>
+        <string>/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>StandardOutPath</key>
+    <string>/Users/rainforest/Library/Logs/homelab-grafana-tunnel.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/rainforest/Library/Logs/homelab-grafana-tunnel.log</string>
+</dict>
+</plist>
