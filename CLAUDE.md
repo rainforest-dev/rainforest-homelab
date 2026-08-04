@@ -477,23 +477,52 @@ macOS Local Network grant for Docker (the toggle is ON in System Settings);
 Docker Desktop needing a restart to pick that grant up (restarted, no change);
 the router refusing to hairpin same-subnet traffic (the packets never reach it).
 
-**Root cause: an upstream Docker Desktop regression, not this homelab's config.**
-[docker/for-mac#7836](https://github.com/docker/for-mac/issues/7836) — containers
-reach the internet and `host.docker.internal` but cannot reach `192.168.x.x`.
-Broken in **4.57.0**, working in **4.56.0**; this Mac runs **4.84.0**, so it is
-affected. The issue is still open and untriaged, with no official fix.
+**Root cause: a macOS bug. NOT Docker Desktop, and NOT this homelab's config.**
 
-That issue also records the settings that do **not** help, which covers everything
-worth trying locally: `HostNetworkingEnabled` true *or* false, `KernelForUDP: true`,
-and restarting `vmnetd`. Its reporter independently landed on the same mitigation
-used here — host-side port forwarding via `host.docker.internal`.
+[docker/for-mac#7836](https://github.com/docker/for-mac/issues/7836) was opened as a
+Docker 4.57.0 regression and **closed as completed on 2026-05-01** with that
+attribution overturned. The maintainer's summary:
 
-Options, none of them free:
-- **Downgrade to 4.56.0** — the only true root-cause removal, at the cost of every
-  fix and feature since, and a re-upgrade once Docker ships a patch.
-- **Wait for upstream** and keep the tunnel below.
+| macOS | Containers reach the LAN? |
+|---|---|
+| 26.0.1 | yes |
+| 26.2 – 26.3.x | **no** |
+| 26.4.1 | yes — reported fixed |
+
+**Downgrading Docker Desktop does not help.** A reporter downgraded to 4.56.0 on an
+affected machine and the problem persisted; that is what settled it as a macOS bug.
+Do not spend a downgrade on this.
+
+Two independent observations in that thread match ours exactly, which is why the
+attribution is trustworthy: containers reach *the router but no other LAN host*, and
+a host-side capture shows container packets never reach the host's network interface.
+
+**This Mac is still affected**, on `ProductVersion 27.0` / build `26A5388g` — a
+pre-release build. The likeliest explanation is that this build forked from the 26.x
+line before the 26.4.1 fix landed, but that is inference: Apple's timing is not
+public.
+
+**There is no changelog to check.** macOS 26.4.1's notes say only "provides bug
+fixes"; the named fixes are Wi-Fi 802.1X, iCloud sync and folder icons. The
+LAN-access fix is documented **nowhere** — the only evidence it exists is one user's
+empirical report in that thread. So the presence of the fix in any given build
+cannot be looked up, only tested:
+
+```bash
+docker run --rm alpine ping -c1 -W2 <a_LAN_host>   # reply = fixed, loss = affected
+```
+
+Options:
+- **Move to a macOS build that has the fix** — the real root-cause removal. Test with
+  the one-liner above after any OS update; there will be no release note announcing it.
+- **Keep the tunnel below** until then. It costs nothing to leave in place.
 - **Move the consumer to the Pi** so nothing on this Mac needs LAN access —
-  architectural avoidance rather than a fix, but not hostage to Docker's timeline.
+  architectural avoidance, but immune to Apple's timeline.
+
+Settings that do **not** help, so nobody re-tries them: `HostNetworkingEnabled` true
+*or* false, `KernelForUDP: true`, restarting `vmnetd`, restarting Docker Desktop, and
+granting Docker the macOS **Local Network** permission (it was already granted here
+and made no difference).
 
 #### The mitigation: an SSH tunnel (`configs/grafana-tunnel/`)
 

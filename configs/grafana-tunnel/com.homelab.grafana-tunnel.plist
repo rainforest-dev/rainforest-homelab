@@ -6,8 +6,12 @@
   Replaces configs/lan-forwarder/, which could never work unattended. Read that
   file's header for the full measurement trail; the short version:
 
-  Docker Desktop containers on this Mac cannot reach the LAN at all
-  (docker/for-mac#7836, open and untriaged). Containers CAN reach
+  Docker Desktop containers on this Mac cannot reach the LAN at all. This is a
+  macOS bug, NOT a Docker one — docker/for-mac#7836 was opened as a Docker 4.57.0
+  regression and closed with that attribution overturned: a reporter downgraded
+  Docker and the problem persisted, while a macOS update fixed it. Affected
+  26.2-26.3.x, reported fixed in 26.4.1; this Mac is on 27.0 (build 26A5388g) and
+  is still affected. Do not spend a Docker downgrade on this. Containers CAN reach
   host.docker.internal, so the host has to bridge the gap. The old bridge was a
   Python socket pump, and it failed under launchd with `[Errno 65] No route to
   host` while the identical script succeeded from an interactive shell.
@@ -53,9 +57,12 @@
 
   Logs: ~/Library/Logs/homelab-grafana-tunnel.log
 
-  If Docker Desktop ever fixes #7836 so containers reach the LAN directly, this
-  agent and the host.docker.internal indirection can both be dropped — set
-  grafana.url back to http://192.168.0.128:30080.
+  WHEN CAN THIS BE DELETED: when a macOS update restores container LAN access.
+  There will be no release note announcing it — 26.4.1 shipped the fix under
+  "provides bug fixes" — so it can only be tested, not looked up:
+    docker run --rm alpine ping -c1 -W2 192.168.0.128
+  A reply means the OS is fixed; drop this agent and set grafana.url back to
+  http://192.168.0.128:30080.
 -->
 <plist version="1.0">
 <dict>
