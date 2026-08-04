@@ -426,6 +426,40 @@ Mac-local and never touching Cloudflare. The public UI keeps its Zero Trust prot
 `n8n_health_check` returns `ok` even when auth is broken (`/healthz` is outside Access) —
 only an authenticated call like `n8n_list_workflows` proves the token works.
 
+**⚠️ The n8n MCP server cannot WRITE. Read tools work; use the UI to change workflows.**
+
+`mcp/n8n` in the catalog ships `n8n-mcp` **v2.22.17** against a current **v2.67.3**.
+Every write path fails identically:
+
+```
+Cannot read properties of undefined (reading '_zod')
+```
+
+`n8n_create_workflow`, `n8n_update_partial_workflow` and `n8n_update_full_workflow` are
+all affected. Reads — `n8n_get_workflow`, `n8n_validate_workflow`, `n8n_list_executions`
+— are fine, so the server looks healthy until you try to save.
+
+Two traps in how it fails:
+
+- **`validateOnly: true` passes.** The tool applies operations in memory, *then* runs a
+  whole-workflow structural check, and that second step is what is broken — it reports
+  every node invalid and even calls its own well-formed `connections` a string. So a
+  green validation says nothing about whether the write will land.
+- **Nothing is corrupted.** It refuses to save (`"The workflow was NOT saved"`), so a
+  failed write leaves the workflow untouched. Don't go hunting for damage.
+
+**Upgrading is not currently an option** — the catalog pins the image by digest, and
+`mcp/n8n:latest` resolves to that *same* digest (`sha256:061cdb8f…`), so there is no
+newer published image to move to. Re-check with:
+
+```bash
+docker buildx imagetools inspect mcp/n8n:latest | grep Digest
+```
+
+Until that digest changes, edit workflows in the n8n UI: **⋯ → Import from File**, or
+build the JSON elsewhere and import it. The n8n REST API also works, but its key lives
+in the Keychain and is not printable.
+
 ### Grafana specifics
 
 Grafana runs on the Raspberry Pi. Use a **Viewer** (read-only) service-account
@@ -498,9 +532,26 @@ attribution is trustworthy: containers reach *the router but no other LAN host*,
 a host-side capture shows container packets never reach the host's network interface.
 
 **This Mac is still affected**, on `ProductVersion 27.0` / build `26A5388g` — a
-pre-release build. The likeliest explanation is that this build forked from the 26.x
-line before the 26.4.1 fix landed, but that is inference: Apple's timing is not
-public.
+macOS 27 "Golden Gate" pre-release.
+
+Do not assume a newer beta will fix it. The obvious theory — that this build forked
+before the 26.4.1 fix — does **not** survive the dates:
+
+| | |
+|---|---|
+| 26.4.1 (carries the fix) | 2026-04-09 |
+| macOS 27 beta 1 `26A5353q` | 2026-06-08 — two months *later* |
+| macOS 27 beta 4 `26A5387n` | 2026-07-20 |
+| this Mac `26A5388g` | newer still — ~four months after the fix |
+
+Four months was ample time to merge forward, so 27 more likely reintroduced the bug
+than missed the fix. Either way it is unexplained, and **chasing beta updates is a
+poor bet**: this Mac already runs the newest build. Worth re-testing at the 27.0
+release (expected ~September 2026), not before.
+
+Downgrading to a 26.x stable would very likely fix it but needs a wipe — a major
+macOS version cannot be rolled back in place. Not worth it to remove a working
+30-line tunnel.
 
 **There is no changelog to check.** macOS 26.4.1's notes say only "provides bug
 fixes"; the named fixes are Wi-Fi 802.1X, iCloud sync and folder icons. The
