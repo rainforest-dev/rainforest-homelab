@@ -205,6 +205,19 @@ variable "vault_registry_path" {
   default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/_system"
 }
 
+variable "finance_audit_image" {
+  description = "Docker image for finance-audit. Built locally (docker build -t finance-audit:local apps/finance-audit) and never pushed — it must exist in the local daemon before apply."
+  type        = string
+  default     = "finance-audit:local"
+}
+
+# Deliberately no default: the real path is personal and stays out of version control.
+# Set it in terraform.tfvars (see terraform.tfvars.example for the shape).
+variable "finance_artifacts_path" {
+  description = "Host path to the rainforest-finance artifacts directory (mounted read-only at /srv/artifacts)"
+  type        = string
+}
+
 # grafana_mcp_version / grafana_mcp_api_key removed with the standalone grafana-mcp
 # module. Grafana MCP is now part of the Docker MCP Gateway: its image is pinned by the
 # Docker catalog digest, and its Viewer token lives in Docker Desktop's Keychain

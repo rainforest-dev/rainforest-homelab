@@ -34,6 +34,14 @@ default_memory_limit = "1Gi"
 default_storage_size = "10Gi"
 minio_storage_size   = "100Gi"  # MinIO storage size (larger default for object storage)
 
+# finance-audit (monthly credit-card reconciliation dashboard)
+# The image is built locally and never pushed:
+#   docker build -t finance-audit:local <rainforest-finance>/apps/finance-audit
+# finance_artifacts_path is REQUIRED and has no default — point it at the artifacts/
+# directory monthly.sh writes. Mounted read-only; the container never writes to it.
+finance_audit_image    = "finance-audit:local"
+finance_artifacts_path = "/absolute/path/to/rainforest-finance/artifacts"
+
 # Zero Trust Access Control (requires enabling Access in Cloudflare dashboard)
 # Option A: Domain-specific (recommended for security)
 allowed_email_domains = ["yourdomain.com"]  # Only allow emails from your domain
