@@ -80,6 +80,18 @@ locals {
     },
 
     {
+      # finance-audit — 每月信用卡對帳／回饋稽核儀表板（靜態站，唯讀掛載 artifacts）。
+      # enable_auth 必須是 true：頁面上是敏感的個人財務資料，而這個站沒有自己的
+      # 登入機制，Zero Trust 是唯一那道門。
+      "finance-audit" = {
+        hostname    = "finance"
+        service_url = module.finance-audit.tunnel_service_url
+        enable_auth = true
+        type        = "docker"
+      }
+    },
+
+    {
       "personal-calibre-internal" = {
         hostname    = "personal-calibre-internal"
         service_url = module.personal-calibre.tunnel_service_url

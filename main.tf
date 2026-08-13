@@ -226,6 +226,16 @@ module "rss-manager" {
   vault_registry_path = var.vault_registry_path
 }
 
+module "finance-audit" {
+  source = "./modules/finance-audit"
+
+  project_name   = var.project_name
+  environment    = var.environment
+  image          = var.finance_audit_image
+  external_port  = 8085
+  artifacts_path = var.finance_artifacts_path
+}
+
 module "n8n" {
   source = "./modules/n8n"
 
