@@ -102,4 +102,20 @@ loki.write "rpi" {
   endpoint {
     url = sys.env("LOKI_PUSH_URL")
   }
+
+  // NOT the default, and the default is the wrong trade here.
+  //
+  // prometheus.remote_write buffers to disk out of the box; loki.write keeps
+  // its queue in memory and drops entries once retries are exhausted. Measured
+  // during the Pi's first reconnect: 32,623 metric samples replayed intact
+  // while a log entry from ten minutes earlier was already gone
+  // ("final error sending batch, no retries left, dropping data").
+  //
+  // The weaker guarantee happens to cover the more valuable data. A dropped
+  // metric sample is a gap in a curve that the next scrape refills; a dropped
+  // event is a pre-push run that happened once and is now unrecoverable.
+  wal {
+    enabled         = true
+    max_segment_age = "4h"
+  }
 }
