@@ -139,14 +139,31 @@ No commits to any Angible repository. The only change inside one is
   27 of 81 did. Repo-level instrumentation alone would have missed exactly the
   worktrees that push concurrently.
 
+- **`loki.write` has no disk WAL by default**, unlike
+  `prometheus.remote_write`. On the Pi's first reconnect 32,623 metric samples
+  replayed while a ten-minute-old log entry had already been dropped. Now
+  enabled explicitly — the weaker default happened to cover the data that
+  cannot be reconstructed.
+- **The Pi had two independent faults producing one symptom**: `tailscaled` was
+  `systemctl disabled`, *and* its backend state was `Logged out.` Fixing only
+  the first survives until the next reboot and then fails identically.
+
+## Verification (complete)
+
+| Step | Result |
+|---|---|
+| 1. node_exporter | 631 series on `127.0.0.1:9100` |
+| 2. Alloy | ready, 0 errors |
+| 3. Transport | `up{host="angible-macbook-air"} = 1` on the Pi; all `dev_*` present |
+| 4. Log pipeline | event in Loki with exactly `{event,status,job,host}` as labels |
+| 4b. LogQL | `unwrap dur_ms` → `4210`, so durations are graphable without parsing |
+| 5. Real push | pending — happens on the next `git push` |
+
 ## Outstanding
 
-**Re-enrol the Pi on Tailscale** — `raspberrypi-5` has been offline 279 days and
-its node key has almost certainly expired, so re-auth needs a browser. Until
-then Alloy buffers to its WAL and replays on reconnect; hours are free, days
-lose data (and Loki rejects pushes older than `reject_old_samples_max_age`,
-currently 168h).
-
-Then: Tailscale ACL limiting the laptop to ports 30090/30100, and the Grafana
-dashboard — `node_load1 / 12` overlaid with hook-event annotations, plus
-`dev_vitest_workers` and `dev_hooks_running`.
+- **Tailscale ACL** limiting the laptop to ports 30090/30100 on the Pi.
+- **Grafana dashboard** — `node_load1 / 12` overlaid with hook-event
+  annotations, plus `dev_vitest_workers` and `dev_hooks_running`. Deferred
+  until real contention data exists to validate the panels against.
+- **Revisit `cap=3` and the TOCTOU race** in `.husky/pre-push` once a week or
+  two of data is in.

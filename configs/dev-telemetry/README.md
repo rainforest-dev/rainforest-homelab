@@ -125,10 +125,22 @@ boltdb-shipper + filesystem — it only drops index tables. Only the compactor
 with `retention_enabled: true` reclaims disk. A config showing
 `retention_deletes_enabled: true` can still be growing forever.
 
-**The Pi must be on the tailnet.** If it drops off, Alloy buffers to its
-remote_write WAL and replays on reconnect, so a few hours offline costs
-nothing. Days will drop data — and Loki additionally rejects pushes older than
-`reject_old_samples_max_age` (currently 168h).
+**`loki.write` has no disk WAL by default; `prometheus.remote_write` does.**
+Measured on the Pi's first reconnect: 32,623 metric samples replayed intact,
+while a log entry from ten minutes earlier was already gone — `final error
+sending batch, no retries left, dropping data`. The weaker default covers the
+more valuable data, since a dropped metric sample is a gap the next scrape
+refills but a dropped event is a hook run that happened once. `config.alloy`
+therefore enables the `wal` block on `loki.write` explicitly.
+
+**The Pi must be on the tailnet.** With both WALs enabled, hours offline cost
+nothing. Days still lose data, and Loki rejects pushes older than
+`reject_old_samples_max_age` (currently 168h) regardless of buffering.
+
+**`tailscaled` was installed but `systemctl disabled` on the Pi**, and its
+backend state was `Logged out.` — two independent faults producing one symptom.
+Starting the unit without enabling it survives until the next reboot and then
+fails identically, which is what makes it feel unfixable.
 
 ## Uninstall
 
