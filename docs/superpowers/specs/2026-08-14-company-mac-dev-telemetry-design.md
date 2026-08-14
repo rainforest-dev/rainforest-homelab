@@ -159,9 +159,46 @@ No commits to any Angible repository. The only change inside one is
 | 4b. LogQL | `unwrap dur_ms` → `4210`, so durations are graphable without parsing |
 | 5. Real push | pending — happens on the next `git push` |
 
+## Tailscale ACL (done)
+
+Scoped the wrong way round at first. The ask was "the Pi should expose only a
+few ports to the tailnet"; the first draft was a tailnet-wide default-deny,
+which would have cut SSH to the laptop for no reason.
+
+The Pi was reachable on **27 ports** from every tailnet device — including 22,
+5900 (VNC), 3389 (RDP), 6443 (k3s API) and 10250 (kubelet). Now 2.
+
+Tailscale has no deny rule and no destination exclusion, so "restrict the Pi,
+leave everything else" cannot be written as an added restriction: any surviving
+`dst: *` re-opens it. The Pi has to *leave* the set the catch-all covers, which
+is what `tag:homelab` does.
+
+```jsonc
+"grants": [
+  { "src": ["autogroup:member"], "dst": ["tag:homelab"],
+    "ip": ["tcp:30090", "tcp:30100"] },
+  { "src": ["autogroup:member"], "dst": ["autogroup:member", "autogroup:internet"],
+    "ip": ["*"] },
+]
+```
+
+Everything else already has a Cloudflare Tunnel route. Tailscale carries only
+what a tunnel cannot: machine-to-machine API pushes, which Cloudflare Access
+would 302 into a login page.
+
+The tailnet uses the newer `grants` syntax; `acls` and `grants` cannot be mixed
+in one policy file. A `tests` block asserts 30090/30100 accept and 22/6443/5900
+deny, so a future regression fails the save rather than going unnoticed.
+
+Verified from the laptop: 30090 → 302, 30100 → 404 (both reachable), and 22,
+6443, 5900, 30080, 8123 all blocked.
+
 ## Outstanding
 
-- **Tailscale ACL** limiting the laptop to ports 30090/30100 on the Pi.
+- **Confirm key expiry is disabled on the Pi.** Tagging it did not clear
+  `KeyExpiry` (still 2027-02-10). Expired keys are what caused the 279-day
+  outage, so set it explicitly in the admin console rather than relying on the
+  tag.
 - **Grafana dashboard** — `node_load1 / 12` overlaid with hook-event
   annotations, plus `dev_vitest_workers` and `dev_hooks_running`. Deferred
   until real contention data exists to validate the panels against.
