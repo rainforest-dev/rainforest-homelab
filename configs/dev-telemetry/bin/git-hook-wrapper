@@ -37,7 +37,13 @@ EXIT_CODE=1
 
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
 WORKTREE=$(basename "${REPO_ROOT:-unknown}")
-BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)
+
+# Assign, then fall back on failure — do NOT write `$(cmd || echo unknown)`.
+# On an unborn HEAD, `git rev-parse --abbrev-ref HEAD` prints "HEAD" on stdout
+# *and* exits non-zero, so the `||` branch appends to the captured output and
+# yields the nonsense value "HEADunknown".
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || BRANCH=""
+[ -n "$BRANCH" ] && [ "$BRANCH" != "HEAD" ] || BRANCH=unknown
 
 emit() {
     {
