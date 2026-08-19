@@ -87,6 +87,7 @@ say "Installing scripts and config"
 install -m 0755 "$SRC/bin/devlog"           "$DEST/bin/devlog"
 install -m 0755 "$SRC/bin/ps-sampler"       "$DEST/bin/ps-sampler"
 install -m 0755 "$SRC/bin/git-hook-wrapper" "$DEST/bin/git-hook-wrapper"
+install -m 0755 "$SRC/bin/build-guard"       "$DEST/bin/build-guard"
 install -m 0644 "$SRC/alloy/config.alloy"   "$DEST/alloy/config.alloy"
 ok "scripts -> $DEST/bin"
 
