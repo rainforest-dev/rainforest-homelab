@@ -204,3 +204,32 @@ Verified from the laptop: 30090 → 302, 30100 → 404 (both reachable), and 22,
   until real contention data exists to validate the panels against.
 - **Revisit `cap=3` and the TOCTOU race** in `.husky/pre-push` once a week or
   two of data is in.
+
+## Memory baseline — 2026-08-19, before Chrome Memory Saver
+
+Recorded so the next change can be judged against something. Medians over the
+preceding 48h, not peaks: peaks are transient, the median is what a process
+actually holds while everything else needs room.
+
+| Series | Median (GB) |
+|---|---|
+| Chrome, visible browser | 2.29 |
+| `chrome-headless-shell` + `chrome-devtools-mcp` | 0.86 |
+| Notion | 1.90 |
+| swap used | 9.66 |
+| swap used, p95 | 14.39 |
+| free memory, minimum over 48h | 0.04 |
+
+Two things this changes about the obvious advice:
+
+**Chrome's Memory Saver cannot touch `chrome-headless-shell`.** That 0.86 GB
+median (2.29 GB peak) is headless Chrome spawned by the chrome-devtools MCP
+server. Memory Saver discards inactive background *tabs*; a headless instance
+has none and never idles by that definition.
+
+**Moving Notion into a Chrome tab is worth more than the process accounting
+suggests.** The desktop app is a separate Electron instance, so macOS can only
+page it to swap — there is no mechanism to hand the memory back. The same
+content in a tab becomes eligible for Memory Saver, which discards the renderer
+outright and reloads on return. On a machine whose median swap is ~10 GB,
+"reclaimable" beats "slightly smaller".
