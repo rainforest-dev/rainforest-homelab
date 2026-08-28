@@ -28,6 +28,7 @@ resource "docker_container" "loop_observatory" {
     "LOOP_CONFIG_PATH=/loop/config.yaml",
     "LOOP_SYNC_URL=${var.loop_sync_url}",
     "LOOP_SYNC_TOKEN_FILE=/run/secrets/sync-token",
+    "LOOP_ENGINE_BUNDLE=/engine/loop-engine.tar.gz",
   ]
 
   # Read-write, unlike rss-manager's vault mount: taskDecision, taskNote,
@@ -42,6 +43,15 @@ resource "docker_container" "loop_observatory" {
     container_path = "/loop"
     host_path      = var.loop_state_path
     read_only      = false
+  }
+
+  # The engine tarball an enrolling machine downloads. Without it
+  # /api/enroll/bundle and /api/enroll/bundle.sha256 both answer 503, and the
+  # setup page has nothing to hand a new executor.
+  volumes {
+    container_path = "/engine"
+    host_path      = var.loop_engine_bundle_path
+    read_only      = true
   }
 
   volumes {

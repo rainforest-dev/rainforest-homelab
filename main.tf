@@ -229,13 +229,14 @@ module "rss-manager" {
 module "loop-observatory" {
   source = "./modules/loop-observatory"
 
-  project_name         = var.project_name
-  environment          = var.environment
-  image                = var.loop_observatory_image
-  external_port        = var.loop_observatory_port
-  vault_path           = var.loop_vault_path
-  loop_state_path      = var.loop_state_path
-  loop_sync_token_path = var.loop_sync_token_path
+  project_name            = var.project_name
+  environment             = var.environment
+  image                   = var.loop_observatory_image
+  external_port           = var.loop_observatory_port
+  vault_path              = var.loop_vault_path
+  loop_state_path         = var.loop_state_path
+  loop_sync_token_path    = var.loop_sync_token_path
+  loop_engine_bundle_path = var.loop_engine_bundle_path
 }
 
 module "n8n" {

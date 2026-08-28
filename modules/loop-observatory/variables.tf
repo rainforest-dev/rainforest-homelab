@@ -53,3 +53,8 @@ variable "memory_limit" {
   type        = string
   default     = "2Gi"
 }
+
+variable "loop_engine_bundle_path" {
+  description = "Host directory holding loop-engine.tar.gz and its .sha256, mounted read-only at /engine. Refreshed from the loop-engine GitHub Release; the app serves a released artifact rather than the mini's working tree, which routinely carries uncommitted changes."
+  type        = string
+}

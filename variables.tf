@@ -323,3 +323,9 @@ variable "loop_sync_token_path" {
   type        = string
   default     = "/Users/rainforest/.config/loop/sync-token"
 }
+
+variable "loop_engine_bundle_path" {
+  description = "Host directory holding the loop-engine release tarball and its .sha256."
+  type        = string
+  default     = "/Users/rainforest/.local/share/loop-engine-bundle"
+}
