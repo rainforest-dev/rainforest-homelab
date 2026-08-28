@@ -227,11 +227,11 @@ module "rss-manager" {
 }
 
 
-  project_name         = var.project_name
-  environment          = var.environment
-  vault_path           = var.loop_vault_path
-  loop_state_path      = var.loop_state_path
-  loop_sync_token_path = var.loop_sync_token_path
+  project_name            = var.project_name
+  environment             = var.environment
+  vault_path              = var.loop_vault_path
+  loop_state_path         = var.loop_state_path
+  loop_sync_token_path    = var.loop_sync_token_path
 }
 
 module "n8n" {

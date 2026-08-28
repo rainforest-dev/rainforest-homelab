@@ -317,3 +317,6 @@ variable "loop_sync_token_path" {
   type        = string
   default     = "/Users/rainforest/.config/loop/sync-token"
 }
+
+  type        = string
+}
