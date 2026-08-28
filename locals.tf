@@ -51,11 +51,11 @@ locals {
 
     {
       # loop-observatory — autonomous-task-loop dashboard (Astro SSR + Vue).
-      # Runs as a host launchd service on the mini (PORT=3099), reached via
-      # host.docker.internal like calibre-web. Zero Trust gated by allowed_emails.
+      # A terraform-managed container since 2026-08-27, so the URL comes from the
+      # module rather than being written twice. Zero Trust gated by allowed_emails.
       "loop-observatory" = {
         hostname    = "loop"
-        service_url = "http://host.docker.internal:3099"
+        service_url = module.loop-observatory.tunnel_service_url
         enable_auth = true
         type        = "docker"
       }
