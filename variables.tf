@@ -289,3 +289,43 @@ variable "image_gen_api_key" {
   default     = ""
   sensitive   = true
 }
+
+# --- loop-observatory ---------------------------------------------------------
+# The executor loop's dashboard and enrollment surface. Replaces a hand-pulled
+# checkout driven by a launchd job, which had drifted 9 PRs behind main.
+
+variable "loop_observatory_image" {
+  description = "Container image for loop-observatory"
+  type        = string
+  default     = "loop-observatory:local"
+}
+
+variable "loop_observatory_port" {
+  description = "Host port loop-observatory is published on. Executors reach the enrollment API here over the tailnet."
+  type        = number
+  default     = 3099
+}
+
+variable "loop_vault_path" {
+  description = "Host path to the Obsidian vault ROOT. Distinct from vault_registry_path, which points at _system for rss-manager."
+  type        = string
+  default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian"
+}
+
+variable "loop_state_path" {
+  description = "Host path to ~/.claude/loop — config.yaml, greenlight/, greenlight-outbox/."
+  type        = string
+  default     = "/Users/rainforest/.claude/loop"
+}
+
+variable "loop_sync_token_path" {
+  description = "Host path to the loop-sync bearer token."
+  type        = string
+  default     = "/Users/rainforest/.config/loop/sync-token"
+}
+
+variable "loop_engine_bundle_path" {
+  description = "Host directory holding the loop-engine release tarball and its .sha256."
+  type        = string
+  default     = "/Users/rainforest/.local/share/loop-engine-bundle"
+}
