@@ -119,15 +119,6 @@ locals {
       }
     },
 
-    {
-      agy = {
-        hostname    = "agy"
-        service_url = "http://host.docker.internal:3000"
-        enable_auth = true
-        type        = "docker"
-      }
-    },
-
     var.enable_comfyui_adapter ? {
       "image-gen" = {
         hostname    = "image-gen"
