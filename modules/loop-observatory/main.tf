@@ -26,6 +26,7 @@ resource "docker_container" "loop_observatory" {
     "LOOP_GREENLIGHT_DIR=/loop/greenlight",
     "LOOP_GREENLIGHT_OUTBOX_DIR=/loop/greenlight-outbox",
     "LOOP_CONFIG_PATH=/loop/config.yaml",
+    "SITE_URL=${var.site_url}",
     "LOOP_SYNC_URL=${var.loop_sync_url}",
     "LOOP_SYNC_TOKEN_FILE=/run/secrets/sync-token",
     "LOOP_ENGINE_BUNDLE=/engine/loop-engine.tar.gz",

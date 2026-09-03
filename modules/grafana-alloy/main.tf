@@ -45,7 +45,25 @@ resource "docker_container" "alloy" {
     protocol = "tcp"
   }
 
-  memory     = 192
+  # OTLP intake for agent CLIs (Claude Code, Codex). Bound on all interfaces so
+  # the other machine can publish here too, not just processes on this host.
+  ports {
+    internal = 4317
+    external = 4317
+    protocol = "tcp"
+  }
+
+  ports {
+    internal = 4318
+    external = 4318
+    protocol = "tcp"
+  }
+
+  # 192 MB left no headroom: the container sat at ~173 MB (90%) with only the
+  # scrape and docker-logs pipelines loaded, so adding an OTLP receiver and batch
+  # processor to that ceiling would OOM-restart under load -- and an OOM loop
+  # looks like flaky telemetry, which sends you debugging the wrong component.
+  memory     = 384
   cpu_shares = 512
 
   lifecycle {

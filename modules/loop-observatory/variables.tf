@@ -58,3 +58,17 @@ variable "loop_engine_bundle_path" {
   description = "Host directory holding loop-engine.tar.gz and its .sha256, mounted read-only at /engine. Refreshed from the loop-engine GitHub Release; the app serves a released artifact rather than the mini's working tree, which routinely carries uncommitted changes."
   type        = string
 }
+
+# The public address the app is reached at.
+#
+# It is the origin allowlist for state-changing requests, not decoration: the
+# app sits behind a TLS terminator, so Astro cannot derive the browser-facing
+# origin from the request it receives. The app defaults to this same value, but
+# a default that has to match a DNS name is the kind of agreement that silently
+# stops being true -- naming it here makes a domain change one edit rather than
+# a rebuild.
+variable "site_url" {
+  description = "Public origin the Observatory is served from; allowlisted for POSTs."
+  type        = string
+  default     = "https://loop.rainforest.tools"
+}
