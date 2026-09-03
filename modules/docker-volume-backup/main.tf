@@ -11,9 +11,13 @@ resource "docker_image" "backup" {
 }
 
 resource "docker_container" "backup" {
-  image   = docker_image.backup.image_id
-  name    = "homelab-docker-volume-backup"
-  restart = "unless-stopped"
+  image = docker_image.backup.image_id
+  name  = "homelab-docker-volume-backup"
+
+  # "always", not "unless-stopped": Docker Desktop stops containers through the API on backend
+  # restart, which marks them stopped, and "unless-stopped" then leaves them down for good.
+  # That silently disabled the Mac backup for 14 days on 2026-08-06.
+  restart = "always"
 
   env = [
     "BACKUP_CRON_EXPRESSION=${var.backup_schedule}",
