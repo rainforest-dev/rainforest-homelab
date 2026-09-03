@@ -71,3 +71,48 @@ loki.write "rpi" {
     url = env("LOKI_PUSH_URL")
   }
 }
+
+// ─── OTLP: agent CLI telemetry (Claude Code, Codex) ─────────────────────────
+//
+// Claude Code and Codex export over OTLP; nothing else on this host does. Both
+// signals fan back into the SAME two writers the rest of this file already uses,
+// so agent telemetry lands beside host metrics and container logs rather than in
+// a parallel stack.
+//
+// Logs deliberately bypass loki.process.drop_self: that stage exists to stop
+// Alloy logging its own container output back to itself, and has nothing to say
+// about OTLP payloads.
+
+otelcol.receiver.otlp "agents" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    metrics = [otelcol.processor.batch.agents.input]
+    logs    = [otelcol.processor.batch.agents.input]
+  }
+}
+
+// CLI processes are short-lived and the OTel SDK drops silently if the collector
+// is slow, so keep the batch window well under a typical session.
+otelcol.processor.batch "agents" {
+  timeout = "2s"
+
+  output {
+    metrics = [otelcol.exporter.prometheus.agents.input]
+    logs    = [otelcol.exporter.loki.agents.input]
+  }
+}
+
+otelcol.exporter.prometheus "agents" {
+  forward_to = [prometheus.remote_write.rpi.receiver]
+}
+
+otelcol.exporter.loki "agents" {
+  forward_to = [loki.write.rpi.receiver]
+}
