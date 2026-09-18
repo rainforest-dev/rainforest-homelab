@@ -50,15 +50,6 @@ locals {
     },
 
     {
-      # A terraform-managed container since 2026-08-27, so the URL comes from the
-      # module rather than being written twice. Zero Trust gated by allowed_emails.
-        hostname    = "loop"
-        enable_auth = true
-        type        = "docker"
-      }
-    },
-
-    {
       "calibre" = {
         hostname    = "calibre"
         service_url = module.personal-calibre.tunnel_service_url
