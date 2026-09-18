@@ -50,18 +50,6 @@ locals {
     },
 
     {
-      # loop-observatory — autonomous-task-loop dashboard (Astro SSR + Vue).
-      # A terraform-managed container since 2026-08-27, so the URL comes from the
-      # module rather than being written twice. Zero Trust gated by allowed_emails.
-      "loop-observatory" = {
-        hostname    = "loop"
-        service_url = module.loop-observatory.tunnel_service_url
-        enable_auth = true
-        type        = "docker"
-      }
-    },
-
-    {
       "calibre" = {
         hostname    = "calibre"
         service_url = module.personal-calibre.tunnel_service_url
