@@ -432,167 +432,71 @@ Grafana runs on the Raspberry Pi. Use a **Viewer** (read-only) service-account
 token; the gateway exposes all tools including writes, so a read-only token is the
 guard against accidental mutation. Never point `grafana.url` at
 `gfn.rainforest.tools` — that goes through Cloudflare Access and the MCP server
-chokes on the login HTML.
+chokes on the login HTML. The `default` profile holds
+`grafana.url = http://<PI_IP>:30080`, pointing straight at the Pi.
 
-**⚠️ Containers on this Mac cannot reach the LAN — do NOT use the Pi's LAN address.**
+#### History: containers could not reach the LAN (2026-05 to 2026-09)
 
-`grafana.url = http://<PI_IP>:30080` looks right and fails. The gateway spawns each
-MCP server as a container, and containers here have no route to the LAN. Measured
-from a plain `alpine` container:
+For four months containers on this Mac could not reach any LAN host, so
+`grafana.url` had to go through an SSH tunnel on `host.docker.internal` instead of
+the Pi's address. The cause was a macOS bug, not Docker Desktop and not this
+homelab: [docker/for-mac#7836](https://github.com/docker/for-mac/issues/7836) was
+opened as a Docker 4.57.0 regression and closed on 2026-05-01 with that attribution
+overturned (26.0.1 fine, 26.2 to 26.3.x broken, 26.4.1 fixed). A host-side capture
+settled it: probing `:30080` from the host put 10 packets on `en1`, the same probe
+from a container put 0 there, so the drop happened inside the Mac. Downgrading
+Docker Desktop did not help and is not worth trying.
 
-| From | To | Result |
-|---|---|---|
-| container | `ping 192.168.0.128` | **100% packet loss** |
-| container | `curl 192.168.0.128:30080` | fails |
-| container | `ping host.docker.internal` | works |
-| host (this shell) | `curl 192.168.0.128:30080` | `200` in 35ms |
+**Fixed as of build `26A428`.** Verified 2026-09-18: a container pings the Pi with
+0% packet loss and gets `200` from both `:30080` and `:30090`. The workaround was
+removed the same day. The launchd agent `com.homelab.grafana-tunnel`,
+`configs/grafana-tunnel/`, the `Host rpi5-tunnel` block in `~/.ssh/config`, and the
+pinned key on both machines are all gone.
 
-The symptom is
-`list datasources: Get "http://192.168.0.128:30080/api/datasources": dial tcp ...: connect: connection refused`.
+No release note announces this fix, so test it after any macOS update:
 
-**PROVEN: the packets never leave this Mac.** Captured on `en1` while firing one
-probe from a container and one from the host, seconds apart:
+```bash
+docker run --rm alpine ping -c1 -W2 <a_LAN_host>   # reply = fine, loss = regressed
+```
 
-| Probe | Packets on `en1` | Result |
-|---|---|---|
-| from the host | **10** — full SYN / SYN-ACK / data / FIN | `200` |
-| from a container | **0** | timeout |
+**If it regresses, reach for `ssh -N` under launchd, not a forwarder script.** macOS
+Local Network privacy gates generic interpreters: a Python relay under launchd
+failed every upstream connect with `[Errno 65] No route to host`, while the same
+script from an interactive shell worked. `/usr/bin/ssh` is an Apple-signed platform
+binary and is not gated that way — a launchd-spawned ssh got as far as
+`Permission denied (publickey)`, and an auth rejection proves the TCP connection
+completed.
 
-So the drop happens **inside the Mac**. Everything downstream is innocent and
-cannot fix it: not the router, not the Pi's UFW (which explicitly allows
-`30000:32767/tcp` and `8123/tcp` from Anywhere), not CrowdSec (`cscli` is not even
-installed on the Pi). The Pi's UFW log records plenty of other traffic and **zero**
-packets from `192.168.0.126` — it never receives anything to block.
-
-Re-run this test any time the theory is in doubt — it turns "is it us or them?"
-into a binary fact in about 10 seconds:
+To re-check whether the container-to-LAN path itself is at fault, capture on the
+host while probing once from a container and once from the host:
 
 ```bash
 sudo tcpdump -i en1 -nn "host <PI_IP> and tcp port 30080"
-# then, in another shell, probe once from a container and once from the host
 ```
 
-Also refuted, each tested: Tailscale/WireGuard `utun` default routes; a missing
-macOS Local Network grant for Docker (the toggle is ON in System Settings);
-Docker Desktop needing a restart to pick that grant up (restarted, no change);
-the router refusing to hairpin same-subnet traffic (the packets never reach it).
+Packets from the host probe and none from the container means the drop is inside
+the Mac. The retired tunnel's full recipe (launchd plist, the key pinned to one
+forwarded port, the `~/.ssh/config` block) is recoverable with
+`git log --all --diff-filter=D -- configs/grafana-tunnel/` (then `git show <commit>^:<path>`). Only
+one process may bind `:30080`, so a leftover agent would race a rebuilt tunnel.
 
-**Root cause: a macOS bug. NOT Docker Desktop, and NOT this homelab's config.**
-
-[docker/for-mac#7836](https://github.com/docker/for-mac/issues/7836) was opened as a
-Docker 4.57.0 regression and **closed as completed on 2026-05-01** with that
-attribution overturned. The maintainer's summary:
-
-| macOS | Containers reach the LAN? |
-|---|---|
-| 26.0.1 | yes |
-| 26.2 – 26.3.x | **no** |
-| 26.4.1 | yes — reported fixed |
-
-**Downgrading Docker Desktop does not help.** A reporter downgraded to 4.56.0 on an
-affected machine and the problem persisted; that is what settled it as a macOS bug.
-Do not spend a downgrade on this.
-
-Two independent observations in that thread match ours exactly, which is why the
-attribution is trustworthy: containers reach *the router but no other LAN host*, and
-a host-side capture shows container packets never reach the host's network interface.
-
-**This Mac is still affected**, on `ProductVersion 27.0` / build `26A5388g` — a
-pre-release build. The likeliest explanation is that this build forked from the 26.x
-line before the 26.4.1 fix landed, but that is inference: Apple's timing is not
-public.
-
-**There is no changelog to check.** macOS 26.4.1's notes say only "provides bug
-fixes"; the named fixes are Wi-Fi 802.1X, iCloud sync and folder icons. The
-LAN-access fix is documented **nowhere** — the only evidence it exists is one user's
-empirical report in that thread. So the presence of the fix in any given build
-cannot be looked up, only tested:
+**The same gating hits agent sessions, and that part is not fixed.** Measured
+2026-09-18 from a process tree without the Local Network grant (a Claude Code
+session under tmux): `kubectl` and `helm` against the Pi's `:6443` both fail with
+`dial tcp <PI_IP>:6443: connect: no route to host`, and a `terraform apply` whose
+kubernetes provider talks to that address fails the same way, while `/usr/bin/curl`
+reaches it (`401`, so the API is up) and a container reaches it too. Grant the
+terminal app Local Network access to fix it properly, or forward per command —
+the API certificate includes `127.0.0.1`, and loopback is never gated:
 
 ```bash
-docker run --rm alpine ping -c1 -W2 <a_LAN_host>   # reply = fixed, loss = affected
+ssh -f -N -o ExitOnForwardFailure=yes -L 16443:127.0.0.1:6443 rpi5
+sed -E 's#server: https://[^:]+:6443#server: https://127.0.0.1:16443#' \
+  ~/.kube/config-raspberrypi-5 >| /tmp/k3s.kubeconfig
+# kubectl --kubeconfig /tmp/k3s.kubeconfig get nodes
+# terraform apply ... -var "k8s_config_path=/tmp/k3s.kubeconfig"
+pkill -f 'L 16443:127.0.0.1:6443'; rm -f /tmp/k3s.kubeconfig
 ```
-
-Options:
-- **Move to a macOS build that has the fix** — the real root-cause removal. Test with
-  the one-liner above after any OS update; there will be no release note announcing it.
-- **Keep the tunnel below** until then. It costs nothing to leave in place.
-- **Move the consumer to the Pi** so nothing on this Mac needs LAN access —
-  architectural avoidance, but immune to Apple's timeline.
-
-Settings that do **not** help, so nobody re-tries them: `HostNetworkingEnabled` true
-*or* false, `KernelForUDP: true`, restarting `vmnetd`, restarting Docker Desktop, and
-granting Docker the macOS **Local Network** permission (it was already granted here
-and made no difference).
-
-#### The mitigation: an SSH tunnel (`configs/grafana-tunnel/`)
-
-Containers reach `host.docker.internal`, so the host bridges the gap. A launchd
-agent holds `ssh -N rpi5-tunnel` open, binding host `0.0.0.0:30080` and forwarding
-to the Pi's `localhost:30080`; `grafana.url` is `http://host.docker.internal:30080`.
-All connection detail lives in `~/.ssh/config` under `Host rpi5-tunnel`, so the
-plist stays a one-liner.
-
-**Why ssh and not the old Python relay — the transport is the whole point.**
-`configs/lan-forwarder/` (removed, see git history) did the same job as a socket
-pump and could never work unattended: under launchd it bound the port, accepted
-connections, and failed every upstream connect with `[Errno 65] No route to host`,
-while the identical script from an interactive shell succeeded.
-
-That split was misread as a launchd problem. **It is a *binary* problem.** macOS
-Local Network privacy gates `/usr/bin/python3` as a generic interpreter with no
-grant; `/usr/bin/ssh` is an Apple-signed platform binary and is not gated the same
-way. The measurement that settles it — a launchd-spawned ssh to the Pi returns:
-
-```
-rainforest@192.168.0.128: Permission denied (publickey).
-```
-
-An **auth** rejection proves the TCP connection to `192.168.0.128:22` completed.
-A Local Network block yields `No route to host` instead — precisely what the
-Python relay got. Same launchd, same host, same LAN target, opposite outcome.
-
-So when something on this Mac must reach the LAN unattended, reach for `ssh`, not
-a hand-rolled forwarder in an interpreter.
-
-**The tunnel key is powerless by design.** It is passphrase-less so launchd needs
-no agent and no Keychain — and it is pinned on the Pi to forwarding one port:
-
-```
-restrict,port-forwarding,permitopen="localhost:30080",command="/bin/false" ssh-ed25519 …
-```
-
-Verified: shell denied (exit 1, no output) · forward to `localhost:30080` allowed
-(`200`) · forward to `:22` refused (`administratively prohibited`).
-
-⚠️ **`restrict` alone does NOT block command execution.** It expands to
-`no-agent-forwarding,no-port-forwarding,no-pty,no-user-rc,no-X11-forwarding`, and
-`no-pty` only stops *terminal allocation* — `ssh host 'cmd'` needs no PTY and runs
-fine. The forced `command="/bin/false"` is what blocks it, and it does not disturb
-the tunnel: `ssh -N` opens no session channel, so the forced command never fires.
-
-`IdentityAgent none` in the host block is deliberate — without it the tunnel could
-silently fall back to the full-shell `id_ed25519.rpi5` key in the interactive agent.
-
-**Self-healing, no autossh.** `ServerAliveInterval 15` / `ServerAliveCountMax 3`
-make ssh exit within ~45s of a wedged link and `KeepAlive` restarts it; verified by
-`kill -9`, respawned with a new PID. `ExitOnForwardFailure yes` turns a failed bind
-into an exit rather than a silent half-up tunnel.
-
-Health check — an empty log is the healthy state, so check the port and the process:
-
-```bash
-launchctl list | grep grafana-tunnel && pgrep -fl "ssh -N rpi5-tunnel" && curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:30080/api/health
-```
-
-⚠️ **Only one thing may bind `:30080`.** A leftover agent in
-`~/Library/LaunchAgents/` auto-loads at next login and will race the tunnel for the
-port — `ExitOnForwardFailure` then makes ssh exit and you are left with a listener
-that answers but reaches nothing. If Grafana breaks right after a reboot, check for
-a second listener first: `lsof -nP -iTCP:30080 -sTCP:LISTEN`.
-
-The same trap applies to **any** MCP server that needs a service on another machine.
-The old rule of thumb "service on another machine → its LAN IP" does not hold on this
-host; route it through the relay instead.
 
 ### Gotcha: tool-name collisions
 
@@ -649,11 +553,9 @@ each server as a container, so the value is resolved *from inside a container*:
 - Service on **this Mac's host** (a `docker run -p` container, or a K8s `LoadBalancer`
   service Docker Desktop binds to localhost) → `http://host.docker.internal:<port>`.
   K8s `ClusterIP` is NOT reachable — switch it to `LoadBalancer` first.
-- Service on **another machine** (e.g. the Pi) → **NOT its LAN IP.** Containers here
-  have no route to the LAN (see "Grafana specifics"). Add an SSH tunnel modelled on
-  `configs/grafana-tunnel/` and use `http://host.docker.internal:<local_port>`.
-  Use `ssh -N`, not a forwarder script — an interpreter is blocked by macOS Local
-  Network privacy under launchd, and `/usr/bin/ssh` is not.
+- Service on **another machine** (e.g. the Pi) → use its LAN address,
+  `http://<PI_IP>:<port>`. This works again as of macOS `26A428`; see
+  "Grafana specifics" for the one-liner to re-run after an OS update.
 - **Never** point at a `*.rainforest.tools` tunnel URL for the API — Cloudflare Access will
   302-redirect and the MCP server will choke on the HTML.
 
