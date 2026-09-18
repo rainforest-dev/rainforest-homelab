@@ -467,10 +467,36 @@ binary and is not gated that way — a launchd-spawned ssh got as far as
 `Permission denied (publickey)`, and an auth rejection proves the TCP connection
 completed.
 
-The same gating still applies to agent sessions: kubectl, helm and Terraform's
-providers get `no route to host` against a LAN address from a process tree without
-the Local Network grant, while `/usr/bin/curl` and `/usr/bin/ssh` work. Reach the
-k3s API through an SSH forward to `127.0.0.1` when that happens.
+To re-check whether the container-to-LAN path itself is at fault, capture on the
+host while probing once from a container and once from the host:
+
+```bash
+sudo tcpdump -i en1 -nn "host <PI_IP> and tcp port 30080"
+```
+
+Packets from the host probe and none from the container means the drop is inside
+the Mac. The retired tunnel's full recipe (launchd plist, the key pinned to one
+forwarded port, the `~/.ssh/config` block) is recoverable with
+`git show 0aece64~1:configs/grafana-tunnel/com.homelab.grafana-tunnel.plist`. Only
+one process may bind `:30080`, so a leftover agent would race a rebuilt tunnel.
+
+**The same gating hits agent sessions, and that part is not fixed.** Measured
+2026-09-18 from a process tree without the Local Network grant (a Claude Code
+session under tmux): `kubectl` and `helm` against the Pi's `:6443` both fail with
+`dial tcp <PI_IP>:6443: connect: no route to host`, and a `terraform apply` whose
+kubernetes provider talks to that address fails the same way, while `/usr/bin/curl`
+reaches it (`401`, so the API is up) and a container reaches it too. Grant the
+terminal app Local Network access to fix it properly, or forward per command —
+the API certificate includes `127.0.0.1`, and loopback is never gated:
+
+```bash
+ssh -f -N -o ExitOnForwardFailure=yes -L 16443:127.0.0.1:6443 rpi5
+sed -E 's#server: https://[^:]+:6443#server: https://127.0.0.1:16443#' \
+  ~/.kube/config-raspberrypi-5 >| /tmp/k3s.kubeconfig
+# kubectl --kubeconfig /tmp/k3s.kubeconfig get nodes
+# terraform apply ... -var "k8s_config_path=/tmp/k3s.kubeconfig"
+pkill -f 'L 16443:127.0.0.1:6443'; rm -f /tmp/k3s.kubeconfig
+```
 
 ### Gotcha: tool-name collisions
 
