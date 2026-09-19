@@ -19,6 +19,7 @@ resource "docker_container" "alloy" {
   env = [
     "PROMETHEUS_REMOTE_WRITE_URL=${var.prometheus_remote_write_url}",
     "LOKI_PUSH_URL=${var.loki_push_url}",
+    "ALLOY_MACHINE=${var.machine}",
   ]
 
   volumes {
