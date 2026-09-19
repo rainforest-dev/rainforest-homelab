@@ -356,6 +356,7 @@ module "speedtest_exporter" {
 module "grafana_alloy" {
   source = "./modules/grafana-alloy"
 
+  machine                     = "rainforest-mini"
   project_name                = var.project_name
   image_version               = var.grafana_alloy_version
   prometheus_remote_write_url = var.rpi_prometheus_url
