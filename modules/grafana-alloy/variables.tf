@@ -38,5 +38,4 @@ variable "log_opts" {
 variable "machine" {
   description = "Host name stamped as the machine label on every pushed metric"
   type        = string
-  default     = "rainforest-mini"
 }
