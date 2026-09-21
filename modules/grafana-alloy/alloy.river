@@ -13,6 +13,10 @@ prometheus.scrape "unix" {
 // ─── Prometheus: Push to RPi ────────────────────────────────────────────────
 
 prometheus.remote_write "rpi" {
+  external_labels = {
+    machine = env("ALLOY_MACHINE"),
+  }
+
   endpoint {
     url = env("PROMETHEUS_REMOTE_WRITE_URL")
 

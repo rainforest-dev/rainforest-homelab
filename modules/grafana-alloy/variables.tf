@@ -34,3 +34,8 @@ variable "log_opts" {
     "max-file" = "3"
   }
 }
+
+variable "machine" {
+  description = "Host name stamped as the machine label on every pushed metric"
+  type        = string
+}
