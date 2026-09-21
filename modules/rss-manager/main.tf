@@ -36,11 +36,15 @@ resource "docker_container" "rss_manager" {
     "VAULT_PATH=/vault",
   ]
 
-  # Obsidian vault registry folder — mounted read-only
+  # Obsidian vault registry folder. Writable: the app's Activate / Retire /
+  # Decline buttons edit the registry markdown in place, and a read-only mount
+  # failed every one of them. The mount is the vault's registry folder alone, so
+  # the container reaches nothing else, and the service sits behind the access
+  # gate.
   volumes {
     container_path = "/vault"
     host_path      = var.vault_registry_path
-    read_only      = true
+    read_only      = false
   }
 
   labels {
