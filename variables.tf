@@ -205,6 +205,33 @@ variable "vault_registry_path" {
   default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/_system"
 }
 
+variable "personal_memories_image" {
+  description = "Docker image for personal-memories (e.g. ghcr.io/rainforest-dev/personal-memories:latest)"
+  type        = string
+  default     = "ghcr.io/rainforest-dev/personal-memories:latest"
+}
+
+variable "enable_personal_memories" {
+  description = "Enable the personal-memories album. Needs memories_data_path and photos_library_path; the module refuses to plan without them."
+  type        = bool
+  default     = false
+}
+
+# Empty by default rather than guessed: timeline.json records absolute host
+# paths, so a wrong value mounts an empty directory that reads as "no memories
+# yet" instead of failing. The module turns an empty value into a plan error.
+variable "memories_data_path" {
+  description = "Host path to the memories data directory (timeline.json plus the Slack export), mounted read-only at the same path in the container"
+  type        = string
+  default     = ""
+}
+
+variable "photos_library_path" {
+  description = "Host path holding the photo files timeline.json points at, usually the Photos library, mounted read-only at the same path in the container"
+  type        = string
+  default     = ""
+}
+
 # grafana_mcp_version / grafana_mcp_api_key removed with the standalone grafana-mcp
 # module. Grafana MCP is now part of the Docker MCP Gateway: its image is pinned by the
 # Docker catalog digest, and its Viewer token lives in Docker Desktop's Keychain

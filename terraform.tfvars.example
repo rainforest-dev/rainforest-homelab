@@ -57,3 +57,10 @@ service_token_ids = []  # Add service token IDs here for programmatic access
 # teleport_github_client_id     = ""  # GitHub OAuth App Client ID
 # teleport_github_client_secret = ""  # GitHub OAuth App Client Secret
 # teleport_github_organizations = ["your-github-org"]  # GitHub orgs allowed to access
+
+# personal-memories (off by default; both paths are required once enabled)
+# They are bind-mounted read-only at the same path inside the container, because
+# timeline.json records absolute host paths.
+enable_personal_memories = false
+memories_data_path       = ""  # e.g. /Users/you/.local/share/memories — timeline.json + the Slack export
+photos_library_path      = ""  # e.g. /Users/you/Pictures/Photos Library.photoslibrary
