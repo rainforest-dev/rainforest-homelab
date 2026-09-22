@@ -226,6 +226,18 @@ module "rss-manager" {
   vault_registry_path = var.vault_registry_path
 }
 
+module "personal-memories" {
+  source = "./modules/personal-memories"
+  count  = var.enable_personal_memories ? 1 : 0
+
+  project_name        = var.project_name
+  environment         = var.environment
+  image               = var.personal_memories_image
+  external_port       = 3004
+  data_dir            = var.memories_data_dir
+  photos_library_path = var.memories_photos_library_path
+}
+
 module "n8n" {
   source = "./modules/n8n"
 

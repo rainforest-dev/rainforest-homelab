@@ -205,6 +205,30 @@ variable "vault_registry_path" {
   default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/_system"
 }
 
+variable "enable_personal_memories" {
+  description = "Deploy the personal-memories album"
+  type        = bool
+  default     = false
+}
+
+variable "personal_memories_image" {
+  description = "Docker image for personal-memories (e.g. ghcr.io/rainforest-dev/personal-memories:latest)"
+  type        = string
+  default     = "ghcr.io/rainforest-dev/personal-memories:latest"
+}
+
+variable "memories_data_dir" {
+  description = "Host path to the memories data directory (line/, slack/, photos/, timeline.json)"
+  type        = string
+  default     = "/Users/rainforest/.local/share/memories"
+}
+
+variable "memories_photos_library_path" {
+  description = "Host path to the macOS Photos library that timeline.json media paths point into"
+  type        = string
+  default     = "/Users/rainforest/Pictures/Photos Library.photoslibrary"
+}
+
 # grafana_mcp_version / grafana_mcp_api_key removed with the standalone grafana-mcp
 # module. Grafana MCP is now part of the Docker MCP Gateway: its image is pinned by the
 # Docker catalog digest, and its Viewer token lives in Docker Desktop's Keychain
