@@ -1,0 +1,109 @@
+#!/bin/sh
+# Transparent instrumentation wrapper for git hooks.
+#
+# Installed by pointing a repo's core.hooksPath at the directory holding the
+# symlinks that invoke this script. The original hooksPath is saved first, in
+# telemetry.originalHooksPath, and this wrapper delegates to it.
+#
+# THE CONTRACT — this sits in the path of every real `git push`:
+#
+#   * The real hook's exit code is passed through byte-for-byte.
+#   * stdin is passed through untouched. pre-push receives its refs on stdin;
+#     consuming even one line here would silently change what gets tested.
+#   * Telemetry never writes to stdout/stderr — that output would land in the
+#     middle of git's own, and any error here is swallowed rather than raised.
+#   * If anything about the telemetry is broken, the hook still runs.
+#
+# Nothing in this file is committed to the instrumented repository: the wrapper
+# lives outside it and core.hooksPath is local git config, which is stored in
+# .git/config and is not version controlled.
+
+set -u
+
+HOOK_NAME=$(basename "$0")
+STATE_DIR="${DEV_TELEMETRY_STATE:-$HOME/.local/state/dev-telemetry}"
+RUNNING_DIR="$STATE_DIR/running"
+DEVLOG="${DEV_TELEMETRY_BIN:-$HOME/.config/dev-telemetry/bin}/devlog"
+MARKER="$RUNNING_DIR/$$.$HOOK_NAME"
+
+START_S=$(date +%s)
+# Assume the worst: if we are killed before the hook returns, the event still
+# records what happened. Emitting one self-contained line at the end — rather
+# than pairing a start and an end line — is what makes interrupted runs
+# countable instead of invisible, and they cluster exactly when the machine is
+# most contended.
+STATUS=interrupted
+EXIT_CODE=1
+
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+WORKTREE=$(basename "${REPO_ROOT:-unknown}")
+
+# Assign, then fall back on failure — do NOT write `$(cmd || echo unknown)`.
+# On an unborn HEAD, `git rev-parse --abbrev-ref HEAD` prints "HEAD" on stdout
+# *and* exits non-zero, so the `||` branch appends to the captured output and
+# yields the nonsense value "HEADunknown".
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || BRANCH=""
+[ -n "$BRANCH" ] && [ "$BRANCH" != "HEAD" ] || BRANCH=unknown
+
+emit() {
+    {
+        _dur=$(( ($(date +%s) - START_S) * 1000 ))
+        rm -f "$MARKER" 2>/dev/null
+        [ -x "$DEVLOG" ] && "$DEVLOG" git-hook "$STATUS" \
+            hook "$HOOK_NAME" \
+            dur_ms "$_dur" \
+            exit "$EXIT_CODE" \
+            worktree "$WORKTREE" \
+            branch "$BRANCH"
+    } >/dev/null 2>&1
+    return 0
+}
+trap emit EXIT INT TERM
+
+# A marker file per in-flight hook. ps-sampler counts these to produce
+# dev_hooks_running, which is what makes "two worktrees collided" a number on a
+# graph rather than something to be inferred from timestamps.
+{ mkdir -p "$RUNNING_DIR" && : >"$MARKER"; } >/dev/null 2>&1
+
+# Resolve the hook this wrapper is standing in front of.
+ORIG_PATH=$(git config --get telemetry.originalHooksPath 2>/dev/null || echo "")
+[ -n "$ORIG_PATH" ] || ORIG_PATH=".git/hooks"
+case $ORIG_PATH in
+    /*) REAL_HOOK="$ORIG_PATH/$HOOK_NAME" ;;
+    *)  REAL_HOOK="${REPO_ROOT:-.}/$ORIG_PATH/$HOOK_NAME" ;;
+esac
+
+# husky v9 keeps the user-facing hooks in .husky/ and points core.hooksPath at
+# .husky/_/, so fall back to the parent when the shim is absent.
+if [ ! -x "$REAL_HOOK" ] && [ -n "$REPO_ROOT" ] && [ -x "$REPO_ROOT/.husky/$HOOK_NAME" ]; then
+    REAL_HOOK="$REPO_ROOT/.husky/$HOOK_NAME"
+fi
+
+if [ -x "$REAL_HOOK" ]; then
+    "$REAL_HOOK" "$@"
+    EXIT_CODE=$?
+else
+    # No hook to run is a success, not a failure — the same thing git would do.
+    EXIT_CODE=0
+fi
+
+# Classify from the exit code rather than from the trap. A POSIX shell defers
+# trap handlers until the running command returns, so a signal arriving while
+# the real hook is mid-flight cannot flip a variable in time. What does survive
+# is the exit code: a process killed by a signal exits 128+signum, so 130 is
+# Ctrl-C and 143 is SIGTERM. Counting those separately matters because
+# interrupted runs cluster exactly when the machine is most contended, and
+# folding them into "fail" would hide that.
+#
+# Not detectable here: SIGKILL of this wrapper, which runs no trap at all. Such
+# a run leaves its marker file behind and ps-sampler prunes it, so the gauge
+# stays honest even though no event is emitted.
+if [ "$EXIT_CODE" -eq 0 ]; then
+    STATUS=ok
+elif [ "$EXIT_CODE" -gt 128 ]; then
+    STATUS=interrupted
+else
+    STATUS=fail
+fi
+
+exit $EXIT_CODE

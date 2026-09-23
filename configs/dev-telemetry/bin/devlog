@@ -1,0 +1,72 @@
+#!/bin/sh
+# devlog EVENT STATUS [key value]...
+#
+# Appends exactly one JSON line to the event spool. Every other emitter in this
+# directory goes through here.
+#
+# Two properties this file exists to guarantee:
+#
+#   1. ATOMIC APPEND. Several git worktrees write here at the same moment —
+#      that concurrency is the thing being measured, so the instrument must not
+#      corrupt itself under it. A single printf to an O_APPEND fd is atomic for
+#      short writes; a read-modify-write or multiple printfs would interleave.
+#      Keep it one printf, keep lines well under 4 KiB.
+#
+#   2. NEVER FAIL LOUDLY. This runs inside git hooks. A full disk or a missing
+#      directory must not print anything or return non-zero, or it changes the
+#      behaviour of a real push.
+
+set -u
+
+STATE_DIR="${DEV_TELEMETRY_STATE:-$HOME/.local/state/dev-telemetry}"
+SPOOL="$STATE_DIR/events.jsonl"
+MAX_BYTES=$((32 * 1024 * 1024))
+
+# Escape a value for use inside a JSON string: backslash, quote, then strip
+# control characters (a raw newline would split one event into two lines).
+json_escape() {
+    printf '%s' "$1" \
+        | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' \
+        | tr -d '\000-\037'
+}
+
+emit() {
+    [ $# -ge 2 ] || return 0
+    _event=$1
+    _status=$2
+    shift 2
+
+    _line="{\"ts\":\"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\""
+    _line="$_line,\"event\":\"$(json_escape "$_event")\""
+    _line="$_line,\"status\":\"$(json_escape "$_status")\""
+
+    while [ $# -ge 2 ]; do
+        _k=$(json_escape "$1")
+        _v=$2
+        # Bare integers stay unquoted so LogQL `unwrap` can read them directly.
+        case $_v in
+            ''|*[!0-9-]*) _line="$_line,\"$_k\":\"$(json_escape "$_v")\"" ;;
+            *)            _line="$_line,\"$_k\":$_v" ;;
+        esac
+        shift 2
+    done
+
+    printf '%s}\n' "$_line" >>"$SPOOL"
+}
+
+# Cheap size guard. Alloy tracks its read offset by inode, so rotating by
+# rename would silently lose the tail; truncating in place keeps the inode and
+# Alloy simply resumes. Losing old spool lines is fine — they already shipped.
+rotate_if_huge() {
+    _size=$(wc -c <"$SPOOL" 2>/dev/null || echo 0)
+    [ "$_size" -gt "$MAX_BYTES" ] 2>/dev/null && : >"$SPOOL"
+    return 0
+}
+
+{
+    mkdir -p "$STATE_DIR" 2>/dev/null
+    rotate_if_huge
+    emit "$@"
+} >/dev/null 2>&1
+
+exit 0
