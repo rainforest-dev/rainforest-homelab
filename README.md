@@ -35,10 +35,9 @@ flowchart LR
 Nothing listens on a forwarded port, so the home IP never appears in DNS. Certificates are issued
 by Cloudflare rather than managed here. Zero Trust is per service, but Terraform creates a
 service's Access application and email policy only when the service sets `enable_auth = true` and
-`allowed_email_domains` is non-empty. Every other route goes straight to the tunnel with no Access
-check. That includes an `enable_auth = true` service while `allowed_email_domains` is empty, even
-if `allowed_emails` is set. The OAuth Worker's custom domains never pass through Access; the Worker
-runs its own GitHub sign-in before it forwards anything to the tunnel.
+`allowed_email_domains` is non-empty; `allowed_emails` alone is not enough. The OAuth Worker's
+custom domains use the Worker's own GitHub sign-in instead of Access, and the Worker forwards only
+authenticated requests to its backend.
 
 ### What is deployed
 
@@ -52,7 +51,6 @@ runs its own GitHub sign-in before it forwards anything to the tunnel.
 #### Docker containers on the host
 - **Calibre Web**: Ebook server and manager
 - **Whisper STT**: OpenAI-compatible speech-to-text API (faster-whisper)
-- **Bambii**: Hermes Agent dashboard (AI agent with memory, skills, messaging integrations)
 - **Docker Proxy**: Secure Docker socket access
 
 Which of these the tunnel exposes is set per route in `locals.tf`, not by where a service runs. The
@@ -283,8 +281,6 @@ creates the `cloudflare_workers_domain` bindings that attach the Worker's custom
      `ALLOWED_GITHUB_LOGINS` is empty, any GitHub account can sign in
    - keep `name` as `<project_name>-oauth-gateway`, the Worker the Terraform bindings point at
 
-   The backend hostnames the Worker forwards to are in `src/index.ts`.
-
 3. Set the secrets and deploy:
    ```bash
    npx wrangler secret put GITHUB_CLIENT_ID
@@ -308,7 +304,7 @@ The code is in `workers/oauth-gateway/`, a TypeScript project with its entry poi
 `src/index.ts`. The Worker:
 - acts as the OAuth 2.1 server for MCP clients, including dynamic client registration
 - signs the user in with GitHub and keeps grants and tokens in Cloudflare KV
-- forwards authenticated MCP requests through the tunnel, to the Docker MCP Gateway by default
+- forwards authenticated MCP requests to its backend, the Docker MCP Gateway by default
 
 #### Using it after deploying
 
