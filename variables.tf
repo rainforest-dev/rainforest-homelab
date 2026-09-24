@@ -182,9 +182,9 @@ variable "enable_homeassistant" {
 }
 
 variable "personal_calibre_image" {
-  description = "Docker image for personal-calibre (e.g. ghcr.io/rainforest-dev/rainforest-monorepo/personal-calibre:latest)"
+  description = "Docker image for personal-calibre (e.g. ghcr.io/rainforest-dev/personal-calibre:latest)"
   type        = string
-  default     = "ghcr.io/rainforest-dev/rainforest-monorepo/personal-calibre:latest"
+  default     = "ghcr.io/rainforest-dev/personal-calibre:latest"
 }
 
 variable "calibre_library_path" {
