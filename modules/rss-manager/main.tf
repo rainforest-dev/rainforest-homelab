@@ -16,8 +16,6 @@ resource "docker_volume" "app_data" {
 }
 
 locals {
-  # Strip the trailing ":tag" so the digest can be appended below; a registry
-  # port's colon is not the last one, so the greedy match still leaves it in place.
   image_repository = regex("^(.*):[^:/]+$", var.image)[0]
 }
 
