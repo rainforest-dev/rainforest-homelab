@@ -19,17 +19,18 @@ or Google sign-in sits in front of whichever services ask for it.
 ```mermaid
 flowchart LR
   U[Browser] --> CF[Cloudflare edge]
-  CF --> ZT{Zero Trust policy}
+  CF -- auth enabled --> ZT{Zero Trust Access}
+  CF -- auth off --> T
   ZT -- allowed --> T[Cloudflare Tunnel]
-  ZT -- denied --> X[401]
+  ZT -- not signed in or denied --> X[Access login or 403 page]
   T --> CD[cloudflared pods in-cluster]
   CD --> K[Kubernetes services]
   CD --> D[Docker containers on the host]
 ```
 
 Nothing listens on a forwarded port, so the home IP never appears in DNS. Certificates are issued
-by Cloudflare rather than managed here. Zero Trust email verification is per service, off by
-default, and the edge means latency is reasonable from outside Taiwan.
+by Cloudflare rather than managed here. Zero Trust is per service: a service with `enable_auth`
+set goes through Access, one without it is routed straight to the tunnel.
 
 ### What is deployed
 
@@ -318,7 +319,7 @@ The Terraform deployment automatically creates and configures:
 - **Request Proxying**: Transparent forwarding to Docker MCP Gateway
 - **Security**: User authentication, session validation, and audit logging
 
-#### Using it After Terraform Deployment
+#### Using it after a Terraform deploy
 
 - **OAuth-Protected URL**: `https://docker-mcp.yourdomain.com/mcp`
 - **Authentication**: Automatic OAuth flow with Cloudflare Access
