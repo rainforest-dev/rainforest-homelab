@@ -1,5 +1,15 @@
+data "docker_registry_image" "this" {
+  name = var.image
+}
+
+resource "docker_image" "this" {
+  name          = var.image
+  pull_triggers = [data.docker_registry_image.this.sha256_digest]
+  keep_locally  = true
+}
+
 resource "docker_container" "personal_memories" {
-  image   = var.image
+  image   = docker_image.this.image_id
   name    = "${var.project_name}-personal-memories"
   restart = "always"
 

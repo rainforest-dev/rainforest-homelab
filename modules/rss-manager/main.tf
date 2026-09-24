@@ -15,8 +15,18 @@ resource "docker_volume" "app_data" {
   }
 }
 
+data "docker_registry_image" "this" {
+  name = var.image
+}
+
+resource "docker_image" "this" {
+  name          = var.image
+  pull_triggers = [data.docker_registry_image.this.sha256_digest]
+  keep_locally  = true
+}
+
 resource "docker_container" "rss_manager" {
-  image   = var.image
+  image   = docker_image.this.image_id
   name    = "${var.project_name}-rss-manager"
   restart = "always"
 
