@@ -69,10 +69,11 @@ locals {
 
     var.enable_personal_memories ? {
       "memories" = {
-        hostname    = "memories"
-        service_url = module.personal-memories[0].tunnel_service_url
-        enable_auth = true
-        type        = "docker"
+        hostname       = "memories"
+        service_url    = module.personal-memories[0].tunnel_service_url
+        enable_auth    = true
+        type           = "docker"
+        allowed_emails = ["ting1110001@gmail.com"]
       }
     } : {},
 
