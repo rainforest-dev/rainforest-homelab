@@ -1,10 +1,13 @@
 # Homelab Infrastructure
 
-A Terraform-based homelab infrastructure repository that deploys various self-hosted applications to a Kubernetes cluster using Helm charts and Docker containers. The setup uses Docker Desktop as the local Kubernetes environment with **Cloudflare Tunnel** for secure external access with automatic SSL certificates and optional Zero Trust authentication.
+Terraform and Helm for the self-hosted services I run at home. The cluster is Docker Desktop's
+Kubernetes; everything reachable from outside goes through a Cloudflare Tunnel, so no port is
+forwarded and my home IP stays out of DNS. Certificates come from Cloudflare, and Zero Trust email
+or Google sign-in sits in front of whichever services ask for it.
 
-## 🏗️ Architecture
+## Architecture
 
-### Core Components
+### Core components
 - **Terraform**: Infrastructure as Code for managing Kubernetes resources
 - **Helm**: Package manager for Kubernetes applications  
 - **Cloudflare Tunnel**: Secure external access with automatic SSL certificates
@@ -12,19 +15,26 @@ A Terraform-based homelab infrastructure repository that deploys various self-ho
 - **Docker Desktop**: Local Kubernetes cluster (context: `docker-desktop`)
 - **Docker Volumes**: Managed persistent storage for applications
 
-### Network Architecture
+### How traffic reaches a service
+```mermaid
+flowchart LR
+  U[Browser] --> CF[Cloudflare edge]
+  CF -- auth enabled --> ZT{Zero Trust Access}
+  CF -- auth off --> T
+  ZT -- allowed --> T[Cloudflare Tunnel]
+  ZT -- not signed in or denied --> X[Access login or 403 page]
+  T --> CD[cloudflared pods in-cluster]
+  CD --> K[Kubernetes services]
+  CD --> D[Docker containers on the host]
 ```
-Internet → Cloudflare Edge → Cloudflare Tunnel → cloudflared pods → Kubernetes Services
-```
 
-- **No exposed ports**: Your home IP stays completely hidden
-- **Automatic SSL**: Real certificates from Cloudflare 
-- **Zero Trust**: Optional email authentication for services
-- **Global CDN**: Fast access from anywhere via Cloudflare's network
+Nothing listens on a forwarded port, so the home IP never appears in DNS. Certificates are issued
+by Cloudflare rather than managed here. Zero Trust is per service: a service with `enable_auth`
+set goes through Access, one without it is routed straight to the tunnel.
 
-### Services Deployed
+### What is deployed
 
-#### Kubernetes Services (via Cloudflare Tunnel)
+#### Kubernetes services, reached through the tunnel
 - **cloudflared**: Tunnel client for secure connectivity
 - **PostgreSQL**: Database service for applications
 - **MinIO**: S3-compatible object storage for files and backups
@@ -33,13 +43,13 @@ Internet → Cloudflare Edge → Cloudflare Tunnel → cloudflared pods → Kube
 - **n8n**: Workflow automation platform
 - **Homepage**: Service dashboard and portal
 
-#### Docker Containers (Direct Access)
+#### Docker containers, reached directly
 - **Calibre Web**: Ebook server and manager
 - **Whisper STT**: OpenAI-compatible speech-to-text API (faster-whisper)
 - **Bambii**: Hermes Agent dashboard (AI agent with memory, skills, messaging integrations)
 - **Docker Proxy**: Secure Docker socket access
 
-## 🚀 Quick Start
+## Quick start
 
 ### Prerequisites
 - **Docker Desktop** with Kubernetes enabled
@@ -106,9 +116,9 @@ Internet → Cloudflare Edge → Cloudflare Tunnel → cloudflared pods → Kube
    - DNS records and SSL certificates are automatically created
    - With Zero Trust: Services require email verification before access
 
-## ⚙️ Configuration
+## Configuration
 
-### Required Configuration
+### Required values
 Configure your deployment by editing `terraform.tfvars`:
 
 ```hcl
@@ -138,7 +148,7 @@ default_memory_limit = "1Gi"
 default_storage_size = "10Gi"
 ```
 
-### Feature Flags
+### Feature flags
 Control which services are deployed:
 - `enable_cloudflare_tunnel`: Enable Cloudflare Tunnel for external access
 - `enable_postgresql`: Deploy PostgreSQL database
@@ -147,7 +157,7 @@ Control which services are deployed:
 - `enable_coredns`: Legacy Tailscale integration (disabled when using tunnel)
 - `enable_traefik`: Legacy ingress controller (disabled when using tunnel)
 
-### Zero Trust Authentication (2-Step Deployment)
+### Zero Trust authentication, in two passes
 
 **Step 1: Basic deployment** (no authentication)
 - Deploy with empty `allowed_email_domains = []`
@@ -180,7 +190,7 @@ To offer Google sign-in instead of (or alongside) email OTP:
 3. Run `terraform apply` — Google SSO will appear on all Zero Trust login pages
 4. If the Google app is in **test mode**, add each user at: APIs & Services → OAuth consent screen → Test users
 
-### Per-Service Access Control
+### Per-service access control
 
 Each service in `locals.tf` supports an optional `allowed_emails` field for granting access to specific users without giving them global access:
 
@@ -196,9 +206,9 @@ Each service in `locals.tf` supports an optional `allowed_emails` field for gran
 
 Global access is controlled via `allowed_email_domains` and `allowed_emails` in `terraform.tfvars`.
 
-## 🌐 Service Access
+## Reaching the services
 
-### Kubernetes Services (via Cloudflare Tunnel)
+### Kubernetes services, through the tunnel
 These services are accessible globally with automatic HTTPS certificates:
 
 - **🏠 https://homepage.yourdomain.com** - Homepage dashboard with all services
@@ -207,46 +217,46 @@ These services are accessible globally with automatic HTTPS certificates:
 - **⚡ https://n8n.yourdomain.com** - n8n automation platform
 - **🐳 https://docker-mcp.yourdomain.com** - Docker MCP Gateway for remote Docker operations (optional)
 
-### 🔒 Security Features
+### What the tunnel gives you
 - **Real SSL Certificates**: Automatic and trusted certificates from Cloudflare
 - **Hidden Home IP**: Your public IP is never exposed 
 - **Global CDN**: Fast access from anywhere via Cloudflare's network
 - **DDoS Protection**: Enterprise-grade protection included
 - **Zero Trust Ready**: Optional email authentication
 
-### 🌍 Access from Anywhere
+### Access from anywhere
 - **No VPN required**: Services accessible from any internet connection
 - **Mobile friendly**: Works on phones, tablets, laptops
 - **Office networks**: Bypasses most corporate firewalls
 - **Travel friendly**: Same URLs work globally
 
-### Docker Containers (Direct HTTP)
+### Docker containers, direct HTTP
 These services run as Docker containers with direct port access:
 
 - **📚 http://localhost:8083** - Calibre Web ebook server
 - **🚀 http://localhost:3333** - OpenSpeedTest network testing
 - **🔧 http://localhost:2375** - Docker Proxy (internal use)
 
-## 🐳 Docker MCP Gateway
+## Docker MCP gateway
 
 The Docker MCP Gateway provides **remote Docker operations** via the Model Context Protocol (MCP), enabling secure container management from anywhere.
 
-### Features
+### What it does
 - **Remote Docker Control**: Manage containers from any MCP-compatible client
 - **OAuth Authentication**: Secure access with Cloudflare Zero Trust
 - **132+ Tools**: Includes GitHub, Terraform, Obsidian, Playwright, and Sequential Thinking tools
 - **Streamable HTTP**: single-transport gateway; `--transport` takes one value, so SSE is not served concurrently
 - **Claude Compatible**: Works with Claude web, desktop, and mobile apps
 
-### Usage
+### Using it
 1. **OAuth-Protected (Recommended)**: `https://docker-mcp.rainforest.tools/mcp`
 2. **Local Development**: `http://localhost:3101/mcp` (bypasses authentication)
 
-### OAuth Setup for Docker MCP Gateway (Terraform Approach)
+### OAuth setup, the Terraform way
 
 **⚠️ RECOMMENDED:** Use Terraform for automated OAuth Worker deployment with centralized configuration management.
 
-#### Terraform Deployment (Recommended)
+#### Terraform deployment, preferred
 
 1. **Add OAuth Configuration** to your `terraform.tfvars`:
    ```hcl
@@ -276,7 +286,7 @@ The Docker MCP Gateway provides **remote Docker operations** via the Model Conte
 
 4. **Access OAuth-protected endpoint**: `https://docker-mcp.yourdomain.com/mcp`
 
-#### Manual Setup (Deprecated)
+#### Manual setup, deprecated
 <details>
 <summary>🚫 Legacy Manual Setup (Click to expand - Not recommended)</summary>
 
@@ -292,7 +302,7 @@ The Docker MCP Gateway provides **remote Docker operations** via the Model Conte
 
 </details>
 
-#### OAuth Worker Architecture
+#### How the OAuth worker fits in
 
 The Terraform deployment automatically creates and configures:
 
@@ -309,13 +319,13 @@ The Terraform deployment automatically creates and configures:
 - **Request Proxying**: Transparent forwarding to Docker MCP Gateway
 - **Security**: User authentication, session validation, and audit logging
 
-#### Usage After Terraform Deployment
+#### Using it after a Terraform deploy
 
 - **OAuth-Protected URL**: `https://docker-mcp.yourdomain.com/mcp`
 - **Authentication**: Automatic OAuth flow with Cloudflare Access
 - **Configuration**: Centrally managed via `terraform.tfvars`
 
-### Security Considerations
+### Security considerations
 
 ⚠️ **Docker Socket Access**: The Docker MCP Gateway requires Docker socket access, providing significant privileges:
 - Container management capabilities
@@ -330,15 +340,15 @@ The Terraform deployment automatically creates and configures:
 - Network isolation via Docker networks
 - Resource limits and health checks
 
-### Management Interfaces
+### Management interfaces
 Access administrative interfaces:
 
 - **☁️ Cloudflare Dashboard**: https://dash.cloudflare.com/
 - **🗄️ PostgreSQL**: Access via kubectl (see management section below)
 
-## 🔧 Management
+## Day-to-day operations
 
-### Terraform Operations
+### Terraform
 ```bash
 # Plan infrastructure changes
 terraform plan
@@ -354,7 +364,7 @@ terraform fmt
 terraform validate
 ```
 
-### Kubernetes Operations
+### Kubernetes
 ```bash
 # Check cluster context
 kubectl config current-context
@@ -371,7 +381,7 @@ kubectl logs -n homelab -l app=cloudflared
 kubectl get configmap -n homelab cloudflared-config -o yaml
 ```
 
-### Cloudflare Tunnel Operations
+### Cloudflare Tunnel
 ```bash
 # Check tunnel connectivity
 kubectl logs -n homelab -l app=cloudflared --tail=20
@@ -384,7 +394,7 @@ kubectl port-forward -n homelab -l app=cloudflared 2000:2000
 # Then visit http://localhost:2000/metrics
 ```
 
-### Docker Volume Operations
+### Docker volumes
 ```bash
 # List all project volumes
 docker volume ls --filter label=project=homelab
@@ -399,7 +409,7 @@ docker run --rm -v homelab-calibre-web-config:/data -v $(pwd):/backup alpine tar
 docker run --rm -v homelab-calibre-web-config:/data -v $(pwd):/backup alpine tar xzf /backup/calibre-config-backup.tar.gz -C /data
 ```
 
-### PostgreSQL Access
+### PostgreSQL
 ```bash
 # Get PostgreSQL password
 echo $(kubectl get secret --namespace homelab homelab-postgresql -o jsonpath="{.data.postgres-password}" | base64 --decode)
@@ -408,7 +418,7 @@ echo $(kubectl get secret --namespace homelab homelab-postgresql -o jsonpath="{.
 kubectl run postgresql-client --rm --tty -i --restart='Never' --namespace homelab --image docker.io/bitnami/postgresql:15 --env="PGPASSWORD=$(kubectl get secret --namespace homelab homelab-postgresql -o jsonpath="{.data.postgres-password}" | base64 --decode)" --command -- psql --host homelab-postgresql --username postgres --dbname homelab --port 5432
 ```
 
-### MinIO Object Storage Access
+### MinIO object storage
 
 **Web Console**: Access via `https://minio.yourdomain.com` (configured in Cloudflare Tunnel)
 
@@ -438,7 +448,7 @@ mc ls homelab/
 - **Secret Key**: Retrieved from Kubernetes secret
 - **Region**: `us-east-1` (default)
 
-## 📁 Project Structure
+## Project structure
 
 ```
 .
@@ -465,14 +475,14 @@ mc ls homelab/
     └── nfs-persistence/      # NFS storage (disabled)
 ```
 
-### Module Structure
+### Module layout
 Each module follows a standardized structure:
 - `main.tf`: Main resource definitions
 - `variables.tf`: Input variables with defaults
 - `outputs.tf`: Output values for resource information
 - `versions.tf`: Provider version constraints (where needed)
 
-## 🔒 Security
+## Security model
 
 - **Cloudflare Tunnel**: Zero trust network access with hidden home IP
 - **Automatic SSL**: Real certificates from Cloudflare with perfect forward secrecy
@@ -484,9 +494,9 @@ Each module follows a standardized structure:
 - **Network Policies**: Kubernetes namespace isolation
 - **Credential Security**: API tokens and secrets encrypted in Kubernetes
 
-## 🔄 Development
+## Adding to it
 
-### Adding New Services
+### Adding a new service
 1. Create new module directory in `modules/[service-name]/`
 2. Create standardized module files:
    - `main.tf`: Main resource definitions
@@ -502,7 +512,7 @@ Each module follows a standardized structure:
 
 Note: New services automatically get SSL certificates and DNS records via Cloudflare
 
-### Variable Conventions
+### Variable conventions
 All modules use standardized variables:
 - `project_name`: Project name for resource naming
 - `environment`: Environment (dev/staging/prod)
@@ -511,11 +521,11 @@ All modules use standardized variables:
 - `enable_persistence`: Enable persistent storage
 - `storage_size`: Storage size for persistent volumes
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -523,14 +533,14 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 4. Test with `terraform plan`
 5. Submit a pull request
 
-## 🔒 Security
+## Reporting a vulnerability
 
 This repository follows security best practices for infrastructure code. Please review:
 - [`SECURITY.md`](SECURITY.md) - Comprehensive security guidelines
 - Never commit sensitive data (API keys, passwords, tokens)
 - Use `terraform.tfvars.example` as a template for your local configuration
 
-## 📞 Support
+## Support
 
 For issues and questions:
 - Check the `CLAUDE.md` file for AI assistant guidance
