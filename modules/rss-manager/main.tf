@@ -15,14 +15,19 @@ resource "docker_volume" "app_data" {
   }
 }
 
+locals {
+  # Strip the trailing ":tag" so the digest can be appended below; a registry
+  # port's colon is not the last one, so the greedy match still leaves it in place.
+  image_repository = regex("^(.*):[^:/]+$", var.image)[0]
+}
+
 data "docker_registry_image" "this" {
   name = var.image
 }
 
 resource "docker_image" "this" {
-  name          = var.image
-  pull_triggers = [data.docker_registry_image.this.sha256_digest]
-  keep_locally  = true
+  name         = "${local.image_repository}@${data.docker_registry_image.this.sha256_digest}"
+  keep_locally = true
 }
 
 resource "docker_container" "rss_manager" {
