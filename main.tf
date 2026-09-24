@@ -236,6 +236,7 @@ module "personal-memories" {
   external_port       = 3004
   data_dir            = var.memories_data_dir
   photos_library_path = var.memories_photos_library_path
+  notes_dir           = var.memories_notes_dir
 }
 
 module "n8n" {

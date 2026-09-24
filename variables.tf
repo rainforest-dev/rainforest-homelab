@@ -229,6 +229,12 @@ variable "memories_photos_library_path" {
   default     = "/Users/rainforest/Pictures/Photos Library.photoslibrary"
 }
 
+variable "memories_notes_dir" {
+  description = "Host path to the Obsidian vault folder that holds the album's day notes (mounted read-write)"
+  type        = string
+  default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/notes/personal/memories"
+}
+
 # grafana_mcp_version / grafana_mcp_api_key removed with the standalone grafana-mcp
 # module. Grafana MCP is now part of the Docker MCP Gateway: its image is pinned by the
 # Docker catalog digest, and its Viewer token lives in Docker Desktop's Keychain

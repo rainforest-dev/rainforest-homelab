@@ -31,6 +31,11 @@ variable "photos_library_path" {
   type        = string
 }
 
+variable "notes_dir" {
+  description = "Host path to the Obsidian vault folder for day notes; the only read-write mount"
+  type        = string
+}
+
 variable "node_env" {
   description = "NODE_ENV value passed to the container"
   type        = string
