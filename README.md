@@ -25,7 +25,7 @@ flowchart LR
   CF -- Worker custom domains --> W[OAuth Worker]
   ZT -- allowed --> T[Cloudflare Tunnel]
   ZT -- not signed in or denied --> X[Access login or 403 page]
-  W -- after GitHub sign-in --> T
+  W -- after GitHub sign-in --> M[MCP backends]
   T --> CD[cloudflared pods in-cluster]
   CD --> K[Kubernetes services]
   CD --> D[Docker containers on the host]
