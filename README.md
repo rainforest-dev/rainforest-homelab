@@ -3,7 +3,8 @@
 Terraform and Helm for the self-hosted services I run at home. The cluster is Docker Desktop's
 Kubernetes; everything reachable from outside goes through a Cloudflare Tunnel, so no port is
 forwarded and my home IP stays out of DNS. Certificates come from Cloudflare, and Zero Trust email
-or Google sign-in sits in front of whichever services ask for it.
+or Google sign-in sits in front of services that set `enable_auth = true`, once
+`allowed_email_domains` is non-empty.
 
 ## Architecture
 
@@ -18,36 +19,43 @@ or Google sign-in sits in front of whichever services ask for it.
 ### How traffic reaches a service
 ```mermaid
 flowchart LR
-  U[Browser] --> CF[Cloudflare edge]
-  CF -- auth enabled --> ZT{Zero Trust Access}
-  CF -- auth off --> T
+  U[Browser or MCP client] --> CF[Cloudflare edge]
+  CF -->|"enable_auth = true and allowed_email_domains non-empty"| ZT{Zero Trust Access}
+  CF -- any other tunnel route --> T
+  CF -- Worker custom domains --> W[OAuth Worker]
   ZT -- allowed --> T[Cloudflare Tunnel]
   ZT -- not signed in or denied --> X[Access login or 403 page]
+  W -- after GitHub sign-in --> M[MCP backends]
   T --> CD[cloudflared pods in-cluster]
   CD --> K[Kubernetes services]
   CD --> D[Docker containers on the host]
+  CD -- over the LAN --> I[IoT services]
 ```
 
 Nothing listens on a forwarded port, so the home IP never appears in DNS. Certificates are issued
-by Cloudflare rather than managed here. Zero Trust is per service: a service with `enable_auth`
-set goes through Access, one without it is routed straight to the tunnel.
+by Cloudflare rather than managed here. Zero Trust is per service, but Terraform creates a
+service's Access application and email policy only when the service sets `enable_auth = true` and
+`allowed_email_domains` is non-empty; `allowed_emails` alone is not enough. The OAuth Worker's
+custom domains use the Worker's own GitHub sign-in instead of Access, and the Worker forwards only
+authenticated requests to its backend.
 
 ### What is deployed
 
-#### Kubernetes services, reached through the tunnel
+#### Kubernetes services
 - **cloudflared**: Tunnel client for secure connectivity
 - **PostgreSQL**: Database service for applications
 - **MinIO**: S3-compatible object storage for files and backups
 - **Open WebUI**: AI chat interface
-- **Flowise**: Low-code AI workflow builder  
 - **n8n**: Workflow automation platform
-- **Homepage**: Service dashboard and portal
 
-#### Docker containers, reached directly
+#### Docker containers on the host
 - **Calibre Web**: Ebook server and manager
 - **Whisper STT**: OpenAI-compatible speech-to-text API (faster-whisper)
-- **Bambii**: Hermes Agent dashboard (AI agent with memory, skills, messaging integrations)
 - **Docker Proxy**: Secure Docker socket access
+
+Which of these the tunnel exposes is set per route in `locals.tf`, not by where a service runs. The
+tunnel also routes to a few IoT services on the LAN, Homepage among them, that are deployed outside
+this repo.
 
 ## Quick start
 
@@ -243,7 +251,7 @@ The Docker MCP Gateway provides **remote Docker operations** via the Model Conte
 
 ### What it does
 - **Remote Docker Control**: Manage containers from any MCP-compatible client
-- **OAuth Authentication**: Secure access with Cloudflare Zero Trust
+- **OAuth Authentication**: GitHub sign-in through the OAuth Worker, not Zero Trust Access
 - **132+ Tools**: Includes GitHub, Terraform, Obsidian, Playwright, and Sequential Thinking tools
 - **Streamable HTTP**: single-transport gateway; `--transport` takes one value, so SSE is not served concurrently
 - **Claude Compatible**: Works with Claude web, desktop, and mobile apps
@@ -252,78 +260,58 @@ The Docker MCP Gateway provides **remote Docker operations** via the Model Conte
 1. **OAuth-Protected (Recommended)**: `https://docker-mcp.rainforest.tools/mcp`
 2. **Local Development**: `http://localhost:3101/mcp` (bypasses authentication)
 
-### OAuth setup, the Terraform way
+### OAuth setup with Wrangler
 
-**⚠️ RECOMMENDED:** Use Terraform for automated OAuth Worker deployment with centralized configuration management.
+The OAuth Worker is a Wrangler project in `workers/oauth-gateway/`. Wrangler deploys the Worker,
+its KV namespace binding and its secrets. Terraform does only one part: `modules/oauth-worker/`
+creates the `cloudflare_workers_domain` bindings that attach the Worker's custom domains, such as
+`docker-mcp.yourdomain.com`. Deploy the Worker first, then run Terraform.
 
-#### Terraform deployment, preferred
+1. Create a GitHub OAuth app with the callback URL `https://docker-mcp.yourdomain.com/callback`, and
+   copy its client ID and secret.
 
-1. **Add OAuth Configuration** to your `terraform.tfvars`:
-   ```hcl
-   # OAuth Configuration for Docker MCP Gateway
-   cloudflare_team_name  = "your-team-name"      # e.g., "rainforest"
-   oauth_client_id       = "your-client-id"      # From Cloudflare Access SaaS app
-   oauth_client_secret   = "your-client-secret"  # From Cloudflare Access SaaS app
+2. In `workers/oauth-gateway/`, install dependencies and create the KV namespace:
+   ```bash
+   npm install
+   npx wrangler kv namespace create OAUTH_KV
+   ```
+   Then edit `wrangler.jsonc`:
+   - set `account_id`, and put the new namespace ID in the `OAUTH_KV` binding
+   - set `GITHUB_CALLBACK_URL` and `ALLOWED_GITHUB_LOGINS` under `vars`; if
+     `ALLOWED_GITHUB_LOGINS` is empty, any GitHub account can sign in
+   - keep `name` as `<project_name>-oauth-gateway`, the Worker the Terraform bindings point at
+
+3. Set the secrets and deploy:
+   ```bash
+   npx wrangler secret put GITHUB_CLIENT_ID
+   npx wrangler secret put GITHUB_CLIENT_SECRET
+   npx wrangler secret put COOKIE_ENCRYPTION_KEY   # any random string, e.g. openssl rand -hex 32
+   npm run deploy
    ```
 
-2. **Update API Token Permissions** (if needed):
-   Your Cloudflare API token needs **Cloudflare Workers:Edit** permissions for KV and Worker management:
-   - Go to [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens)
-   - Edit your existing token or create a new one
-   - Add permissions: **Cloudflare Workers:Edit**, **Zone:Edit**, **Account:Read**
-
-3. **Deploy via Terraform**:
+4. From the repo root, create the custom domain bindings. The Terraform API token needs
+   Cloudflare Workers:Edit for this.
    ```bash
    terraform plan
    terraform apply
    ```
 
-   This automatically:
-   - Creates KV namespace for session storage
-   - Deploys OAuth Worker with all environment variables
-   - Sets up custom domain `docker-mcp.yourdomain.com`
-   - Manages configuration through Infrastructure as Code
-
-4. **Access OAuth-protected endpoint**: `https://docker-mcp.yourdomain.com/mcp`
-
-#### Manual setup, deprecated
-<details>
-<summary>🚫 Legacy Manual Setup (Click to expand - Not recommended)</summary>
-
-**Note**: Manual setup is deprecated in favor of the Terraform approach above for better configuration management and consistency.
-
-1. **Create Cloudflare Access SaaS Application**:
-   - Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → **Access** → **Applications**
-   - Click **Add application** → **SaaS**
-   - Configure with redirect URI: `https://docker-mcp.yourdomain.com/callback`
-   - Copy Client ID and Client Secret
-
-2. **Manually Deploy Worker**: Use Cloudflare Workers dashboard with manual environment variable configuration
-
-</details>
+5. Point MCP clients at `https://docker-mcp.yourdomain.com/mcp`.
 
 #### How the OAuth worker fits in
 
-The Terraform deployment automatically creates and configures:
+The code is in `workers/oauth-gateway/`, a TypeScript project with its entry point at
+`src/index.ts`. The Worker:
+- acts as the OAuth 2.1 server for MCP clients, including dynamic client registration
+- signs the user in with GitHub and keeps grants and tokens in Cloudflare KV
+- forwards authenticated MCP requests to its backend, the Docker MCP Gateway by default
 
-**📁 Worker Code**: `workers/oauth-gateway.js` (KV-enabled OAuth proxy)  
-**🏗️ Infrastructure**: 
-- `modules/oauth-worker/` - Terraform module for OAuth Worker
-- KV namespace for session storage  
-- Custom domain configuration
-- Environment variable management
+#### Using it after deploying
 
-**🔧 Features**:
-- **Session Management**: Secure server-side sessions in Cloudflare KV
-- **OAuth Flow**: Complete OAuth 2.1 implementation with Cloudflare Access
-- **Request Proxying**: Transparent forwarding to Docker MCP Gateway
-- **Security**: User authentication, session validation, and audit logging
-
-#### Using it after a Terraform deploy
-
-- **OAuth-Protected URL**: `https://docker-mcp.yourdomain.com/mcp`
-- **Authentication**: Automatic OAuth flow with Cloudflare Access
-- **Configuration**: Centrally managed via `terraform.tfvars`
+- URL: `https://docker-mcp.yourdomain.com/mcp`
+- Sign-in: the client runs the OAuth flow, and you sign in with GitHub
+- Configuration: `wrangler.jsonc` and Wrangler secrets for the Worker; Terraform only for the
+  domain bindings
 
 ### Security considerations
 
