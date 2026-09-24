@@ -235,6 +235,12 @@ variable "memories_notes_dir" {
   default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/notes/personal/memories"
 }
 
+variable "memories_owner_names" {
+  description = "Comma-separated author names that are the album's owner; set in terraform.tfvars"
+  type        = string
+  default     = ""
+}
+
 # grafana_mcp_version / grafana_mcp_api_key removed with the standalone grafana-mcp
 # module. Grafana MCP is now part of the Docker MCP Gateway: its image is pinned by the
 # Docker catalog digest, and its Viewer token lives in Docker Desktop's Keychain

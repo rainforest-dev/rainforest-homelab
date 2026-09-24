@@ -36,6 +36,12 @@ variable "notes_dir" {
   type        = string
 }
 
+variable "owner_names" {
+  description = "Comma-separated author names that are the album's owner (their messages are indented)"
+  type        = string
+  default     = ""
+}
+
 variable "node_env" {
   description = "NODE_ENV value passed to the container"
   type        = string

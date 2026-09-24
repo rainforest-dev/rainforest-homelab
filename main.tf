@@ -237,6 +237,7 @@ module "personal-memories" {
   data_dir            = var.memories_data_dir
   photos_library_path = var.memories_photos_library_path
   notes_dir           = var.memories_notes_dir
+  owner_names         = var.memories_owner_names
 }
 
 module "n8n" {
