@@ -26,6 +26,10 @@ data "docker_registry_image" "this" {
 resource "docker_image" "this" {
   name         = "${local.image_repository}@${data.docker_registry_image.this.sha256_digest}"
   keep_locally = true
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "docker_container" "rss_manager" {
