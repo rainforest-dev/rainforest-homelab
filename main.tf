@@ -238,6 +238,7 @@ module "personal-memories" {
   photos_library_path = var.memories_photos_library_path
   notes_dir           = var.memories_notes_dir
   owner_names         = var.memories_owner_names
+  authors             = var.memories_authors
 }
 
 module "n8n" {

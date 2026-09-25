@@ -25,6 +25,7 @@ resource "docker_container" "personal_memories" {
   ports {
     internal = 3004
     external = var.external_port
+    ip       = "127.0.0.1"
   }
 
   env = [
@@ -32,6 +33,7 @@ resource "docker_container" "personal_memories" {
     "MEMORIES_DATA_DIR=${var.data_dir}",
     "MEMORIES_NOTES_DIR=${var.notes_dir}",
     "MEMORIES_OWNER=${var.owner_names}",
+    "MEMORIES_AUTHORS=${var.authors}",
   ]
 
   # Container path mirrors the host path: timeline.json stores absolute host paths for every photo.

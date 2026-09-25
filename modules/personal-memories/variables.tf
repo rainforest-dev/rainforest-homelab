@@ -47,6 +47,13 @@ variable "owner_names" {
   default     = ""
 }
 
+variable "authors" {
+  description = "Comma-separated email=Name pairs that map a Cloudflare Access email to the name shown on a 眉批"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "node_env" {
   description = "NODE_ENV value passed to the container"
   type        = string
