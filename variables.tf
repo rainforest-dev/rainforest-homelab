@@ -241,6 +241,13 @@ variable "memories_owner_names" {
   default     = ""
 }
 
+variable "memories_authors" {
+  description = "Comma-separated email=Name pairs for 眉批 authors; set in terraform.tfvars"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # grafana_mcp_version / grafana_mcp_api_key removed with the standalone grafana-mcp
 # module. Grafana MCP is now part of the Docker MCP Gateway: its image is pinned by the
 # Docker catalog digest, and its Viewer token lives in Docker Desktop's Keychain
