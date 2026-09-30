@@ -16,8 +16,25 @@ resource "docker_volume" "app_data" {
   }
 }
 
+locals {
+  image_repository = regex("^(.*):[^:/]+$", var.image)[0]
+}
+
+data "docker_registry_image" "this" {
+  name = var.image
+}
+
+resource "docker_image" "this" {
+  name         = "${local.image_repository}@${data.docker_registry_image.this.sha256_digest}"
+  keep_locally = true
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 resource "docker_container" "personal_calibre" {
-  image   = var.image
+  image   = docker_image.this.image_id
   name    = "${var.project_name}-personal-calibre"
   restart = "always"
 
