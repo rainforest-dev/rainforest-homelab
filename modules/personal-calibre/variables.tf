@@ -11,8 +11,13 @@ variable "environment" {
 }
 
 variable "image" {
-  description = "Full Docker image reference (e.g. ghcr.io/rainforest-dev/rainforest-monorepo/personal-calibre:latest)"
+  description = "Full Docker image reference (e.g. ghcr.io/rainforest-dev/personal-calibre:latest)"
   type        = string
+
+  validation {
+    condition     = can(regex("^[^@]+:[^:/@]+$", var.image))
+    error_message = "image must be \"repo:tag\" (e.g. ghcr.io/rainforest-dev/personal-calibre:latest); a digest form (repo@sha256:...) or a tag-less reference is not accepted, the module resolves and pins the digest itself."
+  }
 }
 
 variable "external_port" {
