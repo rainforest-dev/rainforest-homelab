@@ -235,6 +235,24 @@ variable "memories_notes_dir" {
   default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/notes/personal/memories"
 }
 
+variable "enable_memories_auto_import" {
+  description = "Install the launchd agent that imports LINE drops and Photos into the memories data directory"
+  type        = bool
+  default     = false
+}
+
+variable "memories_runner_ref" {
+  description = "rainforest-monorepo commit SHA the auto-import runner checks out"
+  type        = string
+  default     = null
+}
+
+variable "memories_photos_from" {
+  description = "First day of the nightly Photos export window (YYYY-MM-DD)"
+  type        = string
+  default     = "2025-05-01"
+}
+
 variable "memories_owner_names" {
   description = "Comma-separated author names that are the album's owner; set in terraform.tfvars"
   type        = string

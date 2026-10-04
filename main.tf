@@ -243,6 +243,17 @@ resource "random_password" "memories_mcp_secret" {
   special = false
 }
 
+module "memories_auto_import" {
+  source = "./modules/memories-auto-import"
+  count  = var.enable_memories_auto_import ? 1 : 0
+
+  runner_ref          = var.memories_runner_ref
+  data_dir            = var.memories_data_dir
+  photos_library_path = var.memories_photos_library_path
+  photos_from         = var.memories_photos_from
+  webhook_url         = "http://localhost:${module.n8n.n8n_port}/webhook/ha-events"
+}
+
 module "n8n" {
   source = "./modules/n8n"
 

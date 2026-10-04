@@ -727,6 +727,15 @@ The Worker sends the backend `x-memories-gateway: <secret>` and `X-Forwarded-Log
 - **Worker routing** lives in `workers/oauth-gateway/src/backends.ts`. After changing it,
   `npx wrangler deploy` from `workers/oauth-gateway`.
 
+### Auto-import (launchd, host)
+
+`modules/memories-auto-import` installs `tools.rainforest.memories-auto-import`, which runs the
+monorepo's `auto-import.ts` nightly at 03:30 and on every drop into the iCloud `Memories Inbox`.
+It runs from a sparse runner checkout pinned to `memories_runner_ref`, never a working copy.
+Enable with `enable_memories_auto_import = true` plus the SHA. It needs a one-time Full Disk
+Access grant for `node` and the uv Python; the setup and verification steps are in
+`modules/memories-auto-import/README.md`.
+
 ## Whisper Speech-to-Text Service
 
 The homelab includes a self-hosted **Whisper STT API** for speech-to-text transcription using OpenAI's Whisper model.
