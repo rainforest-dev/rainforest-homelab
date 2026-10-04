@@ -69,6 +69,16 @@ locals {
       }
     } : {},
 
+    var.enable_personal_memories ? {
+      "memories-mcp-internal" = {
+        hostname    = "memories-mcp-internal"
+        service_url = module.personal-memories[0].tunnel_service_url
+        enable_auth = false # The OAuth Worker sends the gateway secret; the app rejects calls without it
+        type        = "docker"
+        path        = "^/mcp$"
+      }
+    } : {},
+
     {
       "personal-calibre-internal" = {
         hostname    = "personal-calibre-internal"

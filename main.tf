@@ -63,6 +63,9 @@ module "oauth_worker" {
   cloudflare_zone_id    = module.cloudflare_tunnel.zone_id
   cloudflare_team_name  = var.cloudflare_team_name
   domain_suffix         = var.domain_suffix
+
+  enable_memories_mcp     = var.enable_personal_memories
+  memories_gateway_secret = var.enable_personal_memories ? random_password.memories_mcp_secret[0].result : null
 }
 
 # Open WebUI Database - DISABLED (using SQLite instead of PostgreSQL)
@@ -230,6 +233,14 @@ module "personal-memories" {
   photos_library_path = var.memories_photos_library_path
   notes_dir           = var.memories_notes_dir
   owner_names         = var.memories_owner_names
+  public_url          = "https://memories.${var.domain_suffix}"
+  mcp_secret          = random_password.memories_mcp_secret[0].result
+}
+
+resource "random_password" "memories_mcp_secret" {
+  count   = var.enable_personal_memories ? 1 : 0
+  length  = 48
+  special = false
 }
 
 module "n8n" {

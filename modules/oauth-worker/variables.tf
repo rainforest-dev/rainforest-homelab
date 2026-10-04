@@ -28,3 +28,15 @@ variable "domain_suffix" {
   description = "Domain suffix for the OAuth worker"
   type        = string
 }
+variable "enable_memories_mcp" {
+  description = "Route memories-mcp.<domain> through the Worker and give it the memories gateway secret"
+  type        = bool
+  default     = false
+}
+
+variable "memories_gateway_secret" {
+  description = "Value the Worker sends as x-memories-gateway; must equal the container's MEMORIES_MCP_SECRET"
+  type        = string
+  default     = null
+  sensitive   = true
+}
