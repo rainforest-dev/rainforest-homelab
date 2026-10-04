@@ -33,6 +33,7 @@ resource "docker_container" "personal_memories" {
     "MEMORIES_DATA_DIR=${var.data_dir}",
     "MEMORIES_NOTES_DIR=${var.notes_dir}",
     "MEMORIES_OWNER=${var.owner_names}",
+    "MEMORIES_OLLAMA_URL=${var.ollama_url}",
   ]
 
   # Container path mirrors the host path: timeline.json stores absolute host paths for every photo.

@@ -64,3 +64,9 @@ variable "docker_host" {
   type        = string
   default     = "unix:///var/run/docker.sock"
 }
+
+variable "ollama_url" {
+  description = "Ollama endpoint for search embeddings, as reached from inside the container"
+  type        = string
+  default     = "http://host.docker.internal:11434"
+}
