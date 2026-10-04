@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${label}</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>${node}</string>
+        <string>${script}</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>${runner_dir}</string>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>${hour}</integer>
+        <key>Minute</key>
+        <integer>${minute}</integer>
+    </dict>
+
+    <key>WatchPaths</key>
+    <array>
+        <string>${drop_dir}</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <false/>
+    <key>ThrottleInterval</key>
+    <integer>60</integer>
+
+    <key>StandardOutPath</key>
+    <string>${log_dir}/stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>${log_dir}/stderr.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+%{ for key, value in env ~}
+        <key>${key}</key>
+        <string>${value}</string>
+%{ endfor ~}
+    </dict>
+</dict>
+</plist>
