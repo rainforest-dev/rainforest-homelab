@@ -40,3 +40,9 @@ variable "memories_gateway_secret" {
   default     = null
   sensitive   = true
 }
+
+variable "calibre_gateway_secret" {
+  description = "Value the Worker sends as x-calibre-gateway; must equal the container's CALIBRE_MCP_SECRET"
+  type        = string
+  sensitive   = true
+}

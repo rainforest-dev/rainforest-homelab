@@ -377,15 +377,20 @@ fails late and opaquely. A `401` from the public endpoint proves only that the
 Worker is guarding the route; it does **not** prove the backend is reachable.
 Verify the authenticated path separately.
 
-**Gemini Spark does not need Protected Resource Metadata.** Spark's custom-MCP
-connector requires streamable HTTP, but *not* RFC 9728 PRM. The OAuth Worker
-returns 404 for `/.well-known/oauth-protected-resource` and omits
-`resource_metadata=` from its 401 challenge, and Spark connects anyway by falling
-back to `/.well-known/oauth-authorization-server` (200) and completing Dynamic
-Client Registration at `/register`. `calibre-mcp.rainforest.tools` is the
-precedent — same Worker, same 0.0.6 library, connected and syncing. Do not
-upgrade `@cloudflare/workers-oauth-provider` on the theory that Spark requires
-it; that was investigated and refuted on 2026-08-01.
+**OAuth Worker discovery (`@cloudflare/workers-oauth-provider` 1.x).** Each host
+(`docker-mcp`, `calibre-mcp`, `memories-mcp`) is its own issuer and protected resource
+(`https://<host>/mcp`), served by a separate provider instance in one Worker over the shared
+`OAUTH_KV`. A token is bound to the host it was issued for and is refused on the others. Each
+host serves RFC 8414 metadata at `/.well-known/oauth-authorization-server` and RFC 9728 metadata
+at `/.well-known/oauth-protected-resource/mcp` (and at the bare path); the `401` challenge names
+it with `resource_metadata=`. PKCE is S256 only, DCR stays at `/register` with no client expiry,
+and Client ID Metadata Documents are on, which needs the `global_fetch_strictly_public`
+compatibility flag. Only `/mcp` is proxied; `/sse` and `/messages` are gone. Any other hostname,
+including `workers.dev`, gets 404. Grants and tokens written by 0.0.6 keep working: an unbound
+token is bound to the host it is presented on, at its next refresh.
+
+Gemini Spark never needed PRM: it fell back to `/.well-known/oauth-authorization-server` and DCR
+under 0.0.6 (verified 2026-08-01), and both still answer.
 
 **Add to Gemini Spark:** gemini.google.com/apps → Custom apps for Spark → Add a
 custom app → `https://docker-mcp.rainforest.tools/mcp`.
@@ -735,6 +740,27 @@ It runs from a sparse runner checkout pinned to `memories_runner_ref`, never a w
 Enable with `enable_memories_auto_import = true` plus the SHA. It needs a one-time Full Disk
 Access grant for `node` and the uv Python; the setup and verification steps are in
 `modules/memories-auto-import/README.md`.
+
+## Calibre MCP (behind the OAuth Worker)
+
+Clients connect at `https://calibre-mcp.rainforest.tools/mcp`. The Worker routes that hostname
+(never `?backend=`) to `https://personal-calibre-internal.rainforest.tools`, whose tunnel rule
+matches only `^/mcp$`; the library UI, `/files`, `/opds` and `/api/*` stay behind Access on
+`calibre`. The app also serves `/api/mcp`, which no client uses through the Worker.
+
+The Worker sends `x-calibre-gateway: <secret>` and `X-Forwarded-Login`, and drops
+`X-GitHub-Token`, `X-GitHub-User` and `X-Forwarded-User`; calibre never read them. An image that
+enforces the header answers 404 on its MCP routes when `CALIBRE_MCP_SECRET` is unset and 401
+without the right header or a login. An older image ignores both, so the homelab side can be
+applied first.
+
+- **Secret:** `random_password.calibre_mcp_secret`, written to the Worker as
+  `CALIBRE_GATEWAY_SECRET` and to the container as `CALIBRE_MCP_SECRET`. Read it with
+  `terraform output -raw calibre_mcp_secret`. Rotate with
+  `terraform apply -replace='random_password.calibre_mcp_secret'`.
+- **Port:** `8082` is published on `127.0.0.1` only, like memories.
+- **Order:** `terraform apply` before `npx wrangler deploy`. A Worker that routes calibre with a
+  gateway but has no `CALIBRE_GATEWAY_SECRET` answers 503.
 
 ## Whisper Speech-to-Text Service
 

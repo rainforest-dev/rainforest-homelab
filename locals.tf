@@ -83,8 +83,9 @@ locals {
       "personal-calibre-internal" = {
         hostname    = "personal-calibre-internal"
         service_url = module.personal-calibre.tunnel_service_url
-        enable_auth = false # Auth handled by OAuth Worker layer
+        enable_auth = false # The OAuth Worker sends the gateway secret; the app rejects calls without it
         type        = "docker"
+        path        = "^/mcp$"
       }
     },
 
