@@ -13,7 +13,8 @@
 	"compatibility_date": "2025-03-10",
 	"account_id": "f3c88b1550235076381ad00a914076b4",
 	"compatibility_flags": [
-		"nodejs_compat"
+		"nodejs_compat",
+		"global_fetch_strictly_public"
 	],
 	/**
 		 * Note: Use secrets to store sensitive data.

@@ -1,6 +1,7 @@
-import OAuthProvider from "@cloudflare/workers-oauth-provider";
+import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
 import { backendHeaders, resolveBackend } from "./backends";
 import { GitHubHandler } from "./github-handler";
+import { MCP_PATH, PROTECTED_RESOURCE_METADATA_PATH, servedOrigin } from "./hosts";
 
 // Context from the auth process, encrypted & stored in the auth token
 type Props = {
@@ -9,6 +10,8 @@ type Props = {
 	email: string;
 	accessToken: string;
 };
+
+const THIRTY_DAYS = 30 * 24 * 60 * 60;
 
 // MCP Proxy Handler
 const mcpProxyHandler = {
@@ -50,15 +53,44 @@ const mcpProxyHandler = {
 	}
 };
 
-export default new OAuthProvider({
-	apiHandlers: {
-		"/sse": mcpProxyHandler,
-		"/messages": mcpProxyHandler,
-		"/message": mcpProxyHandler,
-		"/mcp": mcpProxyHandler,
+function createProvider(origin: string) {
+	return new OAuthProvider({
+		apiRoute: MCP_PATH,
+		apiHandler: mcpProxyHandler,
+		authorizeEndpoint: "/authorize",
+		clientRegistrationEndpoint: "/register",
+		defaultHandler: GitHubHandler as any,
+		tokenEndpoint: "/token",
+		resourceMetadata: { resource: `${origin}${MCP_PATH}` },
+		clientIdMetadataDocumentEnabled: true,
+		clientRegistrationTTL: undefined,
+		refreshTokenIdleTTL: THIRTY_DAYS,
+	});
+}
+
+const providers = new Map<string, ReturnType<typeof createProvider>>();
+
+function providerFor(origin: string) {
+	let provider = providers.get(origin);
+	if (!provider) {
+		provider = createProvider(origin);
+		providers.set(origin, provider);
+	}
+	return provider;
+}
+
+export default {
+	fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> | Response {
+		const url = new URL(request.url);
+		const origin = servedOrigin(url);
+		if (!origin) return new Response("Not found", { status: 404 });
+
+		if (url.pathname === PROTECTED_RESOURCE_METADATA_PATH) {
+			url.pathname = `${PROTECTED_RESOURCE_METADATA_PATH}${MCP_PATH}`;
+			request = new Request(url, request);
+		}
+
+		// The provider caches its helpers on env.OAUTH_PROVIDER, so each host needs its own env object.
+		return providerFor(origin).fetch(request, { ...env }, ctx);
 	},
-	authorizeEndpoint: "/authorize",
-	clientRegistrationEndpoint: "/register",
-	defaultHandler: GitHubHandler as any,
-	tokenEndpoint: "/token",
-});
+};

@@ -1,6 +1,7 @@
 import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { Hono } from "hono";
 import { Octokit } from "octokit";
+import { servedOrigin } from "./hosts";
 import { fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, type Props } from "./utils";
 import {
 	clientIdAlreadyApproved,
@@ -222,6 +223,12 @@ app.get("/callback", async (c) => {
 		const originUrl = 'originUrl' in stateData ? stateData.originUrl : undefined;
 		const currentOrigin = new URL(c.req.url).origin;
 		if (originUrl && originUrl !== currentOrigin) {
+			if (servedOrigin(new URL(originUrl)) !== originUrl) {
+				return c.json({
+					error: "invalid_request",
+					error_description: "Invalid state - unknown origin"
+				}, 400);
+			}
 			const dest = new URL("/callback", originUrl);
 			dest.searchParams.set("code", c.req.query("code") || "");
 			dest.searchParams.set("state", btoa(JSON.stringify(oauthReqInfo)));
