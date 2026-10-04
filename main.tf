@@ -211,6 +211,7 @@ module "personal-calibre" {
 
   project_name         = var.project_name
   environment          = var.environment
+  docker_host          = var.docker_host
   image                = var.personal_calibre_image
   external_port        = 8082
   calibre_library_path = var.calibre_library_path
@@ -221,6 +222,7 @@ module "rss-manager" {
 
   project_name        = var.project_name
   environment         = var.environment
+  docker_host         = var.docker_host
   image               = var.rss_manager_image
   external_port       = 8084
   vault_registry_path = var.vault_registry_path
@@ -232,6 +234,7 @@ module "personal-memories" {
 
   project_name        = var.project_name
   environment         = var.environment
+  docker_host         = var.docker_host
   image               = var.personal_memories_image
   external_port       = 3004
   data_dir            = var.memories_data_dir

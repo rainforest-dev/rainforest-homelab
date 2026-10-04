@@ -20,10 +20,7 @@ resource "docker_container" "personal_memories" {
   name    = "${var.project_name}-personal-memories"
   restart = "always"
 
-  memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (
-    can(regex("Gi", var.memory_limit)) ? 1024 * 1024 * 1024 :
-    can(regex("Mi", var.memory_limit)) ? 1024 * 1024 : 1
-  )
+  memory      = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (can(regex("Gi", var.memory_limit)) ? 1024 : 1)
   memory_swap = -1
 
   ports {
@@ -70,5 +67,23 @@ resource "docker_container" "personal_memories" {
   labels {
     label = "service"
     value = "personal-memories"
+  }
+}
+
+# Terraform destroys the container before creating its new image; this dependent's destroy runs first, so the pull goes here.
+resource "terraform_data" "pull_before_replace" {
+  input = {
+    image       = var.image
+    docker_host = var.docker_host
+  }
+  triggers_replace = docker_container.personal_memories.id
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "docker pull \"$IMAGE\""
+    environment = {
+      IMAGE       = self.input.image
+      DOCKER_HOST = self.input.docker_host
+    }
   }
 }

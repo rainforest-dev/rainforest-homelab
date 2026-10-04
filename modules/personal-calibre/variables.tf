@@ -42,3 +42,9 @@ variable "memory_limit" {
   type        = string
   default     = "512Mi"
 }
+
+variable "docker_host" {
+  description = "Docker daemon the provider manages; the pre-replace pull targets the same daemon"
+  type        = string
+  default     = "unix:///var/run/docker.sock"
+}

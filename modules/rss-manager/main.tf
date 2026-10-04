@@ -37,10 +37,7 @@ resource "docker_container" "rss_manager" {
   name    = "${var.project_name}-rss-manager"
   restart = "always"
 
-  memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (
-    can(regex("Gi", var.memory_limit)) ? 1024 * 1024 * 1024 :
-    can(regex("Mi", var.memory_limit)) ? 1024 * 1024 : 1
-  )
+  memory      = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (can(regex("Gi", var.memory_limit)) ? 1024 : 1)
   memory_swap = -1
 
   ports {
@@ -75,5 +72,23 @@ resource "docker_container" "rss_manager" {
   labels {
     label = "service"
     value = "rss-manager"
+  }
+}
+
+# Terraform destroys the container before creating its new image; this dependent's destroy runs first, so the pull goes here.
+resource "terraform_data" "pull_before_replace" {
+  input = {
+    image       = var.image
+    docker_host = var.docker_host
+  }
+  triggers_replace = docker_container.rss_manager.id
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "docker pull \"$IMAGE\""
+    environment = {
+      IMAGE       = self.input.image
+      DOCKER_HOST = self.input.docker_host
+    }
   }
 }
