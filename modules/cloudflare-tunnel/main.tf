@@ -68,6 +68,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
       for_each = var.services
       content {
         hostname = "${ingress_rule.value.hostname}.${var.domain_suffix}"
+        path     = ingress_rule.value.path != "" ? ingress_rule.value.path : null
         service  = ingress_rule.value.service_url
 
         # NOTE: this remote (API-managed) tunnel configuration is what cloudflared
@@ -273,6 +274,9 @@ data:
     ingress:
 %{for name, config in var.services~}
       - hostname: ${config.hostname}.${var.domain_suffix}
+%{if config.path != ""~}
+        path: '${config.path}'
+%{endif~}
         service: ${config.service_url}
 %{if startswith(config.service_url, "https://") || config.http_host_header != ""~}
         originRequest:

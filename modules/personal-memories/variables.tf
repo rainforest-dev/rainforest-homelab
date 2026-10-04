@@ -70,3 +70,22 @@ variable "ollama_url" {
   type        = string
   default     = "http://host.docker.internal:11434"
 }
+
+variable "bind_ip" {
+  description = "Host address the published port binds to; 127.0.0.1 keeps it off the LAN while cloudflared still reaches it through host.docker.internal"
+  type        = string
+  default     = "127.0.0.1"
+}
+
+variable "public_url" {
+  description = "Public origin of the album, used for the day-page links the MCP returns"
+  type        = string
+  default     = ""
+}
+
+variable "mcp_secret" {
+  description = "Shared secret the OAuth Worker sends as x-memories-gateway; null leaves /mcp disabled (404)"
+  type        = string
+  default     = null
+  sensitive   = true
+}

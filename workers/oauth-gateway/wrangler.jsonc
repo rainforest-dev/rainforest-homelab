@@ -23,6 +23,8 @@
 		 * npx wrangler secret put GITHUB_CLIENT_ID
 		 * npx wrangler secret put GITHUB_CLIENT_SECRET
 		 * npx wrangler secret put COOKIE_ENCRYPTION_KEY
+		 *
+		 * MEMORIES_GATEWAY_SECRET is set by Terraform (modules/oauth-worker); do not put it by hand.
 		 */
 	"kv_namespaces": [
 		{

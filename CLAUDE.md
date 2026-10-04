@@ -704,6 +704,29 @@ curl -X POST "https://docker-mcp.rainforest.tools/register" \
   -d '{"client_name": "My Client", "redirect_uris": ["https://example.com/callback"]}'
 ```
 
+## Memories MCP (read-only, behind the OAuth Worker)
+
+Clients connect at `https://memories-mcp.rainforest.tools/mcp`. The Worker routes that
+hostname (never `?backend=`) to `https://memories-mcp-internal.rainforest.tools`, whose tunnel
+rule matches only `^/mcp$`, so pages, `/media` and `/thumb` stay behind Access on `memories`.
+
+The Worker sends the backend `x-memories-gateway: <secret>` and `X-Forwarded-Login`, and drops
+`X-GitHub-Token`, `X-GitHub-User` and `X-Forwarded-User`. The app returns 404 on `/mcp` when
+`MEMORIES_MCP_SECRET` is unset and 401 without the right header or a login.
+
+- **Secret:** `random_password.memories_mcp_secret` in the root module. Terraform writes it to
+  the Worker as `MEMORIES_GATEWAY_SECRET` (`cloudflare_workers_secret` in
+  `modules/oauth-worker`) and to the container as `MEMORIES_MCP_SECRET`. Do not
+  `wrangler secret put` it by hand. Read it with `terraform output -raw memories_mcp_secret`.
+- **Rotate:** `terraform apply -replace='random_password.memories_mcp_secret[0]'` updates both
+  sides in one apply (the container is recreated).
+- **Port:** the container publishes `3004` on `127.0.0.1` only. A loopback publish is still
+  reachable from the cloudflared pod at `host.docker.internal:3004` on Docker Desktop
+  (measured 2026-10-04: a pod got `200` from a `127.0.0.1`-published port, the LAN address got
+  no answer).
+- **Worker routing** lives in `workers/oauth-gateway/src/backends.ts`. After changing it,
+  `npx wrangler deploy` from `workers/oauth-gateway`.
+
 ## Whisper Speech-to-Text Service
 
 The homelab includes a self-hosted **Whisper STT API** for speech-to-text transcription using OpenAI's Whisper model.

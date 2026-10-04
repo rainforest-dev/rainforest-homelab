@@ -71,6 +71,7 @@ variable "services" {
     # unexpected Host values — e.g. the Docker MCP Gateway's streaming transport,
     # whose DNS-rebinding guard accepts only localhost/127.0.0.1.
     http_host_header = optional(string, "")
+    path             = optional(string, "")
   }))
   default = {}
 }

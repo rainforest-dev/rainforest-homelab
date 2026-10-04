@@ -35,6 +35,12 @@ output "minio_connection_info" {
   }
 }
 
+output "memories_mcp_secret" {
+  description = "Shared secret between the OAuth Worker and the memories container (x-memories-gateway)"
+  value       = var.enable_personal_memories ? random_password.memories_mcp_secret[0].result : null
+  sensitive   = true
+}
+
 output "minio_secret_key" {
   description = "MinIO secret key (sensitive)"
   value       = module.minio.secret_key

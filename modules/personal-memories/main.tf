@@ -26,15 +26,20 @@ resource "docker_container" "personal_memories" {
   ports {
     internal = 3004
     external = var.external_port
+    ip       = var.bind_ip
   }
 
-  env = [
-    "NODE_ENV=${var.node_env}",
-    "MEMORIES_DATA_DIR=${var.data_dir}",
-    "MEMORIES_NOTES_DIR=${var.notes_dir}",
-    "MEMORIES_OWNER=${var.owner_names}",
-    "MEMORIES_OLLAMA_URL=${var.ollama_url}",
-  ]
+  env = concat(
+    [
+      "NODE_ENV=${var.node_env}",
+      "MEMORIES_DATA_DIR=${var.data_dir}",
+      "MEMORIES_NOTES_DIR=${var.notes_dir}",
+      "MEMORIES_OWNER=${var.owner_names}",
+      "MEMORIES_OLLAMA_URL=${var.ollama_url}",
+    ],
+    var.public_url != "" ? ["MEMORIES_PUBLIC_URL=${var.public_url}"] : [],
+    var.mcp_secret != null ? ["MEMORIES_MCP_SECRET=${var.mcp_secret}"] : [],
+  )
 
   # Container path mirrors the host path: timeline.json stores absolute host paths for every photo.
   volumes {
