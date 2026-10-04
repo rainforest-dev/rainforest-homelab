@@ -62,11 +62,8 @@ resource "docker_container" "docker_mcp_gateway" {
   }
   
   
-  # Resource limits - Docker expects memory in bytes
-  memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (
-    can(regex("Gi", var.memory_limit)) ? 1024 * 1024 * 1024 :
-    can(regex("Mi", var.memory_limit)) ? 1024 * 1024 : 1
-  )
+  # The provider takes memory in MB, not bytes.
+  memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (can(regex("Gi", var.memory_limit)) ? 1024 : 1)
 
   lifecycle {
     ignore_changes = [memory_swap]

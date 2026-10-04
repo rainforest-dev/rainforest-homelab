@@ -194,17 +194,6 @@ module "minio" {
 # OpenSpeedTest moved to Raspberry Pi (external hosting)
 # Module kept in /modules for reference if needed
 
-module "calibre-web" {
-  source = "./modules/calibre-web"
-
-  project_name         = var.project_name
-  environment          = var.environment
-  enable_persistence   = var.enable_persistence
-  storage_size         = var.default_storage_size
-  cpu_limit            = var.default_cpu_limit
-  memory_limit         = var.default_memory_limit
-  use_external_storage = true
-}
 
 module "personal-calibre" {
   source = "./modules/personal-calibre"
@@ -290,6 +279,7 @@ module "whisper" {
   # Port 9000 reserved for MinIO (infrastructure > app).
   # Cloudflare Tunnel routes to whisper.rainforest.tools regardless of port.
   external_port        = 9090
+  memory_limit         = "2Gi"
   enable_gpu           = false # Set true if GPU available
   use_external_storage = true
   image_tag            = "latest"
