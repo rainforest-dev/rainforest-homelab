@@ -40,14 +40,6 @@ locals {
       }
     },
 
-    {
-      "calibre-web" = {
-        hostname    = "calibre-web"
-        service_url = "http://host.docker.internal:8083"
-        enable_auth = true
-        type        = "docker"
-      }
-    },
 
     {
       "calibre" = {
