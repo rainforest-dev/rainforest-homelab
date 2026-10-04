@@ -44,6 +44,7 @@ resource "docker_container" "personal_calibre" {
   ports {
     internal = 8080
     external = var.external_port
+    ip       = var.bind_ip
   }
 
   env = [
@@ -52,6 +53,7 @@ resource "docker_container" "personal_calibre" {
     "CALIBRE_LIBRARY_PATH=/calibre-library",
     # App DB lives in the persistent volume, separate from the library
     "CALIBRE_APP_DB_PATH=/app-data/personal-calibre-app.db",
+    "CALIBRE_MCP_SECRET=${var.mcp_secret}",
   ]
 
   # Calibre library — bind-mounted read-only so the app never modifies it

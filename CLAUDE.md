@@ -736,6 +736,27 @@ Enable with `enable_memories_auto_import = true` plus the SHA. It needs a one-ti
 Access grant for `node` and the uv Python; the setup and verification steps are in
 `modules/memories-auto-import/README.md`.
 
+## Calibre MCP (behind the OAuth Worker)
+
+Clients connect at `https://calibre-mcp.rainforest.tools/mcp`. The Worker routes that hostname
+(never `?backend=`) to `https://personal-calibre-internal.rainforest.tools`, whose tunnel rule
+matches only `^/mcp$`; the library UI, `/files`, `/opds` and `/api/*` stay behind Access on
+`calibre`. The app also serves `/api/mcp`, which no client uses through the Worker.
+
+The Worker sends `x-calibre-gateway: <secret>` and `X-Forwarded-Login`, and drops
+`X-GitHub-Token`, `X-GitHub-User` and `X-Forwarded-User`; calibre never read them. An image that
+enforces the header answers 404 on its MCP routes when `CALIBRE_MCP_SECRET` is unset and 401
+without the right header or a login. An older image ignores both, so the homelab side can be
+applied first.
+
+- **Secret:** `random_password.calibre_mcp_secret`, written to the Worker as
+  `CALIBRE_GATEWAY_SECRET` and to the container as `CALIBRE_MCP_SECRET`. Read it with
+  `terraform output -raw calibre_mcp_secret`. Rotate with
+  `terraform apply -replace='random_password.calibre_mcp_secret'`.
+- **Port:** `8082` is published on `127.0.0.1` only, like memories.
+- **Order:** `terraform apply` before `npx wrangler deploy`. A Worker that routes calibre with a
+  gateway but has no `CALIBRE_GATEWAY_SECRET` answers 503.
+
 ## Whisper Speech-to-Text Service
 
 The homelab includes a self-hosted **Whisper STT API** for speech-to-text transcription using OpenAI's Whisper model.

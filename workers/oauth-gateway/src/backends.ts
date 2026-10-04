@@ -13,8 +13,12 @@ export type Identity = {
 
 export const BACKENDS: Record<string, Backend> = {
 	obsidian: { url: "https://obsidian-internal.rainforest.tools", forwardGithubToken: true },
-	calibre: { url: "https://personal-calibre-internal.rainforest.tools", forwardGithubToken: true },
-	"calibre-mcp": { url: "https://personal-calibre-internal.rainforest.tools", forwardGithubToken: true },
+	"calibre-mcp": {
+		url: "https://personal-calibre-internal.rainforest.tools",
+		forwardGithubToken: false,
+		hostnameOnly: true,
+		gateway: { header: "x-calibre-gateway", secretEnv: "CALIBRE_GATEWAY_SECRET" },
+	},
 	"memories-mcp": {
 		url: "https://memories-mcp-internal.rainforest.tools",
 		forwardGithubToken: false,

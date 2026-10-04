@@ -66,6 +66,7 @@ module "oauth_worker" {
 
   enable_memories_mcp     = var.enable_personal_memories
   memories_gateway_secret = var.enable_personal_memories ? random_password.memories_mcp_secret[0].result : null
+  calibre_gateway_secret  = random_password.calibre_mcp_secret.result
 }
 
 # Open WebUI Database - DISABLED (using SQLite instead of PostgreSQL)
@@ -207,6 +208,12 @@ module "personal-calibre" {
   image                = var.personal_calibre_image
   external_port        = 8082
   calibre_library_path = var.calibre_library_path
+  mcp_secret           = random_password.calibre_mcp_secret.result
+}
+
+resource "random_password" "calibre_mcp_secret" {
+  length  = 48
+  special = false
 }
 
 module "rss-manager" {

@@ -1,6 +1,7 @@
 # The OAuth Worker is deployed via Wrangler with name "homelab-oauth-gateway" 
 # It has its own KV namespace and secrets configured via Wrangler, except
-# MEMORIES_GATEWAY_SECRET, which Terraform owns so it matches the memories container.
+# MEMORIES_GATEWAY_SECRET and CALIBRE_GATEWAY_SECRET, which Terraform owns so each
+# matches its container.
 
 # Custom domains for the OAuth Worker
 resource "cloudflare_workers_domain" "oauth_gateway" {
@@ -34,3 +35,9 @@ resource "cloudflare_workers_secret" "memories_gateway" {
   secret_text = var.memories_gateway_secret
 }
 
+resource "cloudflare_workers_secret" "calibre_gateway" {
+  account_id  = var.cloudflare_account_id
+  script_name = "${var.project_name}-oauth-gateway"
+  name        = "CALIBRE_GATEWAY_SECRET"
+  secret_text = var.calibre_gateway_secret
+}

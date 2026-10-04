@@ -41,6 +41,12 @@ output "memories_mcp_secret" {
   sensitive   = true
 }
 
+output "calibre_mcp_secret" {
+  description = "Shared secret between the OAuth Worker and the personal-calibre container (x-calibre-gateway)"
+  value       = random_password.calibre_mcp_secret.result
+  sensitive   = true
+}
+
 output "memories_auto_import" {
   description = "launchd job, runner and log locations for memories auto-import"
   value       = var.enable_memories_auto_import ? module.memories_auto_import[0] : null
