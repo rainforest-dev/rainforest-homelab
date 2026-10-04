@@ -3,8 +3,8 @@
 # the Mac's own volumes. Backs up the non-regenerable app volumes plus the Postgres logical
 # dump directory produced by the postgres-backup CronJob — so one tool ships both.
 #
-# Deliberately EXCLUDED: homelab-calibre-web-books (large, re-downloadable library) and
-# homelab-whisper-models (re-downloaded on demand). Add them here if that changes.
+# Deliberately EXCLUDED: homelab-whisper-models (re-downloaded on demand). Add it here if
+# that changes.
 
 resource "docker_image" "backup" {
   name = "offen/docker-volume-backup:${var.image_version}"
@@ -42,11 +42,6 @@ resource "docker_container" "backup" {
   }
 
   # Non-regenerable app volumes (read-only).
-  volumes {
-    volume_name    = "homelab-calibre-web-config"
-    container_path = "/backup/calibre-web-config"
-    read_only      = true
-  }
   volumes {
     volume_name    = "homelab-personal-calibre-app-data"
     container_path = "/backup/personal-calibre"
