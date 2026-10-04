@@ -41,6 +41,11 @@ output "memories_mcp_secret" {
   sensitive   = true
 }
 
+output "memories_auto_import" {
+  description = "launchd job, runner and log locations for memories auto-import"
+  value       = var.enable_memories_auto_import ? module.memories_auto_import[0] : null
+}
+
 output "minio_secret_key" {
   description = "MinIO secret key (sensitive)"
   value       = module.minio.secret_key
