@@ -20,10 +20,7 @@ resource "docker_container" "personal_memories" {
   name    = "${var.project_name}-personal-memories"
   restart = "always"
 
-  memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (
-    can(regex("Gi", var.memory_limit)) ? 1024 * 1024 * 1024 :
-    can(regex("Mi", var.memory_limit)) ? 1024 * 1024 : 1
-  )
+  memory      = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (can(regex("Gi", var.memory_limit)) ? 1024 : 1)
   memory_swap = -1
 
   ports {
