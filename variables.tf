@@ -190,7 +190,11 @@ variable "personal_calibre_image" {
 variable "calibre_library_path" {
   description = "Host path to the Calibre library directory (contains metadata.db and book subdirs)"
   type        = string
-  default     = "/Users/rainforest/Library/CloudStorage/SynologyDrive-CalibreLibrary"
+
+  validation {
+    condition     = startswith(var.calibre_library_path, "/")
+    error_message = "calibre_library_path must be an absolute host path."
+  }
 }
 
 variable "rss_manager_image" {
