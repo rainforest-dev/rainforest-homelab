@@ -39,6 +39,17 @@ output "zero_trust_policies" {
   }
 }
 
+output "service_auth_client_id" {
+  description = "Client ID of the service token guarding service_auth_only hostnames"
+  value       = one(cloudflare_zero_trust_access_service_token.service_auth[*].client_id)
+}
+
+output "service_auth_client_secret" {
+  description = "Client secret of the service token guarding service_auth_only hostnames"
+  value       = one(cloudflare_zero_trust_access_service_token.service_auth[*].client_secret)
+  sensitive   = true
+}
+
 output "dns_records" {
   description = "DNS record IDs created for services"
   value = {

@@ -2,7 +2,7 @@ export type Backend = {
 	url: string;
 	forwardGithubToken: boolean;
 	hostnameOnly?: boolean;
-	gateway?: { header: string; secretEnv: string };
+	gateway?: { header: string; secretEnv: string }[];
 };
 
 export type Identity = {
@@ -17,17 +17,24 @@ export const BACKENDS: Record<string, Backend> = {
 		url: "https://personal-calibre-internal.rainforest.tools",
 		forwardGithubToken: false,
 		hostnameOnly: true,
-		gateway: { header: "x-calibre-gateway", secretEnv: "CALIBRE_GATEWAY_SECRET" },
+		gateway: [{ header: "x-calibre-gateway", secretEnv: "CALIBRE_GATEWAY_SECRET" }],
 	},
 	"memories-mcp": {
 		url: "https://memories-mcp-internal.rainforest.tools",
 		forwardGithubToken: false,
 		hostnameOnly: true,
-		gateway: { header: "x-memories-gateway", secretEnv: "MEMORIES_GATEWAY_SECRET" },
+		gateway: [{ header: "x-memories-gateway", secretEnv: "MEMORIES_GATEWAY_SECRET" }],
 	},
 };
 
-export const DEFAULT_BACKEND: Backend = { url: "https://docker-mcp-internal.rainforest.tools", forwardGithubToken: true };
+export const DEFAULT_BACKEND: Backend = {
+	url: "https://docker-mcp-internal.rainforest.tools",
+	forwardGithubToken: true,
+	gateway: [
+		{ header: "CF-Access-Client-Id", secretEnv: "CF_ACCESS_CLIENT_ID" },
+		{ header: "CF-Access-Client-Secret", secretEnv: "CF_ACCESS_CLIENT_SECRET" },
+	],
+};
 
 const IDENTITY_HEADERS = ["X-Forwarded-User", "X-Forwarded-Login", "X-GitHub-User", "X-GitHub-Token"];
 
@@ -49,8 +56,8 @@ export function backendHeaders(
 	const headers = new Headers(incoming);
 	headers.delete("Authorization");
 	for (const name of IDENTITY_HEADERS) headers.delete(name);
-	for (const known of Object.values(BACKENDS)) {
-		if (known.gateway) headers.delete(known.gateway.header);
+	for (const known of [...Object.values(BACKENDS), DEFAULT_BACKEND]) {
+		for (const gate of known.gateway ?? []) headers.delete(gate.header);
 	}
 
 	headers.set("X-Forwarded-Login", identity.login);
@@ -60,12 +67,12 @@ export function backendHeaders(
 		headers.set("X-GitHub-Token", identity.accessToken);
 	}
 
-	if (backend.gateway) {
-		const secret = env[backend.gateway.secretEnv];
+	for (const gate of backend.gateway ?? []) {
+		const secret = env[gate.secretEnv];
 		if (typeof secret !== "string" || secret === "") {
-			return { error: `${backend.gateway.secretEnv} is not configured` };
+			return { error: `${gate.secretEnv} is not configured` };
 		}
-		headers.set(backend.gateway.header, secret);
+		headers.set(gate.header, secret);
 	}
 	return headers;
 }
