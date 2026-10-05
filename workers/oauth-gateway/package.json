@@ -11,13 +11,13 @@
 	},
 	"dependencies": {
 		"@cloudflare/workers-oauth-provider": "^1.2.1",
-		"hono": "^4.9.7",
+		"hono": "^4.13.7",
 		"octokit": "^5.0.3"
 	},
 	"devDependencies": {
 		"@types/node": "^24.3.1",
 		"prettier": "^3.6.2",
 		"typescript": "5.9.2",
-		"wrangler": "^4.35.0"
+		"wrangler": "^4.59.1"
 	}
 }
