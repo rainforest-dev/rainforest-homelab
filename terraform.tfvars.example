@@ -57,3 +57,5 @@ service_token_ids = []  # Add service token IDs here for programmatic access
 # teleport_github_client_id     = ""  # GitHub OAuth App Client ID
 # teleport_github_client_secret = ""  # GitHub OAuth App Client Secret
 # teleport_github_organizations = ["your-github-org"]  # GitHub orgs allowed to access
+# Calibre library for personal-calibre (required; directory holding metadata.db)
+calibre_library_path = "/Volumes/YourDisk/Calibre"
