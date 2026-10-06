@@ -109,10 +109,10 @@ resource "cloudflare_record" "services" {
 
 # Create Zero Trust Application for each service (only if email domains are configured)
 resource "cloudflare_zero_trust_access_application" "services" {
-  for_each = length(var.allowed_email_domains) > 0 ? {
+  for_each = {
     for name, config in var.services : name => config
-    if config.enable_auth
-  } : {}
+    if config.service_auth_only || (config.enable_auth && length(var.allowed_email_domains) > 0)
+  }
 
   zone_id          = local.zone_id
   name             = "${title(each.value.hostname)} - ${var.project_name}"
@@ -136,7 +136,7 @@ resource "cloudflare_zero_trust_access_application" "services" {
 resource "cloudflare_zero_trust_access_policy" "email_policy" {
   for_each = length(var.allowed_email_domains) > 0 ? {
     for name, config in var.services : name => config
-    if config.enable_auth
+    if config.enable_auth && !config.service_auth_only
   } : {}
 
   application_id = cloudflare_zero_trust_access_application.services[each.key].id
@@ -169,6 +169,35 @@ resource "cloudflare_zero_trust_access_policy" "email_policy" {
     }
   }
 
+}
+
+locals {
+  service_auth_only = {
+    for name, config in var.services : name => config
+    if config.service_auth_only
+  }
+}
+
+resource "cloudflare_zero_trust_access_service_token" "service_auth" {
+  count = length(local.service_auth_only) > 0 ? 1 : 0
+
+  account_id = var.cloudflare_account_id
+  name       = "${var.project_name}-service-auth"
+  duration   = "forever"
+}
+
+resource "cloudflare_zero_trust_access_policy" "service_auth_policy" {
+  for_each = local.service_auth_only
+
+  application_id = cloudflare_zero_trust_access_application.services[each.key].id
+  zone_id        = local.zone_id
+  name           = "Service auth ${each.key}"
+  precedence     = 1
+  decision       = "non_identity"
+
+  include {
+    service_token = [cloudflare_zero_trust_access_service_token.service_auth[0].id]
+  }
 }
 
 # Create Kubernetes secret for tunnel credentials

@@ -47,6 +47,17 @@ output "calibre_mcp_secret" {
   sensitive   = true
 }
 
+output "service_auth_client_id" {
+  description = "CF Access service token client ID the OAuth Worker sends to service_auth_only origins"
+  value       = module.cloudflare_tunnel.service_auth_client_id
+}
+
+output "service_auth_client_secret" {
+  description = "CF Access service token client secret the OAuth Worker sends to service_auth_only origins"
+  value       = module.cloudflare_tunnel.service_auth_client_secret
+  sensitive   = true
+}
+
 output "memories_auto_import" {
   description = "launchd job, runner and log locations for memories auto-import"
   value       = var.enable_memories_auto_import ? module.memories_auto_import[0] : null
