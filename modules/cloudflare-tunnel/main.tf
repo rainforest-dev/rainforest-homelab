@@ -145,28 +145,11 @@ resource "cloudflare_zero_trust_access_policy" "email_policy" {
   precedence     = 1
   decision       = "allow"
 
-  # Email domain restriction
-  dynamic "include" {
-    for_each = length(var.allowed_email_domains) > 0 ? [1] : []
-    content {
-      email_domain = var.allowed_email_domains
-    }
-  }
-
-  # Optional: Add email list for specific users (global + per-service)
-  dynamic "include" {
-    for_each = length(concat(var.allowed_emails, each.value.allowed_emails)) > 0 ? [1] : []
-    content {
-      email = concat(var.allowed_emails, each.value.allowed_emails)
-    }
-  }
-
-  # Service tokens for programmatic access (MCP clients, CI, etc.)
-  dynamic "include" {
-    for_each = length(var.service_token_ids) > 0 ? [1] : []
-    content {
-      service_token = var.service_token_ids
-    }
+  # Cloudflare stores one include rule set; separate include blocks collapse on read and drop email_domain.
+  include {
+    email_domain  = var.allowed_email_domains
+    email         = length(concat(var.allowed_emails, each.value.allowed_emails)) > 0 ? concat(var.allowed_emails, each.value.allowed_emails) : null
+    service_token = length(var.service_token_ids) > 0 ? var.service_token_ids : null
   }
 
 }
