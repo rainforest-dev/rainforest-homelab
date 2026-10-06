@@ -313,7 +313,7 @@ Notion, memory, terraform, …) behind one SSE endpoint, exposed at
 
 **Architecture: the gateway is a launchd host service, NOT a Terraform container.**
 It runs `docker mcp gateway run --profile default --transport streaming --port 3101
---host 0.0.0.0 --allow-unauthenticated`. This is the *managed* gateway — it executes on
+--host 127.0.0.1 --allow-unauthenticated`. This is the *managed* gateway — it executes on
 the host, so it reads config from the Docker Desktop `default` profile and secrets from
 the macOS Keychain (via `docker-credential-desktop`). A plain `docker run` container
 cannot reach the Keychain, which is why the retired standalone container had to keep
@@ -322,8 +322,9 @@ plaintext secrets in `~/.docker/mcp/config.yaml`.
 - **Plist (version-controlled):** `configs/docker-mcp-gateway/com.homelab.docker-mcp-gateway.plist`
 - **Install:** `cp` it to `~/Library/LaunchAgents/`, then `launchctl load -w <plist>`
 - **Port:** listens on `3101` (host). Tunnel route `docker-mcp-internal` in `locals.tf`
-  points at `host.docker.internal:3101`. `--host 0.0.0.0` is required — cloudflared runs
-  in the K8s cluster and reaches the host over the bridge gateway, not loopback.
+  points at `host.docker.internal:3101`. `--host 127.0.0.1` is enough: Docker Desktop
+  forwards `host.docker.internal` to the host's loopback (verified 2026-10-06 from a
+  busybox pod in `homelab`), so the tunnel reaches it and the LAN does not.
 - **Restart after a profile/Keychain change:** `launchctl kickstart -k gui/$(id -u)/com.homelab.docker-mcp-gateway`
 - **Reload after editing the plist:** `kickstart` does **not** re-read the plist from
   disk — it restarts from launchd's in-memory job definition, so the gateway keeps

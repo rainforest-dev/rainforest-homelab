@@ -15,14 +15,12 @@
   the Cloudflare Tunnel route (host.docker.internal:3101) is unchanged. The
   managed gateway is a single host process, so it binds 3101 directly.
 
-  --host 0.0.0.0 is REQUIRED: cloudflared runs in the Docker Desktop K8s cluster
-  and reaches the host over the bridge gateway (host.docker.internal), not
-  loopback. A 127.0.0.1 bind would be unreachable from the tunnel.
+  --host 127.0.0.1: Docker Desktop forwards host.docker.internal to the host's
+  loopback, so the cloudflared pods still reach it while the LAN cannot.
 
-  --allow-unauthenticated: parity with the old container ("auth disabled in
-  container"). Access control is the OAuth Worker in front of
-  docker-mcp.rainforest.tools; LAN exposure of :3101 is a pre-existing,
-  accepted risk (see docs/superpowers/specs).
+  --allow-unauthenticated: the only callers are local processes and the tunnel,
+  whose docker-mcp-internal route requires a Cloudflare Access service token
+  that only the OAuth Worker holds.
 
   Secrets live in the Keychain (docker mcp secret set), config in the `default`
   profile (docker mcp profile config default --set). Neither is in this file or
@@ -52,7 +50,7 @@
         <string>--port</string>
         <string>3101</string>
         <string>--host</string>
-        <string>0.0.0.0</string>
+        <string>127.0.0.1</string>
         <string>--allow-unauthenticated</string>
         <string>--watch</string>
     </array>
