@@ -12,7 +12,6 @@ export type Identity = {
 };
 
 export const BACKENDS: Record<string, Backend> = {
-	obsidian: { url: "https://obsidian-internal.rainforest.tools", forwardGithubToken: true },
 	"calibre-mcp": {
 		url: "https://personal-calibre-internal.rainforest.tools",
 		forwardGithubToken: false,
