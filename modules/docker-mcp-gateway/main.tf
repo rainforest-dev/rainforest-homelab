@@ -6,7 +6,7 @@ resource "docker_container" "docker_mcp_gateway" {
   image   = var.docker_image
   name    = "${var.project_name}-docker-mcp-gateway"
   restart = "always"
-  
+
   # Docker MCP Gateway command - standard configuration
   command = [
     "--port", tostring(var.port),
@@ -17,7 +17,7 @@ resource "docker_container" "docker_mcp_gateway" {
     "--registry", "/mcp/registry.yaml",
     "--tools-config", "/mcp/tools.yaml"
   ]
-  
+
   # Environment variables
   env = [
     "DOCKER_HOST=unix:///var/run/docker.sock",
@@ -25,7 +25,7 @@ resource "docker_container" "docker_mcp_gateway" {
     "OBSIDIAN_API_KEY=${var.obsidian_api_key}",
     "OBSIDIAN_REST_URL=https://${var.docker_host_address}:27124"
   ]
-  
+
   # Port mapping for Cloudflare Tunnel access
   # internal: container listens on var.port (3100)
   # external: host port 3101 avoids conflict with Tailscale which occupies 3100 on 0.0.0.0
@@ -35,7 +35,7 @@ resource "docker_container" "docker_mcp_gateway" {
     external = var.port + 1
     ip       = "0.0.0.0"
   }
-  
+
   # Docker socket access (required for MCP operations)
   # SECURITY WARNING: This provides significant privileges equivalent to root access on the host
   # Consider these security mitigations:
@@ -47,21 +47,21 @@ resource "docker_container" "docker_mcp_gateway" {
   volumes {
     host_path      = "/var/run/docker.sock"
     container_path = "/var/run/docker.sock"
-    read_only      = false  # MCP Gateway needs write access for container operations
+    read_only      = false # MCP Gateway needs write access for container operations
   }
-  
+
   # Mount local Docker MCP configuration (conditional - only if directory exists)
   # This allows optional MCP configuration customization but gracefully handles missing directories
   dynamic "volumes" {
     for_each = fileexists("${pathexpand("~/.docker/mcp")}/config.yaml") ? [1] : []
     content {
-      host_path      = "${pathexpand("~/.docker/mcp")}"
+      host_path      = pathexpand("~/.docker/mcp")
       container_path = "/mcp"
       read_only      = true
     }
   }
-  
-  
+
+
   # The provider takes memory in MB, not bytes.
   memory = parseint(regex("([0-9]+)", var.memory_limit)[0], 10) * (can(regex("Gi", var.memory_limit)) ? 1024 : 1)
 
@@ -71,29 +71,29 @@ resource "docker_container" "docker_mcp_gateway" {
 
   # Health check
   healthcheck {
-    test = ["CMD-SHELL", "nc -z localhost ${var.port} || exit 1"]
-    interval = "30s"
-    timeout = "10s"
-    retries = 3
+    test         = ["CMD-SHELL", "nc -z localhost ${var.port} || exit 1"]
+    interval     = "30s"
+    timeout      = "10s"
+    retries      = 3
     start_period = "30s"
   }
-  
+
   # Labels for management
   labels {
     label = "project"
     value = var.project_name
   }
-  
+
   labels {
     label = "environment"
     value = var.environment
   }
-  
+
   labels {
     label = "service"
     value = "docker-mcp-gateway"
   }
-  
+
   # Ensure Docker daemon is available
   depends_on = []
 }

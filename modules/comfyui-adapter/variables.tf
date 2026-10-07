@@ -42,5 +42,5 @@ variable "domain_suffix" {
 variable "timeout_seconds" {
   description = "Seconds before the adapter gives up waiting for ComfyUI to finish a generation. Increase if cold model loads take longer than the default."
   type        = number
-  default     = 600  # 10 min — covers cold GGUF load (~2min) + 4-step inference
+  default     = 600 # 10 min — covers cold GGUF load (~2min) + 4-step inference
 }

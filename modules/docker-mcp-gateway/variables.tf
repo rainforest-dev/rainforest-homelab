@@ -72,7 +72,7 @@ variable "obsidian_api_key" {
 variable "docker_host_address" {
   description = "Address for accessing Docker containers from Cloudflare Tunnel (use 'host.docker.internal' for Docker Desktop, 'localhost' for Linux)"
   type        = string
-  default     = "host.docker.internal"  # Default for Docker Desktop
+  default     = "host.docker.internal" # Default for Docker Desktop
 }
 
 # Security Notes for Docker MCP Gateway:

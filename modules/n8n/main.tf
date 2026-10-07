@@ -16,9 +16,9 @@ resource "kubernetes_persistent_volume" "n8n_pv" {
     capacity = {
       storage = var.storage_size
     }
-    access_modes = ["ReadWriteOnce"]
+    access_modes       = ["ReadWriteOnce"]
     storage_class_name = "manual"
-    
+
     persistent_volume_source {
       host_path {
         path = "${var.external_storage_path}/n8n"
@@ -43,10 +43,10 @@ resource "kubernetes_persistent_volume_claim" "n8n_pvc" {
   }
 
   spec {
-    access_modes = ["ReadWriteOnce"]
+    access_modes       = ["ReadWriteOnce"]
     storage_class_name = "manual"
-    volume_name = kubernetes_persistent_volume.n8n_pv[0].metadata[0].name
-    
+    volume_name        = kubernetes_persistent_volume.n8n_pv[0].metadata[0].name
+
     resources {
       requests = {
         storage = var.storage_size
@@ -93,39 +93,39 @@ resource "kubernetes_deployment" "n8n" {
 
           port {
             container_port = 5678
-            name          = "http"
+            name           = "http"
           }
 
           env {
             name  = "NODE_ENV"
             value = "production"
           }
-          
+
           env {
             name  = "DB_TYPE"
             value = "postgresdb"
           }
-          
+
           env {
             name  = "DB_POSTGRESDB_HOST"
             value = var.postgres_host
           }
-          
+
           env {
             name  = "DB_POSTGRESDB_PORT"
             value = "5432"
           }
-          
+
           env {
             name  = "DB_POSTGRESDB_DATABASE"
             value = var.database_name
           }
-          
+
           env {
             name  = "DB_POSTGRESDB_USER"
             value = "postgres"
           }
-          
+
           env {
             name = "DB_POSTGRESDB_PASSWORD"
             value_from {
@@ -135,32 +135,32 @@ resource "kubernetes_deployment" "n8n" {
               }
             }
           }
-          
+
           env {
             name  = "N8N_ENCRYPTION_KEY"
             value = var.encryption_key
           }
-          
+
           env {
             name  = "N8N_HOST"
             value = var.n8n_host
           }
-          
+
           env {
             name  = "N8N_PORT"
             value = "5678"
           }
-          
+
           env {
             name  = "N8N_PROTOCOL"
             value = "https"
           }
-          
+
           env {
             name  = "WEBHOOK_URL"
             value = "https://${var.n8n_host}"
           }
-          
+
           env {
             name  = "GENERIC_TIMEZONE"
             value = var.timezone

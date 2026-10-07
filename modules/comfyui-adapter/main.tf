@@ -1,6 +1,6 @@
 locals {
-  image_name   = "${var.project_name}/comfyui-adapter:${var.image_tag}"
-  module_dir   = abspath(path.module)
+  image_name = "${var.project_name}/comfyui-adapter:${var.image_tag}"
+  module_dir = abspath(path.module)
   build_trigger = join(":", [
     filemd5("${path.module}/Dockerfile"),
     filemd5("${path.module}/app/main.py"),
