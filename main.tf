@@ -426,6 +426,7 @@ resource "docker_container" "dockerproxy" {
   ports {
     internal = 2375
     external = 2375
+    ip       = "127.0.0.1"
   }
   volumes {
     host_path      = "/var/run/docker.sock"
