@@ -14,7 +14,7 @@ terraform {
 # Create Kubernetes Job for database initialization
 resource "kubernetes_job" "database_init" {
   count = var.create_database ? 1 : 0
-  
+
   metadata {
     name      = "${var.service_name}-db-init-${var.force_recreate}"
     namespace = var.namespace
@@ -23,7 +23,7 @@ resource "kubernetes_job" "database_init" {
       service = var.service_name
     }
   }
-  
+
   spec {
     template {
       metadata {
@@ -32,29 +32,29 @@ resource "kubernetes_job" "database_init" {
           service = var.service_name
         }
       }
-      
+
       spec {
         restart_policy = "Never"
-        
+
         container {
           name  = "db-init"
           image = "postgres:15-alpine"
-          
+
           env {
             name  = "PGHOST"
             value = var.postgres_host
           }
-          
+
           env {
             name  = "PGPORT"
             value = "5432"
           }
-          
+
           env {
             name  = "PGUSER"
             value = var.postgres_user
           }
-          
+
           env {
             name = "PGPASSWORD"
             value_from {
@@ -64,27 +64,27 @@ resource "kubernetes_job" "database_init" {
               }
             }
           }
-          
+
           env {
             name  = "PGDATABASE"
             value = var.postgres_admin_db
           }
-          
+
           env {
             name  = "TARGET_DATABASE"
             value = var.database_name
           }
-          
+
           env {
             name  = "SERVICE_USER"
             value = var.service_user
           }
-          
+
           env {
             name  = "SERVICE_PASSWORD"
             value = var.service_password
           }
-          
+
           command = ["/bin/sh", "-c"]
           args = [
             <<-EOT
@@ -144,12 +144,12 @@ resource "kubernetes_job" "database_init" {
         }
       }
     }
-    
+
     backoff_limit = 3
   }
-  
+
   wait_for_completion = true
-  
+
   timeouts {
     create = "10m"
     update = "10m"
@@ -159,7 +159,7 @@ resource "kubernetes_job" "database_init" {
 # Create ConfigMap to track database initialization status
 resource "kubernetes_config_map" "database_status" {
   count = var.create_database ? 1 : 0
-  
+
   metadata {
     name      = "${var.service_name}-db-status"
     namespace = var.namespace
@@ -168,15 +168,15 @@ resource "kubernetes_config_map" "database_status" {
       service = var.service_name
     }
   }
-  
+
   data = {
-    service_name    = var.service_name
-    database_name   = var.database_name
-    postgres_host   = var.postgres_host
-    service_user    = var.service_user
-    initialized_at  = timestamp()
-    force_recreate  = var.force_recreate
+    service_name   = var.service_name
+    database_name  = var.database_name
+    postgres_host  = var.postgres_host
+    service_user   = var.service_user
+    initialized_at = timestamp()
+    force_recreate = var.force_recreate
   }
-  
+
   depends_on = [kubernetes_job.database_init]
 }

@@ -1,8 +1,8 @@
 output "id" {
   description = "The ID of the Open Web UI resource."
-  value       = var.deployment_type == "docker" ? (
+  value = var.deployment_type == "docker" ? (
     length(docker_container.open_webui) > 0 ? docker_container.open_webui[0].id : ""
-  ) : (
+    ) : (
     length(helm_release.open-webui) > 0 ? helm_release.open-webui[0].id : ""
   )
 }

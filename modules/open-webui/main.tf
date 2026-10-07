@@ -33,7 +33,7 @@ locals {
 resource "docker_network" "open_webui_network" {
   count = var.deployment_type == "docker" ? 1 : 0
   name  = "${var.project_name}-open-webui-network"
-  
+
   labels {
     label = "project"
     value = var.project_name
@@ -43,9 +43,9 @@ resource "docker_network" "open_webui_network" {
 # Volume management for Open WebUI data
 module "open_webui_data_volume" {
   count = var.deployment_type == "docker" && var.enable_persistence ? 1 : 0
-  
+
   source = "../volume-management"
-  
+
   project_name         = var.project_name
   service_name         = "open-webui"
   volume_name          = "data"
@@ -57,7 +57,7 @@ module "open_webui_data_volume" {
 # Open WebUI Docker container
 resource "docker_container" "open_webui" {
   count = var.deployment_type == "docker" ? 1 : 0
-  
+
   image   = "ghcr.io/open-webui/open-webui:${var.image_version}"
   name    = "${var.project_name}-open-webui"
   restart = "unless-stopped"
@@ -127,7 +127,7 @@ resource "docker_container" "open_webui" {
 # Helm deployment (legacy/fallback)
 resource "helm_release" "open-webui" {
   count = var.deployment_type == "helm" ? 1 : 0
-  
+
   name             = "${var.project_name}-open-webui"
   repository       = var.chart_repository
   chart            = var.chart_name
@@ -208,10 +208,10 @@ resource "helm_release" "open-webui" {
 
       # Persistence configuration
       persistence = var.use_external_storage ? {
-        enabled       = false  # Disable helm persistence when using external storage
-        existingClaim = ""     # No existing claim
-        storageClass  = ""     # No storage class
-      } : {
+        enabled       = false # Disable helm persistence when using external storage
+        existingClaim = ""    # No existing claim
+        storageClass  = ""    # No storage class
+        } : {
         enabled = var.enable_persistence
         size    = var.storage_size
       }

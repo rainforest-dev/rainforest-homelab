@@ -22,9 +22,9 @@ output "connection_info" {
   description = "Database connection information"
   value = {
     database_name = var.database_name
-    user         = var.service_user != "" ? var.service_user : var.postgres_user
-    host         = var.postgres_host
-    port         = 5432
+    user          = var.service_user != "" ? var.service_user : var.postgres_user
+    host          = var.postgres_host
+    port          = 5432
   }
 }
 

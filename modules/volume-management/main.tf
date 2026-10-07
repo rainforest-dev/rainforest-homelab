@@ -1,8 +1,8 @@
 # Simplified volume management with external disk support
 locals {
   external_storage_base = "/Volumes/Samsung T7 Touch/homelab-data"
-  volume_path = var.use_external_storage ? "${local.external_storage_base}/${var.service_name}" : null
-  
+  volume_path           = var.use_external_storage ? "${local.external_storage_base}/${var.service_name}" : null
+
   # Driver options based on storage type
   driver_options = var.use_external_storage ? {
     type   = "none"
@@ -14,11 +14,11 @@ locals {
 # Create directory on external storage if needed
 resource "null_resource" "external_directory" {
   count = var.use_external_storage ? 1 : 0
-  
+
   provisioner "local-exec" {
     command = "mkdir -p '${local.volume_path}' && chmod 755 '${local.volume_path}'"
   }
-  
+
   triggers = {
     path = local.volume_path
   }
@@ -28,7 +28,7 @@ resource "null_resource" "external_directory" {
 resource "docker_volume" "volume" {
   name   = "${var.project_name}-${var.service_name}-${var.volume_name}"
   driver = "local"
-  
+
   driver_opts = local.driver_options
 
   labels {
