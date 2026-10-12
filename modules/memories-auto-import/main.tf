@@ -25,6 +25,7 @@ resource "null_resource" "runner" {
     ref        = var.runner_ref
     repo_url   = var.repo_url
     runner_dir = local.runner_dir
+    node_dir   = dirname(var.node_path)
   }
 
   provisioner "local-exec" {
@@ -33,14 +34,13 @@ resource "null_resource" "runner" {
       REF      = self.triggers.ref
       REPO     = self.triggers.repo_url
       DIR      = self.triggers.runner_dir
-      PLIST    = local.plist_path
-      NODE_DIR = dirname(var.node_path)
+      NODE_DIR = self.triggers.node_dir
       HUSKY    = "0"
+      CI       = "true"
     }
     command = <<-EOT
       set -euo pipefail
       export PATH="$NODE_DIR:$PATH"
-      launchctl unload "$PLIST" 2>/dev/null || true
       if [ ! -d "$DIR/.git" ]; then
         mkdir -p "$(dirname "$DIR")"
         git clone --filter=blob:none --no-checkout --sparse "$REPO" "$DIR"
@@ -101,7 +101,6 @@ resource "local_file" "plist" {
 resource "null_resource" "launchd" {
   triggers = {
     plist_md5  = local_file.plist.content_md5
-    runner_ref = var.runner_ref
     runner_id  = null_resource.runner.id
     plist_path = local.plist_path
   }
