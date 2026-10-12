@@ -25,27 +25,40 @@ resource "null_resource" "runner" {
     ref        = var.runner_ref
     repo_url   = var.repo_url
     runner_dir = local.runner_dir
+    node_dir   = dirname(var.node_path)
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     environment = {
-      REF  = self.triggers.ref
-      REPO = self.triggers.repo_url
-      DIR  = self.triggers.runner_dir
+      REF      = self.triggers.ref
+      REPO     = self.triggers.repo_url
+      DIR      = self.triggers.runner_dir
+      NODE_DIR = self.triggers.node_dir
+      HUSKY    = "0"
+      CI       = "true"
     }
     command = <<-EOT
       set -euo pipefail
+      export PATH="$NODE_DIR:$PATH"
       if [ ! -d "$DIR/.git" ]; then
         mkdir -p "$(dirname "$DIR")"
         git clone --filter=blob:none --no-checkout --sparse "$REPO" "$DIR"
       fi
       git -C "$DIR" remote set-url origin "$REPO"
-      git -C "$DIR" sparse-checkout set apps/personal-memories
+      git -C "$DIR" sparse-checkout set apps/personal-memories libs/search
       git -C "$DIR" fetch --depth 1 --filter=blob:none origin "$REF"
       git -C "$DIR" -c advice.detachedHead=false checkout --force --detach "$REF"
       test "$(git -C "$DIR" rev-parse HEAD)" = "$REF"
       test -f "$DIR/apps/personal-memories/src/cli/auto-import.ts"
+      cd "$DIR"
+      pnpm install --frozen-lockfile --filter '@rainforest-monorepo/personal-memories...'
+      pnpm --filter @rainforest-dev/search exec vite build
+      test -e "$DIR/apps/personal-memories/node_modules/@rainforest-dev/search"
+      test -f "$DIR/libs/search/dist/node.js"
+      status=0
+      smoke=$(env -u MEMORIES_DATA_DIR node apps/personal-memories/src/cli/auto-import.ts 2>&1) || status=$?
+      [ "$status" = 2 ] || { echo "$smoke" >&2; exit 1; }
       echo "memories-auto-import: runner at $REF"
     EOT
   }
@@ -88,7 +101,7 @@ resource "local_file" "plist" {
 resource "null_resource" "launchd" {
   triggers = {
     plist_md5  = local_file.plist.content_md5
-    runner_ref = var.runner_ref
+    runner_id  = null_resource.runner.id
     plist_path = local.plist_path
   }
 
