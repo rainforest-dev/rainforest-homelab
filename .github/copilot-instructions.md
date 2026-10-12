@@ -606,7 +606,7 @@ cd automation && ./upgrade setup
 **GitHub Actions Integration:**
 
 - `.github/workflows/claude.yml`: Claude Code automation
-- `.github/workflows/claude-code-review.yml`: Automated PR reviews
+- `.github/workflows/claude-review.yml`: multi-perspective PR review (see `REVIEW.md`)
 
 ## Important File Locations
 
