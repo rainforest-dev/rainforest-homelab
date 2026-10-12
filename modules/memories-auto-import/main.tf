@@ -30,9 +30,10 @@ resource "null_resource" "runner" {
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     environment = {
-      REF  = self.triggers.ref
-      REPO = self.triggers.repo_url
-      DIR  = self.triggers.runner_dir
+      REF   = self.triggers.ref
+      REPO  = self.triggers.repo_url
+      DIR   = self.triggers.runner_dir
+      HUSKY = "0"
     }
     command = <<-EOT
       set -euo pipefail
@@ -41,11 +42,16 @@ resource "null_resource" "runner" {
         git clone --filter=blob:none --no-checkout --sparse "$REPO" "$DIR"
       fi
       git -C "$DIR" remote set-url origin "$REPO"
-      git -C "$DIR" sparse-checkout set apps/personal-memories
+      git -C "$DIR" sparse-checkout set apps/personal-memories libs/search
       git -C "$DIR" fetch --depth 1 --filter=blob:none origin "$REF"
       git -C "$DIR" -c advice.detachedHead=false checkout --force --detach "$REF"
       test "$(git -C "$DIR" rev-parse HEAD)" = "$REF"
       test -f "$DIR/apps/personal-memories/src/cli/auto-import.ts"
+      cd "$DIR"
+      pnpm install --frozen-lockfile --filter '@rainforest-monorepo/personal-memories...'
+      pnpm --filter @rainforest-dev/search exec vite build
+      test -e "$DIR/apps/personal-memories/node_modules/@rainforest-dev/search"
+      test -f "$DIR/libs/search/dist/node.js"
       echo "memories-auto-import: runner at $REF"
     EOT
   }
