@@ -25,8 +25,18 @@ when `memories_runner_ref` changes, then installs and builds what the CLI loads:
   never contacted.
 
 The step fails if `apps/personal-memories/node_modules/@rainforest-dev/search` or
-`libs/search/dist/node.js` is missing afterwards. `pnpm` must be on the PATH Terraform runs
-with. Node 24+ strips the CLI's own types itself, so the app needs no build.
+`libs/search/dist/node.js` is missing afterwards, or if `auto-import.ts` run without
+`MEMORIES_DATA_DIR` exits with anything but 2 (that is how a missing module shows up before
+the job ever runs). The agent is unloaded for the duration and reloaded once the step passes.
+A failed step leaves it unloaded rather than running a half-installed tree. The step puts the
+directory of `node_path` first on its PATH, so the install, the build and launchd all use the
+same Node; `pnpm` must be on that PATH too. Node 24+ strips the CLI's own types itself, so
+the app needs no build.
+
+`memories_runner_ref` must be rainforest-monorepo `34960179` or later, because earlier commits
+have no `libs/search`. The step re-runs only when the ref, `repo_url` or `runner_dir` changes. To
+rebuild in place, run
+`terraform apply -replace='module.memories_auto_import[0].null_resource.runner'`.
 
 n8n is reached on `localhost`, not the Mac's LAN address. The `homelab-n8n` Service is a
 `LoadBalancer`, so Docker Desktop binds it on the host, and loopback is exempt from macOS Local
@@ -78,8 +88,8 @@ trigger retries.
 
 ## Update the runner
 
-Set `memories_runner_ref` to the new SHA and apply. The runner checks it out, reinstalls,
-rebuilds `libs/search`, and the agent is reloaded.
+Set `memories_runner_ref` to the new SHA and apply. The agent is unloaded, the runner checks
+out the SHA, reinstalls and rebuilds `libs/search`, and the agent is reloaded.
 
 ## Remove
 
