@@ -46,35 +46,26 @@ Do not substitute `$env.OBSIDIAN_API_KEY` for the credential. n8n 2.x denies env
 expressions by default, and enabling it (`N8N_BLOCK_ENV_ACCESS_IN_NODE=false`) would let
 every workflow read the Postgres password.
 
-### 1b. Inbox credentials (shared inbox only)
+### 1b. Inbox secret (shared inbox only)
 
-`shared-inbox` and `inbox-mcp` use two more credentials, also not in git:
-
-| Credential | id | Type | Value |
-|---|---|---|---|
-| `Inbox secret` | `inboxsecret00001` | `httpHeaderAuth` | name `x-inbox-secret`, value `terraform output -raw inbox_secret` |
-| `Inbox MCP token` | `inboxmcptoken001` | `httpBearerAuth` | any random 32+ character token; the gateway sends the same one |
+`shared-inbox` forwards bujo scans to personal-calibre through one more credential, also not
+in git: `Inbox secret` (id `inboxsecret00001`, `httpHeaderAuth`, header `x-inbox-secret`,
+value from `terraform output -raw inbox_secret`).
 
 ```bash
-TOKEN=$(openssl rand -hex 24)
-python3 - /tmp/cred.json "$(terraform output -raw inbox_secret)" "$TOKEN" <<'PY'
+python3 - /tmp/cred.json "$(terraform output -raw inbox_secret)" <<'PY'
 import sys, json
-out, secret, token = sys.argv[1:]
-json.dump([
-    {"id": "inboxsecret00001", "name": "Inbox secret", "type": "httpHeaderAuth",
-     "nodesAccess": [{"nodeType": "n8n-nodes-base.httpRequest"}],
-     "data": {"name": "x-inbox-secret", "value": secret}},
-    {"id": "inboxmcptoken001", "name": "Inbox MCP token", "type": "httpBearerAuth",
-     "nodesAccess": [{"nodeType": "@n8n/n8n-nodes-langchain.mcpTrigger"}],
-     "data": {"token": token}},
-], open(out, "w"))
+out, secret = sys.argv[1:]
+json.dump([{
+    "id": "inboxsecret00001", "name": "Inbox secret", "type": "httpHeaderAuth",
+    "nodesAccess": [{"nodeType": "n8n-nodes-base.httpRequest"}],
+    "data": {"name": "x-inbox-secret", "value": secret},
+}], open(out, "w"))
 PY
 chmod 600 /tmp/cred.json
 kubectl cp /tmp/cred.json "homelab/$POD:/tmp/cred.json"
 kubectl exec -n homelab "$POD" -- n8n import:credentials --input=/tmp/cred.json
 kubectl exec -n homelab "$POD" -- rm -f /tmp/cred.json && rm -f /tmp/cred.json
-printf '%s' "$TOKEN" | docker mcp secret set n8n-inbox.token   # gateway side, Keychain
-unset TOKEN
 ```
 
 ### 2. Import the workflow
@@ -215,29 +206,10 @@ Not verified against a live n8n yet: that `readWriteFile` sets `binary.directory
 subfolders (the bujo notebook name comes from it) and that static data persists from these
 Code nodes under task runners. Check the first real run.
 
-### `inbox-mcp.json` — MCP server (always active)
-
-An MCP Server Trigger at `/mcp/inbox` with one tool, `inbox_targets`, which tells an agent
-what each target accepts and how to deliver to it. Files never go through tool arguments:
-the agent uploads to the webhook above or writes into the folder.
-
-Agents reach it through the existing Docker MCP gateway, not a new public host. The gateway
-entry is `configs/docker-mcp-gateway/n8n-inbox.yaml` (remote, streamable HTTP,
-`http://localhost:5678/mcp/inbox`, bearer token from the Keychain secret `n8n-inbox.token`):
-
-```bash
-docker mcp profile server add default \
-  --server file://$PWD/configs/docker-mcp-gateway/n8n-inbox.yaml
-launchctl kickstart -k gui/$(id -u)/com.homelab.docker-mcp-gateway
-docker mcp gateway run --profile default --dry-run --verbose 2>&1 | grep -iE 'n8n-inbox|remote'
-```
-
-Newer gateway releases refuse remote URLs that are not public HTTPS
-(`remote URL host "localhost" is not allowed`). If the dry-run says so, the gateway has an
-opt-out, `DOCKER_MCP_ALLOW_INSECURE_REMOTE_URLS=1` in the plist's `EnvironmentVariables`,
-but it relaxes the check for every remote in the profile; decide that deliberately rather
-than as a quick fix. If n8n is down, check that the gateway still starts with the other
-servers.
+**Agents** use the existing `n8n` server in the Docker MCP gateway; there is no separate inbox
+MCP. To deliver a file, an agent uploads it to the webhook above or writes it into the folder;
+`n8n_trigger_webhook_workflow` sends JSON only, so it cannot carry a file. The table above is
+the whole contract an agent needs.
 
 ### `ha-event-bridge.json` — webhook (always active)
 

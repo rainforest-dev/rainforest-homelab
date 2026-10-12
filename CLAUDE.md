@@ -504,15 +504,12 @@ sed -E 's#server: https://[^:]+:6443#server: https://127.0.0.1:16443#' \
 pkill -f 'L 16443:127.0.0.1:6443'; rm -f /tmp/k3s.kubeconfig
 ```
 
-### Shared inbox (`n8n-inbox` remote)
+### Shared inbox
 
-The profile also carries one non-catalog server, `n8n-inbox`, defined in
-`configs/docker-mcp-gateway/n8n-inbox.yaml`: a remote entry pointing at n8n's MCP Server
-Trigger on `http://localhost:5678/mcp/inbox`, with its bearer token in the Keychain as
-`n8n-inbox.token`. Its tools are named `inbox_*`. Setup, and the gateway's remote-URL guard
-that may refuse a loopback `http` URL, are in `configs/n8n/README.md` (`inbox-mcp.json`).
-The iCloud `Inbox/` folder (`inbox_host_path`) is the only iCloud path mounted into n8n;
-`Inbox/memories` is also the memories auto-import drop folder.
+The iCloud `Inbox/` folder (`inbox_host_path`) is the only iCloud path mounted into n8n; the
+`shared-inbox` workflow routes `Inbox/bujo` and `Inbox/voice`, and `Inbox/memories` is the
+memories auto-import drop folder. Agents reach it through the existing `n8n` gateway server;
+there is no inbox-specific MCP server. See `configs/n8n/README.md` (`shared-inbox.json`).
 
 ### Gotcha: tool-name collisions
 
