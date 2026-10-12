@@ -136,3 +136,8 @@ variable "obsidian_api_key" {
   sensitive   = true
   default     = ""
 }
+
+variable "inbox_host_path" {
+  description = "Host path of the shared iCloud Inbox/ folder, mounted at /home/node/.n8n-files/inbox"
+  type        = string
+}

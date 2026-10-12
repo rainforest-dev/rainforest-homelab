@@ -348,3 +348,9 @@ variable "image_gen_api_key" {
   sensitive   = true
 }
 
+
+variable "inbox_host_path" {
+  description = "Shared iCloud inbox (one subfolder per target: bujo/, voice/, memories/); ~ is expanded on the host running Terraform"
+  type        = string
+  default     = "~/Library/Mobile Documents/com~apple~CloudDocs/Inbox"
+}

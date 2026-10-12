@@ -60,3 +60,10 @@ variable "mcp_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "inbox_secret" {
+  description = "Shared secret n8n sends as x-inbox-secret to POST /api/inbox/bujo; empty disables the route"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

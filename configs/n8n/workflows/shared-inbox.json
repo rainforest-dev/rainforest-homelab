@@ -1,0 +1,597 @@
+{
+  "id": "sharedinbox00001",
+  "name": "Shared inbox",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sched",
+      "name": "Every 2 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -440,
+        160
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "run",
+      "name": "Run now",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -440,
+        320
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "upload",
+      "name": "Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        560
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "inbox/:target",
+        "responseMode": "lastNode",
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "webhookId": "inbox-upload-0001"
+    },
+    {
+      "id": "listnotes",
+      "name": "List voice notes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -220,
+        240
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://host.docker.internal:27124/vault/Voice%20memos/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obsidianrestapi1",
+          "name": "Obsidian Local REST API"
+        }
+      },
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "readbujo",
+      "name": "Read bujo",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        0,
+        240
+      ],
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/home/node/.n8n-files/inbox/bujo/**/*.*",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "readvoice",
+      "name": "Read voice",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        220,
+        240
+      ],
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/home/node/.n8n-files/inbox/voice/*.*",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "readlegacy",
+      "name": "Read legacy voice",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        440,
+        240
+      ],
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/home/node/.n8n-files/voice-inbox/*.*",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "pick",
+      "name": "Pick new",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        240
+      ],
+      "parameters": {
+        "jsCode": "// Turns everything the three folder reads found into work items, once.\n// Ledger and attempt counts live in workflow static data, which n8n persists for\n// production (trigger) executions. A file is sent at most MAX_ATTEMPTS times; after\n// that it is reported once as rejected and skipped until renamed.\nconst MAX_ATTEMPTS = 3;\nconst PER_RUN = 20;\nconst ROOT = '/home/node/.n8n-files/inbox';\nconst sd = $getWorkflowStaticData('global');\nsd.processed = sd.processed || {};\nsd.attempts = sd.attempts || {};\nsd.rejected = sd.rejected || {};\n\nconst notes = $('List voice notes').first().json;\nconst voiceNotes = new Set(Array.isArray(notes.files) ? notes.files : []);\nconst noteBase = (name) => name.replace(/\\.[^.]+$/, '').replace(/[\\\\/:*?\"<>|]/g, '-');\n\nconst found = [];\nconst collect = (nodeName, target) => {\n  for (const item of $(nodeName).all()) {\n    const bin = item.binary && item.binary.data;\n    if (!bin || !bin.fileName) continue;\n    const name = bin.fileName;\n    if (name.startsWith('.') || name.endsWith('.icloud')) continue;\n    const dir = bin.directory || '';\n    let notebook = null;\n    if (target === 'bujo') {\n      const rel = dir.startsWith(ROOT + '/bujo') ? dir.slice((ROOT + '/bujo').length).replace(/^\\/+/, '') : '';\n      notebook = rel.split('/')[0] || 'Unsorted';\n    }\n    const key = `${target}:${dir}/${name}:${bin.fileSize || ''}`;\n    found.push({ key, target, notebook, name, binary: item.binary });\n  }\n};\ncollect('Read bujo', 'bujo');\ncollect('Read voice', 'voice');\ncollect('Read legacy voice', 'voice');\n\nconst out = [];\nfor (const f of found) {\n  if (sd.processed[f.key] || sd.rejected[f.key]) continue;\n  if (f.target === 'voice' && voiceNotes.has(noteBase(f.name) + '.md')) {\n    sd.processed[f.key] = new Date().toISOString();\n    continue;\n  }\n  const tries = (sd.attempts[f.key] || 0) + 1;\n  if (tries > MAX_ATTEMPTS) {\n    sd.rejected[f.key] = new Date().toISOString();\n    delete sd.attempts[f.key];\n    out.push({ json: { target: 'rejected', key: f.key, detail: `${f.target}: ${f.name} failed ${MAX_ATTEMPTS} times` } });\n    continue;\n  }\n  if (out.filter((o) => o.json.target !== 'rejected').length >= PER_RUN) continue;\n  sd.attempts[f.key] = tries;\n  out.push({ json: { key: f.key, target: f.target, notebook: f.notebook, src: f.name, noteName: noteBase(f.name), source: 'icloud' }, binary: f.binary });\n}\n\nconst keys = Object.keys(sd.processed);\nif (keys.length > 5000) {\n  keys.sort((a, b) => sd.processed[a].localeCompare(sd.processed[b]));\n  for (const k of keys.slice(0, keys.length - 5000)) delete sd.processed[k];\n}\nreturn out;"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "fromupload",
+      "name": "From upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        560
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Normalises a webhook upload to the same item shape the folder scan produces.\n// POST /webhook/inbox/<target>, multipart: one file in any field, plus optional\n// `notebook` (bujo) and `source`.\nconst TARGETS = ['bujo', 'voice'];\nconst target = String(($json.params && $json.params.target) || '').toLowerCase();\nif (!TARGETS.includes(target)) {\n  throw new Error(`Unknown inbox target \"${target}\". Known: ${TARGETS.join(', ')}`);\n}\nconst body = $json.body || {};\nconst binaries = $input.item.binary || {};\nconst field = Object.keys(binaries)[0];\nif (!field) throw new Error('No file in the upload');\nconst bin = binaries[field];\nconst name = bin.fileName || 'upload';\nreturn {\n  json: {\n    key: null,\n    target,\n    notebook: target === 'bujo' ? String(body.notebook || 'Unsorted') : null,\n    src: name,\n    noteName: name.replace(/\\.[^.]+$/, '').replace(/[\\\\/:*?\"<>|]/g, '-'),\n    source: String(body.source || 'upload'),\n  },\n  binary: { data: bin },\n};"
+      }
+    },
+    {
+      "id": "route",
+      "name": "Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        900,
+        400
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "r1",
+                    "leftValue": "={{ $json.target }}",
+                    "rightValue": "bujo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "bujo"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "r2",
+                    "leftValue": "={{ $json.target }}",
+                    "rightValue": "voice",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "voice"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "r3",
+                    "leftValue": "={{ $json.target }}",
+                    "rightValue": "rejected",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "rejected"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "calibre",
+      "name": "Send to calibre",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1140,
+        240
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8082/api/inbox/bujo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "notebook",
+              "value": "={{ $json.notebook }}"
+            },
+            {
+              "name": "source",
+              "value": "={{ $json.source }}"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "inboxsecret00001",
+          "name": "Inbox secret"
+        }
+      }
+    },
+    {
+      "id": "whisper",
+      "name": "Whisper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1140,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9090/v1/audio/transcriptions",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "model",
+              "value": "whisper-1"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "build",
+      "name": "Build note",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        400
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const routed = $('Route').item.json;\nconst text = ($json.text || '').trim();\nconst now = new Date().toISOString();\nconst body = [\n  '---',\n  'type: voice-memo',\n  `source: ${routed.src}`,\n  `date: ${now.slice(0, 10)}`,\n  `transcribed: ${now}`,\n  '---',\n  '',\n  text || '_(empty transcription)_',\n  '',\n].join('\\n');\nreturn { json: { noteName: routed.noteName, body } };"
+      }
+    },
+    {
+      "id": "note",
+      "name": "Create note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1580,
+        400
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://host.docker.internal:27124/vault/Voice%20memos/{{ encodeURIComponent($json.noteName) }}.md",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/markdown"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/markdown",
+        "body": "={{ $json.body }}",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obsidianrestapi1",
+          "name": "Obsidian Local REST API"
+        }
+      }
+    },
+    {
+      "id": "report",
+      "name": "Report rejected",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1140,
+        600
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:5678/webhook/ha-events",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ event: 'inbox_rejected', detail: $json.detail, ts: $now.toISO() }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "done",
+      "name": "Mark done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        320
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Records a delivered folder file in the ledger; uploads carry no key.\nconst routed = $('Route').item.json;\nconst sd = $getWorkflowStaticData('global');\nif (routed.key) {\n  sd.processed = sd.processed || {};\n  sd.processed[routed.key] = new Date().toISOString();\n  if (sd.attempts) delete sd.attempts[routed.key];\n}\nreturn { json: { ok: true, target: routed.target, src: routed.src, result: $json } };"
+      }
+    }
+  ],
+  "connections": {
+    "Every 2 min": {
+      "main": [
+        [
+          {
+            "node": "List voice notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run now": {
+      "main": [
+        [
+          {
+            "node": "List voice notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List voice notes": {
+      "main": [
+        [
+          {
+            "node": "Read bujo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read bujo": {
+      "main": [
+        [
+          {
+            "node": "Read voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read voice": {
+      "main": [
+        [
+          {
+            "node": "Read legacy voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read legacy voice": {
+      "main": [
+        [
+          {
+            "node": "Pick new",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick new": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload": {
+      "main": [
+        [
+          {
+            "node": "From upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "From upload": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route": {
+      "main": [
+        [
+          {
+            "node": "Send to calibre",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Whisper",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Report rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to calibre": {
+      "main": [
+        [
+          {
+            "node": "Mark done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whisper": {
+      "main": [
+        [
+          {
+            "node": "Build note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build note": {
+      "main": [
+        [
+          {
+            "node": "Create note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create note": {
+      "main": [
+        [
+          {
+            "node": "Mark done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

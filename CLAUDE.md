@@ -504,6 +504,16 @@ sed -E 's#server: https://[^:]+:6443#server: https://127.0.0.1:16443#' \
 pkill -f 'L 16443:127.0.0.1:6443'; rm -f /tmp/k3s.kubeconfig
 ```
 
+### Shared inbox (`n8n-inbox` remote)
+
+The profile also carries one non-catalog server, `n8n-inbox`, defined in
+`configs/docker-mcp-gateway/n8n-inbox.yaml`: a remote entry pointing at n8n's MCP Server
+Trigger on `http://localhost:5678/mcp/inbox`, with its bearer token in the Keychain as
+`n8n-inbox.token`. Its tools are named `inbox_*`. Setup, and the gateway's remote-URL guard
+that may refuse a loopback `http` URL, are in `configs/n8n/README.md` (`inbox-mcp.json`).
+The iCloud `Inbox/` folder (`inbox_host_path`) is the only iCloud path mounted into n8n;
+`Inbox/memories` is also the memories auto-import drop folder.
+
 ### Gotcha: tool-name collisions
 
 The managed gateway refuses to start on a tool-name collision (older gateway versions
@@ -736,7 +746,7 @@ The Worker sends the backend `x-memories-gateway: <secret>` and `X-Forwarded-Log
 ### Auto-import (launchd, host)
 
 `modules/memories-auto-import` installs `tools.rainforest.memories-auto-import`, which runs the
-monorepo's `auto-import.ts` nightly at 03:30 and on every drop into the iCloud `Memories Inbox`.
+monorepo's `auto-import.ts` nightly at 03:30 and on every drop into the iCloud `Inbox/memories` folder.
 It runs from a sparse runner checkout pinned to `memories_runner_ref`, never a working copy.
 Enable with `enable_memories_auto_import = true` plus the SHA. It needs a one-time Full Disk
 Access grant for `node` and the uv Python; the setup and verification steps are in

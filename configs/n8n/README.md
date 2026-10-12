@@ -46,6 +46,37 @@ Do not substitute `$env.OBSIDIAN_API_KEY` for the credential. n8n 2.x denies env
 expressions by default, and enabling it (`N8N_BLOCK_ENV_ACCESS_IN_NODE=false`) would let
 every workflow read the Postgres password.
 
+### 1b. Inbox credentials (shared inbox only)
+
+`shared-inbox` and `inbox-mcp` use two more credentials, also not in git:
+
+| Credential | id | Type | Value |
+|---|---|---|---|
+| `Inbox secret` | `inboxsecret00001` | `httpHeaderAuth` | name `x-inbox-secret`, value `terraform output -raw inbox_secret` |
+| `Inbox MCP token` | `inboxmcptoken001` | `httpBearerAuth` | any random 32+ character token; the gateway sends the same one |
+
+```bash
+TOKEN=$(openssl rand -hex 24)
+python3 - /tmp/cred.json "$(terraform output -raw inbox_secret)" "$TOKEN" <<'PY'
+import sys, json
+out, secret, token = sys.argv[1:]
+json.dump([
+    {"id": "inboxsecret00001", "name": "Inbox secret", "type": "httpHeaderAuth",
+     "nodesAccess": [{"nodeType": "n8n-nodes-base.httpRequest"}],
+     "data": {"name": "x-inbox-secret", "value": secret}},
+    {"id": "inboxmcptoken001", "name": "Inbox MCP token", "type": "httpBearerAuth",
+     "nodesAccess": [{"nodeType": "@n8n/n8n-nodes-langchain.mcpTrigger"}],
+     "data": {"token": token}},
+], open(out, "w"))
+PY
+chmod 600 /tmp/cred.json
+kubectl cp /tmp/cred.json "homelab/$POD:/tmp/cred.json"
+kubectl exec -n homelab "$POD" -- n8n import:credentials --input=/tmp/cred.json
+kubectl exec -n homelab "$POD" -- rm -f /tmp/cred.json && rm -f /tmp/cred.json
+printf '%s' "$TOKEN" | docker mcp secret set n8n-inbox.token   # gateway side, Keychain
+unset TOKEN
+```
+
 ### 2. Import the workflow
 
 **Substitute the Prometheus host first.** This repository is public, so the committed
@@ -108,7 +139,17 @@ Two constraints worth preserving when editing:
 - **The raw alert list is written alongside the model's summary** on purpose. The summary
   can be vague or wrong; the underlying facts must survive.
 
-### `voice-memo-transcription.json` — every 2 min
+### `voice-memo-transcription.json` — superseded by `shared-inbox`
+
+**Keep this workflow inactive.** `shared-inbox` now handles voice (its `voice` target) and
+still scans the legacy T7 folder below, so running both would transcribe each file twice.
+The file stays in git for its history and constraints, which `shared-inbox` inherits.
+
+```bash
+kubectl exec -n homelab "$POD" -- n8n update:workflow --id=<voice workflow id> --active=false
+```
+
+Original description (every 2 min):
 
 Watches a drop folder, transcribes any new audio with the self-hosted Whisper STT service,
 and writes one Obsidian note per recording into the `Voice memos/` folder.
@@ -138,6 +179,65 @@ Four constraints worth preserving when editing:
   (pure JS, no network) that reads `$('List processed')` and passes binary through.
 - **An empty inbox is a clean no-op.** `Read audio files` has `continueOnFail`, so a run
   with nothing to do still ends `success` and never spams the execution log.
+
+### `shared-inbox.json` — every 2 min + webhook
+
+One inbox for every target:
+
+| Target | Drop into iCloud Drive | Delivered to |
+|---|---|---|
+| `bujo` | `Inbox/bujo/<notebook>/` | personal-calibre `POST /api/inbox/bujo` (needs `CALIBRE_INBOX_SECRET`) |
+| `voice` | `Inbox/voice/` (and the legacy T7 `voice-inbox/`) | Whisper, then an Obsidian note in `Voice memos/` |
+| `memories` | `Inbox/memories/` | not n8n: the `memories-auto-import` launchd job watches it |
+
+**Upload instead of a folder:** `POST http://<MAC_MINI_IP>:5678/webhook/inbox/<target>`,
+multipart, one file per request, plus `notebook` for bujo. Like `ha-events`, the LAN route
+has no auth of its own; the public `n8n.rainforest.tools` route sits behind Access.
+
+Constraints worth preserving when editing:
+
+- **Only `Inbox/` is mounted** (`inbox_host_path`, default
+  `~/Library/Mobile Documents/com~apple~CloudDocs/Inbox`), at
+  `/home/node/.n8n-files/inbox`, inside the `readWriteFile` sandbox. Never widen it to all of
+  iCloud Drive. Set Finder's **Keep Downloaded** on `Inbox/`: an evicted file is a
+  `.name.icloud` placeholder, which the scan skips until it is local again.
+- **Idempotency is a ledger, not moving files**, for the same reason as the voice workflow
+  (`readWriteFile` cannot delete). `Pick new` keys each file by target, path and size in
+  `$getWorkflowStaticData('global')`. Voice also keeps the old "note already exists" check,
+  so files the old workflow transcribed are not redone.
+- **Three attempts, then a report.** A file that fails three runs is marked rejected and
+  posted once to `ha-events` as `inbox_rejected`, so it shows up in the daily note. Renaming
+  the file retries it. Failures stay visible in the execution log.
+- **Delivery is the target app's job.** n8n only routes; the bujo branch forwards the file to
+  personal-calibre, which owns cropping, storage and dedup (by content hash).
+
+Not verified against a live n8n yet: that `readWriteFile` sets `binary.directory` for files in
+subfolders (the bujo notebook name comes from it) and that static data persists from these
+Code nodes under task runners. Check the first real run.
+
+### `inbox-mcp.json` — MCP server (always active)
+
+An MCP Server Trigger at `/mcp/inbox` with one tool, `inbox_targets`, which tells an agent
+what each target accepts and how to deliver to it. Files never go through tool arguments:
+the agent uploads to the webhook above or writes into the folder.
+
+Agents reach it through the existing Docker MCP gateway, not a new public host. The gateway
+entry is `configs/docker-mcp-gateway/n8n-inbox.yaml` (remote, streamable HTTP,
+`http://localhost:5678/mcp/inbox`, bearer token from the Keychain secret `n8n-inbox.token`):
+
+```bash
+docker mcp profile server add default \
+  --server file://$PWD/configs/docker-mcp-gateway/n8n-inbox.yaml
+launchctl kickstart -k gui/$(id -u)/com.homelab.docker-mcp-gateway
+docker mcp gateway run --profile default --dry-run --verbose 2>&1 | grep -iE 'n8n-inbox|remote'
+```
+
+Newer gateway releases refuse remote URLs that are not public HTTPS
+(`remote URL host "localhost" is not allowed`). If the dry-run says so, the gateway has an
+opt-out, `DOCKER_MCP_ALLOW_INSECURE_REMOTE_URLS=1` in the plist's `EnvironmentVariables`,
+but it relaxes the check for every remote in the profile; decide that deliberately rather
+than as a quick fix. If n8n is down, check that the gateway still starts with the other
+servers.
 
 ### `ha-event-bridge.json` — webhook (always active)
 
