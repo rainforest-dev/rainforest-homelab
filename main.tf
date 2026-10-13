@@ -223,6 +223,11 @@ resource "random_password" "inbox_secret" {
   special = false
 }
 
+resource "random_password" "inbox_upload_secret" {
+  length  = 48
+  special = false
+}
+
 module "rss-manager" {
   source = "./modules/rss-manager"
 

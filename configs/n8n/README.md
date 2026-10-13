@@ -46,21 +46,30 @@ Do not substitute `$env.OBSIDIAN_API_KEY` for the credential. n8n 2.x denies env
 expressions by default, and enabling it (`N8N_BLOCK_ENV_ACCESS_IN_NODE=false`) would let
 every workflow read the Postgres password.
 
-### 1b. Inbox secret (shared inbox only)
+### 1b. Inbox secrets (shared inbox only)
 
-`shared-inbox` forwards bujo scans to personal-calibre through one more credential, also not
-in git: `Inbox secret` (id `inboxsecret00001`, `httpHeaderAuth`, header `x-inbox-secret`,
-value from `terraform output -raw inbox_secret`).
+`shared-inbox` needs two more credentials, also not in git, each with its own secret:
+
+- `Inbox secret` (id `inboxsecret00001`, header `x-inbox-secret`, from
+  `terraform output -raw inbox_secret`): what n8n sends to personal-calibre with a bujo scan.
+- `Inbox upload secret` (id `inboxupload00001`, header `x-inbox-upload-secret`, from
+  `terraform output -raw inbox_upload_secret`): what an uploader must send to the
+  `/webhook/inbox/<target>` webhook. Kept separate so an upload client never holds the key
+  calibre trusts.
 
 ```bash
-python3 - /tmp/cred.json "$(terraform output -raw inbox_secret)" <<'PY'
+python3 - /tmp/cred.json "$(terraform output -raw inbox_secret)" \
+  "$(terraform output -raw inbox_upload_secret)" <<'PY'
 import sys, json
-out, secret = sys.argv[1:]
-json.dump([{
-    "id": "inboxsecret00001", "name": "Inbox secret", "type": "httpHeaderAuth",
-    "nodesAccess": [{"nodeType": "n8n-nodes-base.httpRequest"}],
-    "data": {"name": "x-inbox-secret", "value": secret},
-}], open(out, "w"))
+out, secret, upload = sys.argv[1:]
+json.dump([
+    {"id": "inboxsecret00001", "name": "Inbox secret", "type": "httpHeaderAuth",
+     "nodesAccess": [{"nodeType": "n8n-nodes-base.httpRequest"}],
+     "data": {"name": "x-inbox-secret", "value": secret}},
+    {"id": "inboxupload00001", "name": "Inbox upload secret", "type": "httpHeaderAuth",
+     "nodesAccess": [{"nodeType": "n8n-nodes-base.webhook"}],
+     "data": {"name": "x-inbox-upload-secret", "value": upload}},
+], open(out, "w"))
 PY
 chmod 600 /tmp/cred.json
 kubectl cp /tmp/cred.json "homelab/$POD:/tmp/cred.json"
@@ -182,8 +191,15 @@ One inbox for every target:
 | `memories` | `Inbox/memories/` | not n8n: the `memories-auto-import` launchd job watches it |
 
 **Upload instead of a folder:** `POST http://<MAC_MINI_IP>:5678/webhook/inbox/<target>`,
-multipart, one file per request, plus `notebook` for bujo. Like `ha-events`, the LAN route
-has no auth of its own; the public `n8n.rainforest.tools` route sits behind Access.
+multipart, one file per request, plus `notebook` for bujo, with the header
+`x-inbox-upload-secret: <terraform output -raw inbox_upload_secret>`. Unlike `ha-events`,
+this webhook checks a header even on the LAN: what it accepts lands in calibre and the
+vault. The public `n8n.rainforest.tools` route also sits behind Access.
+
+```bash
+curl -fsS -H "x-inbox-upload-secret: $(terraform output -raw inbox_upload_secret)" \
+  -F data=@page.jpg -F notebook=2026-A5 http://<MAC_MINI_IP>:5678/webhook/inbox/bujo
+```
 
 Constraints worth preserving when editing:
 

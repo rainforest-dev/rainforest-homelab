@@ -44,6 +44,7 @@
         560
       ],
       "parameters": {
+        "authentication": "headerAuth",
         "httpMethod": "POST",
         "path": "inbox/:target",
         "responseMode": "lastNode",
@@ -51,7 +52,13 @@
           "binaryPropertyName": "data"
         }
       },
-      "webhookId": "inbox-upload-0001"
+      "webhookId": "inbox-upload-0001",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "inboxupload00001",
+          "name": "Inbox upload secret"
+        }
+      }
     },
     {
       "id": "listnotes",
