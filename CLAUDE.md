@@ -762,7 +762,7 @@ applied first.
 - **Port:** `8082` is published on `127.0.0.1` only, like memories.
 - **Semantic search:** embeds through the host's Ollama at `CALIBRE_OLLAMA_URL`
   (`host.docker.internal:11434`, module var `ollama_url`). The app's default model must be pulled
-  on the host; without Ollama, search stays lexical-only.
+  on the host; with the URL unset, search stays lexical-only.
 - **Order:** `terraform apply` before `npx wrangler deploy`. A Worker that routes calibre with a
   gateway but has no `CALIBRE_GATEWAY_SECRET` answers 503.
 
