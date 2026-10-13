@@ -47,14 +47,18 @@ resource "docker_container" "personal_calibre" {
     ip       = var.bind_ip
   }
 
-  env = [
-    "NODE_ENV=${var.node_env}",
-    # Read-only Calibre library, mounted at /calibre-library inside the container
-    "CALIBRE_LIBRARY_PATH=/calibre-library",
-    # App DB lives in the persistent volume, separate from the library
-    "CALIBRE_APP_DB_PATH=/app-data/personal-calibre-app.db",
-    "CALIBRE_MCP_SECRET=${var.mcp_secret}",
-  ]
+  env = concat(
+    [
+      "NODE_ENV=${var.node_env}",
+      # Read-only Calibre library, mounted at /calibre-library inside the container
+      "CALIBRE_LIBRARY_PATH=/calibre-library",
+      # App DB lives in the persistent volume, separate from the library
+      "CALIBRE_APP_DB_PATH=/app-data/personal-calibre-app.db",
+      "CALIBRE_MCP_SECRET=${var.mcp_secret}",
+      "CALIBRE_OLLAMA_URL=${var.ollama_url}",
+    ],
+    var.embed_model != "" ? ["CALIBRE_EMBED_MODEL=${var.embed_model}"] : [],
+  )
 
   # Calibre library — bind-mounted read-only so the app never modifies it
   volumes {

@@ -60,3 +60,15 @@ variable "mcp_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "ollama_url" {
+  description = "Ollama endpoint for search embeddings, as reached from inside the container"
+  type        = string
+  default     = "http://host.docker.internal:11434"
+}
+
+variable "embed_model" {
+  description = "Ollama embedding model; empty keeps the app's default"
+  type        = string
+  default     = ""
+}
