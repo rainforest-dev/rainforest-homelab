@@ -54,7 +54,7 @@ every workflow read the Postgres password.
   `terraform output -raw inbox_secret`): what n8n sends to personal-calibre with a bujo scan.
 - `Inbox upload secret` (id `inboxupload00001`, header `x-inbox-upload-secret`, from
   `terraform output -raw inbox_upload_secret`): what an uploader must send to the
-  `/webhook/inbox/<target>` webhook. Kept separate so an upload client never holds the key
+  `/webhook/inbox-upload-0001/inbox/<target>` webhook. Kept separate so an upload client never holds the key
   calibre trusts.
 
 ```bash
@@ -190,15 +190,17 @@ One inbox for every target:
 | `voice` | `Inbox/voice/` (and the legacy T7 `voice-inbox/`) | Whisper, then an Obsidian note in `Voice memos/` |
 | `memories` | `Inbox/memories/` | not n8n: the `memories-auto-import` launchd job watches it |
 
-**Upload instead of a folder:** `POST http://<MAC_MINI_IP>:5678/webhook/inbox/<target>`,
+**Upload instead of a folder:** `POST http://<MAC_MINI_IP>:5678/webhook/inbox-upload-0001/inbox/<target>`,
 multipart, one file per request, plus `notebook` for bujo, with the header
 `x-inbox-upload-secret: <terraform output -raw inbox_upload_secret>`. Unlike `ha-events`,
 this webhook checks a header even on the LAN: what it accepts lands in calibre and the
-vault. The public `n8n.rainforest.tools` route also sits behind Access.
+vault. The public `n8n.rainforest.tools` route also sits behind Access. The
+`inbox-upload-0001` segment is the node's `webhookId`: n8n prefixes it to any path with a
+`:param`, so `/webhook/inbox/<target>` answers 404 "not registered".
 
 ```bash
 curl -fsS -H "x-inbox-upload-secret: $(terraform output -raw inbox_upload_secret)" \
-  -F data=@page.jpg -F notebook=2026-A5 http://<MAC_MINI_IP>:5678/webhook/inbox/bujo
+  -F data=@page.jpg -F notebook=2026-A5 http://<MAC_MINI_IP>:5678/webhook/inbox-upload-0001/inbox/bujo
 ```
 
 Constraints worth preserving when editing:
