@@ -6,15 +6,39 @@ container cannot run it. It mounts the data directory read-only, and the job nee
 library, `uvx osxphotos` and the host's Ollama.
 
 - Label: `tools.rainforest.memories-auto-import`, plist in `~/Library/LaunchAgents/`.
-- Runner: `~/.local/share/memories-runner`, a blobless sparse clone (`apps/personal-memories`
-  only) at `memories_runner_ref`.
+- Runner: `~/.local/share/memories-runner`, a blobless sparse clone at `memories_runner_ref`
+  holding `apps/personal-memories`, `libs/search` and the root-level files, which cone mode
+  always includes (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `nx.json`, …).
 - Logs: `~/Library/Logs/memories-auto-import/{stdout,stderr}.log`.
 - State: `<MEMORIES_DATA_DIR>/auto-import/state.json`.
 - Failures: posted to n8n `ha-events` at `http://localhost:5678/webhook/ha-events`.
 
 The runner is never the owner's working checkout. Terraform fetches and checks out the pinned SHA
-when `memories_runner_ref` changes. No `pnpm install` is needed: the CLI imports only Node
-built-ins and relative files, and Node 24+ strips the types itself.
+when `memories_runner_ref` changes, then installs and builds what the CLI loads:
+
+- `pnpm install --frozen-lockfile --filter '@rainforest-monorepo/personal-memories...'` installs
+  the app, its workspace dependencies and the workspace root. Workspace libs outside the sparse
+  checkout stay as dangling links; the CLI does not import them.
+- `pnpm --filter @rainforest-dev/search exec vite build` writes `libs/search/dist`, which
+  `@rainforest-dev/search` and `@rainforest-dev/search/node` resolve to. It calls vite directly
+  rather than `nx build search` so no Nx daemon is left running from the runner and Nx Cloud is
+  never contacted.
+
+The step fails if `apps/personal-memories/node_modules/@rainforest-dev/search` or
+`libs/search/dist/node.js` is missing afterwards, or if `auto-import.ts` run without
+`MEMORIES_DATA_DIR` exits with anything but 2 (that is how a missing module shows up before
+the job ever runs). Any runner rebuild replaces the launchd resource, so the agent is unloaded
+for the duration and reloaded once the step passes.
+A failed step leaves it unloaded rather than running a half-installed tree. The step puts the
+directory of `node_path` first on its PATH, so the install, the build and launchd all use the
+same Node; `pnpm` must be on that PATH too. Node 24+ strips the CLI's own types itself, so
+the app needs no build.
+
+`memories_runner_ref` must be rainforest-monorepo `34960179` or later, because earlier commits
+have no `libs/search`. The step re-runs only when the ref, `repo_url`, `runner_dir` or the directory of
+`node_path` changes. To
+rebuild in place, run
+`terraform apply -replace='module.memories_auto_import[0].null_resource.runner'`.
 
 n8n is reached on `localhost`, not the Mac's LAN address. The `homelab-n8n` Service is a
 `LoadBalancer`, so Docker Desktop binds it on the host, and loopback is exempt from macOS Local
@@ -66,8 +90,8 @@ trigger retries.
 
 ## Update the runner
 
-Set `memories_runner_ref` to the new SHA and apply. The runner checks it out, and the agent is
-reloaded.
+Set `memories_runner_ref` to the new SHA and apply. The agent is unloaded, the runner checks
+out the SHA, reinstalls and rebuilds `libs/search`, and the agent is reloaded.
 
 ## Remove
 
