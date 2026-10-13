@@ -298,7 +298,8 @@
           "id": "inboxsecret00001",
           "name": "Inbox secret"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "id": "whisper",
@@ -330,7 +331,8 @@
         "options": {
           "timeout": 120000
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "id": "build",
@@ -383,7 +385,8 @@
           "id": "obsidianrestapi1",
           "name": "Obsidian Local REST API"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "id": "report",

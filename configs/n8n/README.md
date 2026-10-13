@@ -198,7 +198,8 @@ Constraints worth preserving when editing:
   so files the old workflow transcribed are not redone.
 - **Three attempts, then a report.** A file that fails three runs is marked rejected and
   posted once to `ha-events` as `inbox_rejected`, so it shows up in the daily note. Renaming
-  the file retries it. Failures stay visible in the execution log.
+  the file retries it. The delivery nodes send a failed item to their error output, so one
+  bad file never fails the run or counts against the rest of its batch.
 - **Delivery is the target app's job.** n8n only routes; the bujo branch forwards the file to
   personal-calibre, which owns cropping, storage and dedup (by content hash).
 
