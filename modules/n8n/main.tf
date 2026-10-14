@@ -172,6 +172,21 @@ resource "kubernetes_deployment" "n8n" {
             value = var.timezone
           }
 
+          dynamic "env" {
+            for_each = {
+              N8N_METRICS                                     = "true"
+              N8N_METRICS_INCLUDE_WORKFLOW_ID_LABEL           = "true"
+              N8N_METRICS_INCLUDE_WORKFLOW_NAME_LABEL         = "true"
+              N8N_METRICS_INCLUDE_MESSAGE_EVENT_BUS_METRICS   = "true"
+              N8N_METRICS_INCLUDE_WORKFLOW_EXECUTION_DURATION = "true"
+              N8N_METRICS_INCLUDE_WORKFLOW_STATISTICS         = "true"
+            }
+            content {
+              name  = env.key
+              value = env.value
+            }
+          }
+
           env {
             name  = "OBSIDIAN_API_KEY"
             value = var.obsidian_api_key
