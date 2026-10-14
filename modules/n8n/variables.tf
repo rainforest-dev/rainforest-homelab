@@ -69,7 +69,7 @@ variable "storage_size" {
 variable "timezone" {
   description = "Timezone for n8n"
   type        = string
-  default     = "America/New_York"
+  default     = "Asia/Taipei"
 }
 
 variable "encryption_key" {
