@@ -89,6 +89,16 @@ locals {
       }
     },
 
+    var.enable_n8n_mcp ? {
+      "n8n-mcp-internal" = {
+        hostname    = "n8n-mcp-internal"
+        service_url = "http://homelab-n8n.homelab.svc.cluster.local:5678"
+        enable_auth = false # The OAuth Worker sends the n8n MCP token; n8n rejects calls without it
+        type        = "kubernetes"
+        path        = "^/mcp-server/http$"
+      }
+    } : {},
+
     {
       "docker-mcp-internal" = {
         hostname          = "docker-mcp-internal"

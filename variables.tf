@@ -208,6 +208,19 @@ variable "enable_personal_memories" {
   default     = false
 }
 
+variable "enable_n8n_mcp" {
+  description = "Expose n8n's instance-level MCP server at n8n-mcp.<domain> through the OAuth Worker"
+  type        = bool
+  default     = false
+}
+
+variable "n8n_mcp_token" {
+  description = "n8n MCP access token (n8n → Settings → Instance-level MCP); set in terraform.tfvars, never commit it"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "personal_memories_image" {
   description = "Docker image for personal-memories (e.g. ghcr.io/rainforest-dev/personal-memories:latest)"
   type        = string

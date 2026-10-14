@@ -25,7 +25,7 @@ const mcpProxyHandler = {
 		try {
 			const url = new URL(request.url);
 			const backend = resolveBackend(url.hostname, url.searchParams);
-			const backendUrl = new URL(url.pathname + url.search, backend.url);
+			const backendUrl = new URL((backend.path ?? url.pathname) + url.search, backend.url);
 
 			const headers = backendHeaders(request.headers, backend, props, env);
 			if (!(headers instanceof Headers)) {

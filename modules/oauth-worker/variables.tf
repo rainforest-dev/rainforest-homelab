@@ -46,3 +46,16 @@ variable "calibre_gateway_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "enable_n8n_mcp" {
+  description = "Route n8n-mcp.<domain> through the Worker to n8n's instance-level MCP server"
+  type        = bool
+  default     = false
+}
+
+variable "n8n_mcp_token" {
+  description = "n8n MCP access token the Worker sends as a Bearer token; required when enable_n8n_mcp is true"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
