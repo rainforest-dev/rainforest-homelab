@@ -71,6 +71,12 @@ resource "kubernetes_deployment" "n8n" {
   spec {
     replicas = 1
 
+    # Stop the old pod before starting the new one. A rolling update would run two n8n
+    # versions against the same database while the new one runs its migrations.
+    strategy {
+      type = "Recreate"
+    }
+
     selector {
       match_labels = {
         app     = "n8n"
