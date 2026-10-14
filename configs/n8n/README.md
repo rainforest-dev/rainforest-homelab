@@ -17,21 +17,32 @@ POD=$(kubectl get pod -n homelab -l app=n8n -o jsonpath='{.items[0].metadata.nam
 ### 1. Recreate the Obsidian credential
 
 Workflows authenticate to the Obsidian Local REST API through an n8n credential named
-`Obsidian Local REST API` (id `obsidianrestapi1`). It is **not** in git — recreate it from
-`obsidian_api_key` in `terraform.tfvars`.
+`Obsidian Local REST API` (id `obsidianrestapi1`, Header Auth). The n8n database is the only
+place the key lives: it is **not** in git, and Terraform no longer passes it anywhere.
+
+Every workflow that writes the daily note appends to `/vault/daily-notes/<yyyy-MM-dd>.md`
+(Taipei date), which creates the file when it is missing. Do not switch back to
+`/periodic/daily/`: on Local REST API 5.4.0 it returned 404 while the note existed and
+authentication passed, and an Obsidian restart did not fix it (2026-10-14).
+
+To change the key, edit the credential in the n8n UI (**Credentials → Obsidian Local REST API**):
+Name `Authorization`, Value `Bearer <key>`. It takes effect at once for every workflow that uses it.
+
+To recreate it from scratch, read the key from the Obsidian plugin's own settings, so it can
+never be a stale copy:
 
 ```bash
-python3 - /tmp/cred.json <<'EOF'
-import re, sys, json
-tf = open('terraform.tfvars').read()
-key = re.search(r'obsidian_api_key\s*=\s*"([^"]+)"', tf).group(1)
+PLUGIN="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/.obsidian/plugins/obsidian-local-rest-api/data.json"
+python3 - "$PLUGIN" /tmp/cred.json <<'EOF'
+import sys, json
+key = json.load(open(sys.argv[1]))['apiKey']
 json.dump([{
     "id": "obsidianrestapi1",
     "name": "Obsidian Local REST API",
     "type": "httpHeaderAuth",
     "nodesAccess": [{"nodeType": "n8n-nodes-base.httpRequest"}],
     "data": {"name": "Authorization", "value": f"Bearer {key}"},
-}], open(sys.argv[1], 'w'))
+}], open(sys.argv[2], 'w'))
 EOF
 chmod 600 /tmp/cred.json
 kubectl cp /tmp/cred.json "homelab/$POD:/tmp/cred.json"
@@ -42,9 +53,42 @@ kubectl exec -n homelab "$POD" -- rm -f /tmp/cred.json && rm -f /tmp/cred.json
 The credential must be a JSON **array** and include `nodesAccess`, or the import fails with
 an unhelpful "An error occurred while importing credentials".
 
-Do not substitute `$env.OBSIDIAN_API_KEY` for the credential. n8n 2.x denies env access in
+Do not pass the key to workflows through an environment variable. n8n 2.x denies env access in
 expressions by default, and enabling it (`N8N_BLOCK_ENV_ACCESS_IN_NODE=false`) would let
-every workflow read the Postgres password.
+every workflow read the Postgres password. The old `OBSIDIAN_API_KEY` env and the
+`obsidian_api_key` tfvar were removed for this reason on 2026-10-14; delete the line from
+`terraform.tfvars` if it is still there.
+
+### 1b. Inbox secrets (shared inbox only)
+
+`shared-inbox` needs two more credentials, also not in git, each with its own secret:
+
+- `Inbox secret` (id `inboxsecret00001`, header `x-inbox-secret`, from
+  `terraform output -raw inbox_secret`): what n8n sends to personal-calibre with a bujo scan.
+- `Inbox upload secret` (id `inboxupload00001`, header `x-inbox-upload-secret`, from
+  `terraform output -raw inbox_upload_secret`): what an uploader must send to the
+  `/webhook/inbox-upload-0001/inbox/<target>` webhook. Kept separate so an upload client never holds the key
+  calibre trusts.
+
+```bash
+python3 - /tmp/cred.json "$(terraform output -raw inbox_secret)" \
+  "$(terraform output -raw inbox_upload_secret)" <<'PY'
+import sys, json
+out, secret, upload = sys.argv[1:]
+json.dump([
+    {"id": "inboxsecret00001", "name": "Inbox secret", "type": "httpHeaderAuth",
+     "nodesAccess": [{"nodeType": "n8n-nodes-base.httpRequest"}],
+     "data": {"name": "x-inbox-secret", "value": secret}},
+    {"id": "inboxupload00001", "name": "Inbox upload secret", "type": "httpHeaderAuth",
+     "nodesAccess": [{"nodeType": "n8n-nodes-base.webhook"}],
+     "data": {"name": "x-inbox-upload-secret", "value": upload}},
+], open(out, "w"))
+PY
+chmod 600 /tmp/cred.json
+kubectl cp /tmp/cred.json "homelab/$POD:/tmp/cred.json"
+kubectl exec -n homelab "$POD" -- n8n import:credentials --input=/tmp/cred.json
+kubectl exec -n homelab "$POD" -- rm -f /tmp/cred.json && rm -f /tmp/cred.json
+```
 
 ### 2. Import the workflow
 
@@ -108,7 +152,17 @@ Two constraints worth preserving when editing:
 - **The raw alert list is written alongside the model's summary** on purpose. The summary
   can be vague or wrong; the underlying facts must survive.
 
-### `voice-memo-transcription.json` — every 2 min
+### `voice-memo-transcription.json` — superseded by `shared-inbox`
+
+**Keep this workflow inactive.** `shared-inbox` now handles voice (its `voice` target) and
+still scans the legacy T7 folder below, so running both would transcribe each file twice.
+The file stays in git for its history and constraints, which `shared-inbox` inherits.
+
+```bash
+kubectl exec -n homelab "$POD" -- n8n update:workflow --id=<voice workflow id> --active=false
+```
+
+Original description (every 2 min):
 
 Watches a drop folder, transcribes any new audio with the self-hosted Whisper STT service,
 and writes one Obsidian note per recording into the `Voice memos/` folder.
@@ -138,6 +192,70 @@ Four constraints worth preserving when editing:
   (pure JS, no network) that reads `$('List processed')` and passes binary through.
 - **An empty inbox is a clean no-op.** `Read audio files` has `continueOnFail`, so a run
   with nothing to do still ends `success` and never spams the execution log.
+
+### `shared-inbox.json` — every 2 min + webhook
+
+One inbox for every target:
+
+| Target | Drop into iCloud Drive | Delivered to |
+|---|---|---|
+| `bujo` | `Inbox/bujo/<notebook>/` | personal-calibre `POST /api/inbox/bujo` (needs `CALIBRE_INBOX_SECRET`) |
+| `voice` | `Inbox/voice/` (and the legacy T7 `voice-inbox/`) | Whisper, then an Obsidian note in `Voice memos/` |
+| `memories` | `Inbox/memories/` | not n8n: the `memories-auto-import` launchd job watches it |
+
+**Upload instead of a folder:** `POST http://<MAC_MINI_IP>:5678/webhook/inbox-upload-0001/inbox/<target>`,
+multipart, one file per request, plus `notebook` for bujo, with the header
+`x-inbox-upload-secret: <terraform output -raw inbox_upload_secret>`. Unlike `ha-events`,
+this webhook checks a header even on the LAN: what it accepts lands in calibre and the
+vault. The public `n8n.rainforest.tools` route also sits behind Access. The
+`inbox-upload-0001` segment is the node's `webhookId`: n8n prefixes it to any path with a
+`:param`, so `/webhook/inbox/<target>` answers 404 "not registered".
+
+```bash
+curl -fsS -H "x-inbox-upload-secret: $(terraform output -raw inbox_upload_secret)" \
+  -F data=@page.jpg -F notebook=2026-A5 http://<MAC_MINI_IP>:5678/webhook/inbox-upload-0001/inbox/bujo
+```
+
+Constraints worth preserving when editing:
+
+- **Only `Inbox/` is mounted** (`inbox_host_path`, default
+  `~/Library/Mobile Documents/com~apple~CloudDocs/Inbox`), at
+  `/home/node/.n8n-files/inbox`, inside the `readWriteFile` sandbox. Never widen it to all of
+  iCloud Drive. Set Finder's **Keep Downloaded** on `Inbox/`: an evicted file is a
+  `.name.icloud` placeholder, which the scan skips until it is local again.
+- **Idempotency is a ledger, not moving files**, for the same reason as the voice workflow
+  (`readWriteFile` cannot delete). `Pick new` keys each file by target, path and size in
+  `$getWorkflowStaticData('global')`. Voice also keeps the old "note already exists" check,
+  so files the old workflow transcribed are not redone.
+- **Three attempts, then a report.** A file that fails three runs is marked rejected and
+  posted once to `ha-events` as `inbox_rejected`, so it shows up in the daily note. Renaming
+  the file retries it. The delivery nodes send a failed item to their error output, so one
+  bad file never fails the run or counts against the rest of its batch. Each error output also posts
+  `inbox_delivery_failed` (target, file, error) to `ha-events`, so a refused file is visible
+  the run it fails rather than only after the third attempt.
+- **One voice file at a time, through the `inbox_lock` data table.** Whisper gets a
+  30-minute timeout for long recordings, but static data is only saved when a run ends, so
+  a run still waiting on Whisper is invisible to the next 2-minute tick, which would send
+  the same file again. `Read lock` reads the `shared-inbox` row; `Pick new` takes one voice
+  file per run and none while that row is younger than 35 minutes; `Take lock` (placed
+  above Whisper on the canvas, so v1 order runs it first) writes the row, and
+  `Release lock` deletes it after the note is written or Whisper fails. A crashed run
+  leaves the row, which expires on its own. Bujo is not locked. Create the table by hand
+  before importing: `inbox_lock` with `name` (string) and `started_at` (date).
+- **Whisper gets a Traditional Chinese `prompt`** (`以下是台灣華語的逐字稿，使用繁體中文與標點符號。`),
+  passed to faster-whisper as `initial_prompt`. Don't add `temperature`: a fixed value
+  disables faster-whisper's temperature fallback.
+- **Delivery is the target app's job.** n8n only routes; the bujo branch forwards the file to
+  personal-calibre, which owns cropping, storage and dedup (by content hash).
+
+Not verified against a live n8n yet: that `readWriteFile` sets `binary.directory` for files in
+subfolders (the bujo notebook name comes from it) and that static data persists from these
+Code nodes under task runners. Check the first real run.
+
+**Agents** use the existing `n8n` server in the Docker MCP gateway; there is no separate inbox
+MCP. To deliver a file, an agent uploads it to the webhook above or writes it into the folder;
+`n8n_trigger_webhook_workflow` sends JSON only, so it cannot carry a file. The table above is
+the whole contract an agent needs.
 
 ### `ha-event-bridge.json` — webhook (always active)
 
@@ -227,6 +345,22 @@ Appends a Bambii care checklist to the Obsidian daily note each morning (Compone
 reminder half; the activity-logging half is the HA `bambii_music` → webhook path). The
 checklist in the `Build reminder` node is a **starter template — edit it** to match Bambii's
 real routine (meds, vet dates).
+
+### `workflow-error-alert.json` — error workflow for all the others
+
+Every workflow here sets `settings.errorWorkflow` to this one, so any failed production
+execution is recorded once in the `workflow_errors` data table (workflow, node, message,
+execution link) and appended to the daily note as `- HH:MM ⚠️ workflow failed: … #n8n-error`.
+Manual and test runs do not trigger it.
+
+- **Import it first.** n8n refuses an `errorWorkflow` that has no published version, so a
+  rebuild imports and activates this workflow before the others.
+- **The data table is not in git.** Create `workflow_errors` (Data tables, in the personal
+  project) with string columns `workflow`, `workflow_id`, `execution_id`, `node`, `message`,
+  `url` and a date column `failed_at`. The committed node finds it by name.
+- **The table is the record that survives.** The daily-note append continues on error, so a
+  broken Obsidian credential (which is itself a common cause of failures) cannot hide the
+  failure. Ask Claude, or open the table, to list recent ones.
 
 ## Upgrading n8n
 

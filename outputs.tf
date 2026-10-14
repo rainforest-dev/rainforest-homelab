@@ -41,6 +41,18 @@ output "memories_mcp_secret" {
   sensitive   = true
 }
 
+output "inbox_secret" {
+  description = "Shared secret the n8n inbox workflow sends as x-inbox-secret (n8n credential \"Inbox secret\")"
+  value       = random_password.inbox_secret.result
+  sensitive   = true
+}
+
+output "inbox_upload_secret" {
+  description = "Header clients send as x-inbox-upload-secret to POST /webhook/inbox/<target> (n8n credential \"Inbox upload secret\")"
+  value       = random_password.inbox_upload_secret.result
+  sensitive   = true
+}
+
 output "calibre_mcp_secret" {
   description = "Shared secret between the OAuth Worker and the personal-calibre container (x-calibre-gateway)"
   value       = random_password.calibre_mcp_secret.result

@@ -156,13 +156,6 @@ variable "google_oauth_client_secret" {
 
 
 
-variable "obsidian_api_key" {
-  description = "API key for Obsidian Local REST API"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
 variable "external_storage_path" {
   description = "Path to external storage for data persistence"
   type        = string
@@ -361,3 +354,9 @@ variable "image_gen_api_key" {
   sensitive   = true
 }
 
+
+variable "inbox_host_path" {
+  description = "Shared iCloud inbox (one subfolder per target: bujo/, voice/, memories/); ~ is expanded on the host running Terraform"
+  type        = string
+  default     = "~/Library/Mobile Documents/com~apple~CloudDocs/Inbox"
+}

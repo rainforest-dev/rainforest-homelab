@@ -212,9 +212,21 @@ module "personal-calibre" {
   external_port        = 8082
   calibre_library_path = var.calibre_library_path
   mcp_secret           = random_password.calibre_mcp_secret.result
+  inbox_secret         = random_password.inbox_secret.result
 }
 
 resource "random_password" "calibre_mcp_secret" {
+  length  = 48
+  special = false
+}
+
+# Shared by the n8n inbox workflow and the apps it delivers to (x-inbox-secret)
+resource "random_password" "inbox_secret" {
+  length  = 48
+  special = false
+}
+
+resource "random_password" "inbox_upload_secret" {
   length  = 48
   special = false
 }
@@ -261,6 +273,7 @@ module "memories_auto_import" {
   data_dir            = var.memories_data_dir
   photos_library_path = var.memories_photos_library_path
   photos_from         = var.memories_photos_from
+  drop_dir            = "${pathexpand(var.inbox_host_path)}/memories"
   webhook_url         = "http://localhost:${module.n8n.n8n_port}/webhook/ha-events"
 }
 
@@ -293,8 +306,8 @@ module "n8n" {
   # Encryption
   encryption_key = "n8n-homelab-encryption-key-2024"
 
-  # Obsidian Local REST API key, exposed to workflows as $env.OBSIDIAN_API_KEY
-  obsidian_api_key = var.obsidian_api_key
+  # Shared inbox: only the iCloud Inbox/ folder is mounted into the pod
+  inbox_host_path = pathexpand(var.inbox_host_path)
 
   depends_on = [module.postgresql, module.n8n_database]
 }

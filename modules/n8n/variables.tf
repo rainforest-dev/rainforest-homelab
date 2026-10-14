@@ -130,9 +130,7 @@ variable "depends_on_container" {
   default     = "homelab-postgresql"
 }
 
-variable "obsidian_api_key" {
-  description = "Obsidian Local REST API key, exposed to workflows as $env.OBSIDIAN_API_KEY"
+variable "inbox_host_path" {
+  description = "Host path of the shared iCloud Inbox/ folder, mounted at /home/node/.n8n-files/inbox"
   type        = string
-  sensitive   = true
-  default     = ""
 }

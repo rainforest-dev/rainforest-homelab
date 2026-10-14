@@ -61,6 +61,13 @@ variable "mcp_secret" {
   sensitive   = true
 }
 
+variable "inbox_secret" {
+  description = "Shared secret n8n sends as x-inbox-secret to POST /api/inbox/bujo; empty disables the route"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "ollama_url" {
   description = "Ollama endpoint for search embeddings, as reached from inside the container"
   type        = string

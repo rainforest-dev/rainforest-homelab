@@ -55,6 +55,7 @@ resource "docker_container" "personal_calibre" {
       # App DB lives in the persistent volume, separate from the library
       "CALIBRE_APP_DB_PATH=/app-data/personal-calibre-app.db",
       "CALIBRE_MCP_SECRET=${var.mcp_secret}",
+      "CALIBRE_INBOX_SECRET=${var.inbox_secret}",
       "CALIBRE_OLLAMA_URL=${var.ollama_url}",
     ],
     var.embed_model != "" ? ["CALIBRE_EMBED_MODEL=${var.embed_model}"] : [],

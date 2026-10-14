@@ -193,11 +193,6 @@ resource "kubernetes_deployment" "n8n" {
             }
           }
 
-          env {
-            name  = "OBSIDIAN_API_KEY"
-            value = var.obsidian_api_key
-          }
-
           volume_mount {
             name       = "n8n-data"
             mount_path = "/home/node/.n8n"
@@ -210,6 +205,13 @@ resource "kubernetes_deployment" "n8n" {
           volume_mount {
             name       = "voice-inbox"
             mount_path = "/home/node/.n8n-files/voice-inbox"
+          }
+
+          # Shared inbox: only the iCloud Inbox/ folder, nothing else from the home
+          # directory. The inbox workflow polls it; see configs/n8n/README.md.
+          volume_mount {
+            name       = "inbox"
+            mount_path = "/home/node/.n8n-files/inbox"
           }
 
           resources {
@@ -268,6 +270,14 @@ resource "kubernetes_deployment" "n8n" {
           name = "voice-inbox"
           host_path {
             path = "${var.external_storage_path}/voice-inbox"
+            type = "DirectoryOrCreate"
+          }
+        }
+
+        volume {
+          name = "inbox"
+          host_path {
+            path = var.inbox_host_path
             type = "DirectoryOrCreate"
           }
         }

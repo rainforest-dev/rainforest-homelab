@@ -34,7 +34,7 @@ variable "data_dir" {
 variable "drop_dir" {
   description = "MEMORIES_DROP_DIR: iCloud folder LINE exports are dropped into; launchd watches it"
   type        = string
-  default     = "~/Library/Mobile Documents/com~apple~CloudDocs/Memories Inbox"
+  default     = "~/Library/Mobile Documents/com~apple~CloudDocs/Inbox/memories"
 }
 
 variable "photos_library_path" {
