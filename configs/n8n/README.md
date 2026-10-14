@@ -92,7 +92,7 @@ The broker port override is required: the default 5679 is already held by the ru
 
 ## Workflows
 
-### `homelab-health-digest.json` — daily 08:10
+### `homelab-health-digest.json` — daily 08:10 Asia/Taipei
 
 Reads firing Prometheus alerts and Home Assistant sensor values, summarises them with
 Ollama, and appends a "Homelab health" section to the Obsidian daily note. It runs after
@@ -155,8 +155,8 @@ Pi — where Home Assistant runs — reaches it directly).
 ```
 
 `ts` is HA's own local-time string — n8n extracts `HH:MM` from it verbatim rather than
-doing timezone math (the container clock is UTC and `GENERIC_TIMEZONE` is America/New_York,
-neither of which is home time). Result in the daily note:
+doing timezone math, so the time is HA's own even though the container clock is UTC.
+Result in the daily note:
 `- 15:30 **bambii_music_on** — living room #home-event`.
 
 Design: `docs/superpowers/specs/2026-07-26-theme-a-homelab-health-digest-design.md` (Component 2)
@@ -198,7 +198,7 @@ Three constraints worth preserving when editing:
   label-series per alert; the fingerprint collapses them so a single failure is one bullet.
 - **No Ollama summary here — raw facts only.** The daily digest does the prose; this log is
   the ground truth that must survive a vague summary. Timestamps are `Asia/Taipei`
-  (n8n's `GENERIC_TIMEZONE` is America/New_York, which is not home time).
+  (formatted explicitly, so they do not depend on n8n's `GENERIC_TIMEZONE`).
 
 > Note: on a fresh n8n database the open-incident state is empty, so the first poll logs
 > every currently-firing alert once as `🔴 down` — an intentional initial snapshot.
@@ -221,7 +221,7 @@ Two constraints worth preserving when editing:
 - **Best at current-state questions.** Instant queries about sensors/services are reliable;
   historical/range questions ("was it humid last night?") are not yet supported.
 
-### `bambii-care-reminder.json` — daily 08:15
+### `bambii-care-reminder.json` — daily 08:15 Asia/Taipei
 
 Appends a Bambii care checklist to the Obsidian daily note each morning (Component 4, the
 reminder half; the activity-logging half is the HA `bambii_music` → webhook path). The
