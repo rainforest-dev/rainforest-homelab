@@ -766,6 +766,28 @@ applied first.
 - **Order:** `terraform apply` before `npx wrangler deploy`. A Worker that routes calibre with a
   gateway but has no `CALIBRE_GATEWAY_SECRET` answers 503.
 
+## n8n MCP (official, behind the OAuth Worker)
+
+n8n ships its own MCP server at `/mcp-server/http` (n8n 2.14+; Settings → Instance-level
+MCP). Clients connect at `https://n8n-mcp.rainforest.tools/mcp`. The Worker routes that
+hostname (never `?backend=`) to `https://n8n-mcp-internal.rainforest.tools/mcp-server/http`,
+whose tunnel rule matches only `^/mcp-server/http$`; the n8n UI and API stay behind Access on
+`n8n`. The Worker drops the client's own OAuth token and sends `Authorization: Bearer
+<n8n MCP token>` instead, so n8n's own token check is the backend guard. Every other request
+header passes through, which n8n needs (`MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`).
+
+- **Token:** created in n8n → Settings → Instance-level MCP, by you, never in an agent
+  session. Put it in `terraform.tfvars` as `n8n_mcp_token` and set `enable_n8n_mcp = true`.
+  Terraform writes it to the Worker as `N8N_MCP_TOKEN`; do not `wrangler secret put` it.
+  Rotating it in n8n means updating tfvars and applying again.
+- **Order:** `terraform apply` (route, DNS, Worker domain and secret) before
+  `npx wrangler deploy` from `workers/oauth-gateway`. A Worker that routes n8n-mcp but has no
+  `N8N_MCP_TOKEN` answers 503.
+- **Scope:** n8n only exposes workflows you opt in per workflow (or with "MCP access for new
+  workflows"). Narrow "Allowed callback URLs" from All while you are there.
+- The older catalog `n8n` server in the Docker MCP gateway (n8n-mcp 2.22.17) still reads
+  workflows but cannot create them (a Zod 4 bug); prefer this one for building.
+
 ## Whisper Speech-to-Text Service
 
 The homelab includes a self-hosted **Whisper STT API** for speech-to-text transcription using OpenAI's Whisper model.

@@ -67,6 +67,9 @@ module "oauth_worker" {
   enable_memories_mcp     = var.enable_personal_memories
   memories_gateway_secret = var.enable_personal_memories ? random_password.memories_mcp_secret[0].result : null
   calibre_gateway_secret  = random_password.calibre_mcp_secret.result
+
+  enable_n8n_mcp = var.enable_n8n_mcp
+  n8n_mcp_token  = var.n8n_mcp_token
 }
 
 # Open WebUI Database - DISABLED (using SQLite instead of PostgreSQL)
