@@ -10,6 +10,18 @@ prometheus.scrape "unix" {
   job_name        = "mac-mini-node"
 }
 
+// ─── Prometheus: n8n (K8s LoadBalancer service bound on the host) ───────────
+
+prometheus.scrape "n8n" {
+  targets = [{
+    __address__ = "host.docker.internal:5678",
+    job         = "n8n",
+  }]
+  forward_to      = [prometheus.remote_write.rpi.receiver]
+  scrape_interval = "30s"
+  job_name        = "n8n"
+}
+
 // ─── Prometheus: Push to RPi ────────────────────────────────────────────────
 
 prometheus.remote_write "rpi" {
