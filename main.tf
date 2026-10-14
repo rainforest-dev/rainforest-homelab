@@ -313,7 +313,8 @@ module "whisper" {
   # Port 9000 reserved for MinIO (infrastructure > app).
   # Cloudflare Tunnel routes to whisper.rainforest.tools regardless of port.
   external_port        = 9090
-  memory_limit         = "3Gi"
+  # An 18-minute recording peaked at 2.72 of 3 GiB on large-v3-turbo.
+  memory_limit         = "4Gi"
   enable_gpu           = false # Set true if GPU available
   use_external_storage = true
   image_tag            = "latest"

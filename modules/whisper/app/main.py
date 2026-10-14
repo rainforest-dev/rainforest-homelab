@@ -6,6 +6,7 @@ Supports dynamic model loading based on request parameters
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import JSONResponse
 from faster_whisper import WhisperModel
+from opencc import OpenCC
 import hashlib
 import tempfile
 import threading
@@ -37,6 +38,11 @@ AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "
 # repetitive (compression_ratio_threshold) or too unlikely. A single fixed temperature
 # disables that retry, which is how a long recording ends in "像 像 像 ..." forever.
 DEFAULT_TEMPERATURES = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
+
+# initial_prompt only steers the first 30-second window, so a long Mandarin recording
+# drifts into Simplified Chinese partway through. Convert Chinese output to Traditional
+# with Taiwan phrasing after decoding instead.
+_s2twp = OpenCC("s2twp")
 
 # Model cache: {model_size: WhisperModel instance}
 model_cache: Dict[str, WhisperModel] = {}
@@ -187,6 +193,8 @@ def _transcribe(model, content, filename, selected_model, language, prompt, temp
 
         # Collect all segments into full transcription
         transcription = " ".join([segment.text.strip() for segment in segments])
+        if info.language == "zh":
+            transcription = _s2twp.convert(transcription)
 
         logger.info(f"Transcription complete: {len(transcription)} chars, lang={info.language}, model={selected_model}")
 

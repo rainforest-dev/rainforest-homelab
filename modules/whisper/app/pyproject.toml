@@ -8,6 +8,7 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "faster-whisper>=1.2.1",
     "python-multipart>=0.0.31",
+    "opencc-python-reimplemented>=0.1.7",
 ]
 
 [project.optional-dependencies]
