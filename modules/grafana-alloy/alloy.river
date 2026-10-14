@@ -111,6 +111,7 @@ otelcol.receiver.otlp "agents" {
   output {
     metrics = [otelcol.processor.batch.agents.input]
     logs    = [otelcol.processor.batch.agents.input]
+    traces  = [otelcol.processor.batch.agents.input]
   }
 }
 
@@ -122,6 +123,7 @@ otelcol.processor.batch "agents" {
   output {
     metrics = [otelcol.exporter.prometheus.agents.input]
     logs    = [otelcol.exporter.loki.agents.input]
+    traces  = [otelcol.exporter.otlphttp.tempo.input]
   }
 }
 
@@ -131,4 +133,13 @@ otelcol.exporter.prometheus "agents" {
 
 otelcol.exporter.loki "agents" {
   forward_to = [loki.write.rpi.receiver]
+}
+
+otelcol.exporter.otlphttp "tempo" {
+  client {
+    endpoint = env("TEMPO_OTLP_URL")
+    tls {
+      insecure = true
+    }
+  }
 }

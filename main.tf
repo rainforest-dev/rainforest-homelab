@@ -402,6 +402,7 @@ module "grafana_alloy" {
   image_version               = var.grafana_alloy_version
   prometheus_remote_write_url = var.rpi_prometheus_url
   loki_push_url               = var.rpi_loki_url
+  tempo_otlp_url              = "http://${var.raspberry_pi_ip}:30418"
   kubeconfig_path             = var.alloy_kubeconfig_path
   log_opts                    = {}
 }

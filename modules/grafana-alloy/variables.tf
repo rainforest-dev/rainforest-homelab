@@ -39,3 +39,8 @@ variable "machine" {
   description = "Host name stamped as the machine label on every pushed metric"
   type        = string
 }
+
+variable "tempo_otlp_url" {
+  description = "Tempo OTLP/HTTP endpoint on the Pi that Alloy forwards traces to"
+  type        = string
+}
