@@ -6,8 +6,11 @@ Supports dynamic model loading based on request parameters
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import JSONResponse
 from faster_whisper import WhisperModel
+import hashlib
 import tempfile
+import threading
 import os
+from collections import OrderedDict
 from pathlib import Path
 from typing import Optional, Dict
 import logging
@@ -23,15 +26,41 @@ app = FastAPI(
 
 # Configuration from environment
 DEFAULT_MODEL_SIZE = os.getenv("WHISPER_MODEL", "base")
-DEVICE = "cuda" if os.getenv("ENABLE_GPU", "false").lower() == "true" else "cpu"
+DEVICE = "cuda" if os.getenv("CUDA_AVAILABLE", "false").lower() == "true" else "cpu"
 COMPUTE_TYPE = "float16" if DEVICE == "cuda" else "int8"
 MODELS_DIR = "/models"
 
 # Available model sizes
-AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large-v2", "large-v3"]
+AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "large-v3-turbo"]
+
+# faster-whisper retries a segment at the next temperature when its output is too
+# repetitive (compression_ratio_threshold) or too unlikely. A single fixed temperature
+# disables that retry, which is how a long recording ends in "像 像 像 ..." forever.
+DEFAULT_TEMPERATURES = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
 
 # Model cache: {model_size: WhisperModel instance}
 model_cache: Dict[str, WhisperModel] = {}
+
+# A long recording on CPU outlasts n8n's 2-minute schedule, so the next run sends the
+# same file again. Identical requests share one transcription: the second waits on the
+# first's lock and then reads its result instead of transcribing the file twice.
+RESULT_CACHE_SIZE = 32
+_result_cache: "OrderedDict[str, dict]" = OrderedDict()
+_request_locks: Dict[str, threading.Lock] = {}
+_registry_lock = threading.Lock()
+# One decode at a time. n8n sends a run's files in parallel, and two large-v3-turbo
+# decodes side by side could exceed the container's memory limit.
+_transcribe_lock = threading.Lock()
+
+
+# Locks are never dropped: removing one while a request waits on it would let a third
+# identical request run in parallel. One Lock per distinct request is a few bytes.
+def _request_lock(key: str) -> threading.Lock:
+    with _registry_lock:
+        return _request_locks.setdefault(key, threading.Lock())
+
+
+_model_load_lock = threading.Lock()
 
 
 def get_or_load_model(model_size: str) -> WhisperModel:
@@ -42,15 +71,16 @@ def get_or_load_model(model_size: str) -> WhisperModel:
     if model_size not in AVAILABLE_MODELS:
         raise ValueError(f"Invalid model size. Available: {', '.join(AVAILABLE_MODELS)}")
 
-    if model_size not in model_cache:
-        logger.info(f"Loading Whisper model: {model_size} on {DEVICE} with {COMPUTE_TYPE}")
-        model_cache[model_size] = WhisperModel(
-            model_size_or_path=model_size,
-            device=DEVICE,
-            compute_type=COMPUTE_TYPE,
-            download_root=MODELS_DIR
-        )
-        logger.info(f"Model {model_size} loaded and cached successfully")
+    with _model_load_lock:
+        if model_size not in model_cache:
+            logger.info(f"Loading Whisper model: {model_size} on {DEVICE} with {COMPUTE_TYPE}")
+            model_cache[model_size] = WhisperModel(
+                model_size_or_path=model_size,
+                device=DEVICE,
+                compute_type=COMPUTE_TYPE,
+                download_root=MODELS_DIR
+            )
+            logger.info(f"Model {model_size} loaded and cached successfully")
 
     return model_cache[model_size]
 
@@ -71,15 +101,17 @@ async def startup_event():
         # Don't fail startup - models can be loaded on-demand
 
 
+# A plain def runs in FastAPI's threadpool, so /health keeps answering while a long
+# file is being transcribed instead of the whole event loop blocking on it.
 @app.post("/v1/audio/transcriptions")
-async def transcribe_audio(
+def transcribe_audio(
     file: UploadFile = File(..., description="Audio file to transcribe"),
     model_name: str = Form("whisper-1", description="Model to use (OpenAI compatibility)", alias="model"),
-    whisper_model: Optional[str] = Form(None, description="Whisper model size (tiny, base, small, medium, large-v3)"),
+    whisper_model: Optional[str] = Form(None, description="Whisper model size (tiny, base, small, medium, large-v3, large-v3-turbo)"),
     language: Optional[str] = Form(None, description="Language code (e.g., 'en', 'es')"),
     prompt: Optional[str] = Form(None, description="Optional text to guide transcription"),
     response_format: str = Form("json", description="Response format (json, text, srt, vtt)"),
-    temperature: float = Form(0.0, description="Sampling temperature (0.0 - 1.0)")
+    temperature: Optional[float] = Form(None, description="Sampling temperature (0.0 - 1.0); omit to allow fallback")
 ):
     """
     Transcribe audio to text using Whisper model.
@@ -90,7 +122,7 @@ async def transcribe_audio(
     **New**: Supports dynamic model selection via 'whisper_model' parameter.
     If not specified, uses the default model from WHISPER_MODEL environment variable.
 
-    Available models: tiny, base, small, medium, large-v2, large-v3
+    Available models: tiny, base, small, medium, large-v2, large-v3, large-v3-turbo
     """
     if not file:
         raise HTTPException(status_code=400, detail="No audio file provided")
@@ -107,21 +139,48 @@ async def transcribe_audio(
         logger.error(f"Failed to load model {selected_model}: {e}")
         raise HTTPException(status_code=500, detail=f"Model loading failed: {str(e)}")
 
+    content = file.file.read()
+    key = hashlib.sha256(
+        repr((hashlib.sha256(content).hexdigest(), selected_model, language, prompt, temperature)).encode()
+    ).hexdigest()
+
+    with _request_lock(key):
+        with _registry_lock:
+            result = _result_cache.get(key)
+        if result is None:
+            with _transcribe_lock:
+                result = _transcribe(model, content, file.filename, selected_model, language, prompt, temperature)
+            with _registry_lock:
+                _result_cache[key] = result
+                while len(_result_cache) > RESULT_CACHE_SIZE:
+                    _result_cache.popitem(last=False)
+        else:
+            logger.info(f"Reusing transcription of {file.filename} from an identical earlier request")
+
+    # Return OpenAI-compatible response
+    if response_format == "text":
+        return result["text"]
+    return JSONResponse(result)
+
+
+def _transcribe(model, content, filename, selected_model, language, prompt, temperature) -> dict:
     # Save uploaded file temporarily
-    with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp:
-        content = await file.read()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=Path(filename).suffix) as tmp:
         tmp.write(content)
         tmp_path = tmp.name
 
     try:
-        logger.info(f"Transcribing {file.filename} with model={selected_model}, language={language or 'auto'}")
+        logger.info(f"Transcribing {filename} with model={selected_model}, language={language or 'auto'}")
 
         # Transcribe audio using faster-whisper
         segments, info = model.transcribe(
             tmp_path,
             language=language,
             initial_prompt=prompt,
-            temperature=temperature,
+            temperature=DEFAULT_TEMPERATURES if temperature is None else temperature,
+            # Feeding each segment's text into the next one is what lets a single
+            # wrong segment repeat for the rest of the file.
+            condition_on_previous_text=False,
             vad_filter=True,  # Voice Activity Detection to filter silence
             vad_parameters=dict(min_silence_duration_ms=500)
         )
@@ -131,17 +190,13 @@ async def transcribe_audio(
 
         logger.info(f"Transcription complete: {len(transcription)} chars, lang={info.language}, model={selected_model}")
 
-        # Return OpenAI-compatible response
-        if response_format == "text":
-            return transcription
-        else:
-            return JSONResponse({
-                "text": transcription,
-                "language": info.language,
-                "duration": round(info.duration, 2),
-                "language_probability": round(info.language_probability, 2),
-                "model_used": selected_model  # Include which model was used
-            })
+        return {
+            "text": transcription,
+            "language": info.language,
+            "duration": round(info.duration, 2),
+            "language_probability": round(info.language_probability, 2),
+            "model_used": selected_model  # Include which model was used
+        }
 
     except Exception as e:
         logger.error(f"Transcription error: {str(e)}")

@@ -819,7 +819,9 @@ enable_whisper = true
 terraform apply
 ```
 
-**3. First run downloads model (~150MB for 'base'):**
+**3. First start downloads the default model (~1.6GB for `large-v3-turbo`).** The server
+preloads it before it starts listening, so callers get connection errors until the download
+finishes:
 ```bash
 # Check logs to see model download progress
 docker logs -f homelab-whisper
@@ -827,25 +829,40 @@ docker logs -f homelab-whisper
 
 ### **Model Selection**
 
-**Default Configuration** (optimized for Mac CPU):
+**Default Configuration** (`large-v3-turbo` since 2026-10-14):
 ```hcl
 module "whisper" {
-  model_size = "base"  # Fast, low-memory, good quality
-  enable_gpu = false   # Set true for PC with GPU
+  model_size = "large-v3-turbo"  # large-v3 encoder, 4-layer decoder
+  enable_gpu = false             # Set true for PC with GPU
 }
 ```
+
+`base` was the default until 2026-10-14. On Mandarin voice memos it misheard ordinary words
+(胃食道 came out as 胃脂道) and an 18 MB meeting recording ended in thousands of repeated
+`像`. Two server settings caused the loop, and both are now fixed in `app/main.py`:
+
+- The API always passed `temperature=0.0`, which turned off faster-whisper's temperature
+  fallback. That fallback is what re-decodes a repetitive segment. Omit `temperature` and the
+  server uses the library's default schedule (`0.0, 0.2, … 1.0`).
+- `condition_on_previous_text` defaulted to `True`, so one bad segment was fed into every
+  segment after it. The server now sets it to `False`.
+
+Identical requests (same audio, model, language, prompt and temperature) share one
+transcription. A long file outlasts n8n's 2-minute schedule, so the next run sends it again;
+that request waits for the first and gets its result.
 
 **Model Performance Comparison** (Tested on Mac CPU):
 | Model | Size | Speed (39min audio) | CPU | Memory | Quality | Use Case |
 |-------|------|---------------------|-----|--------|---------|----------|
 | tiny | 39MB | 61s (38x) | 606% | 500MB | 96% conf | Ultra-fast drafts |
-| **base** | **74MB** | **65s (36x)** | **606%** | **750MB** | **97% conf** | **✓ Recommended for Mac** |
+| base | 74MB | 65s (36x) | 606% | 750MB | 97% conf | Quick drafts; weak on Mandarin |
 | small | 244MB | 312s (7.5x) | 476% | 1.5GB | 99% conf | Important meetings |
 | medium | 769MB | ~600s (4x) | 500% | 2GB | 99% conf | Production quality |
 | large-v3 | 1.5GB | ~900s (2.5x) | 500% | 3GB | 99% conf | Maximum accuracy |
+| **large-v3-turbo** | **1.6GB** | **not measured** | | **3Gi limit** | | **✓ Default** |
 
 **Recommendations:**
-- **Mac (Dev)**: Use `base` - Fast processing, low resource usage, good for iteration
+- **Mac**: `large-v3-turbo` for anything you will read later; `base` only for quick drafts
 - **PC with RTX 5070**: Use `medium` or `large-v3` with GPU - 10-20x faster than CPU
 
 ### **Dynamic Model Selection** (New Feature)
@@ -857,7 +874,7 @@ curl -X POST "https://whisper.yourdomain.com/v1/audio/transcriptions" \
   -F "whisper_model=small"  # Use specific model for this request
 ```
 
-Available models: `tiny`, `base`, `small`, `medium`, `large-v2`, `large-v3`
+Available models: `tiny`, `base`, `small`, `medium`, `large-v2`, `large-v3`, `large-v3-turbo`
 
 ### **API Usage**
 
@@ -908,15 +925,15 @@ curl -X POST "http://localhost:9000/v1/audio/transcriptions" \
 **Health check:**
 ```bash
 curl http://localhost:9000/health
-# {"status": "healthy", "model": "base", "device": "cpu"}
+# {"status": "healthy", "default_model": "large-v3-turbo", "device": "cpu", "compute_type": "int8", ...}
 ```
 
 ### **Performance Optimization**
 
 **CPU (Current Setup):**
-- Model: `base` (~5x realtime speed)
-- Memory: ~1GB during transcription
-- Typical: 30-second audio transcribed in ~6 seconds
+- Model: `large-v3-turbo`, int8. Its speed on the Mac has not been measured yet; expect it
+  between `small` and `large-v3` in the table above, so minutes for a long meeting
+- Memory: container limit 3Gi
 
 **GPU (Future):**
 ```hcl
