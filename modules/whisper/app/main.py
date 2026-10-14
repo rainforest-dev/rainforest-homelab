@@ -48,6 +48,9 @@ RESULT_CACHE_SIZE = 32
 _result_cache: "OrderedDict[str, dict]" = OrderedDict()
 _request_locks: Dict[str, threading.Lock] = {}
 _registry_lock = threading.Lock()
+# One decode at a time. n8n sends a run's files in parallel, and two large-v3-turbo
+# decodes side by side could exceed the container's memory limit.
+_transcribe_lock = threading.Lock()
 
 
 # Locks are never dropped: removing one while a request waits on it would let a third
@@ -55,6 +58,9 @@ _registry_lock = threading.Lock()
 def _request_lock(key: str) -> threading.Lock:
     with _registry_lock:
         return _request_locks.setdefault(key, threading.Lock())
+
+
+_model_load_lock = threading.Lock()
 
 
 def get_or_load_model(model_size: str) -> WhisperModel:
@@ -65,15 +71,16 @@ def get_or_load_model(model_size: str) -> WhisperModel:
     if model_size not in AVAILABLE_MODELS:
         raise ValueError(f"Invalid model size. Available: {', '.join(AVAILABLE_MODELS)}")
 
-    if model_size not in model_cache:
-        logger.info(f"Loading Whisper model: {model_size} on {DEVICE} with {COMPUTE_TYPE}")
-        model_cache[model_size] = WhisperModel(
-            model_size_or_path=model_size,
-            device=DEVICE,
-            compute_type=COMPUTE_TYPE,
-            download_root=MODELS_DIR
-        )
-        logger.info(f"Model {model_size} loaded and cached successfully")
+    with _model_load_lock:
+        if model_size not in model_cache:
+            logger.info(f"Loading Whisper model: {model_size} on {DEVICE} with {COMPUTE_TYPE}")
+            model_cache[model_size] = WhisperModel(
+                model_size_or_path=model_size,
+                device=DEVICE,
+                compute_type=COMPUTE_TYPE,
+                download_root=MODELS_DIR
+            )
+            logger.info(f"Model {model_size} loaded and cached successfully")
 
     return model_cache[model_size]
 
@@ -141,7 +148,8 @@ def transcribe_audio(
         with _registry_lock:
             result = _result_cache.get(key)
         if result is None:
-            result = _transcribe(model, content, file.filename, selected_model, language, prompt, temperature)
+            with _transcribe_lock:
+                result = _transcribe(model, content, file.filename, selected_model, language, prompt, temperature)
             with _registry_lock:
                 _result_cache[key] = result
                 while len(_result_cache) > RESULT_CACHE_SIZE:
