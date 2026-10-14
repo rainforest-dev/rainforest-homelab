@@ -20,6 +20,7 @@ resource "docker_container" "alloy" {
     "PROMETHEUS_REMOTE_WRITE_URL=${var.prometheus_remote_write_url}",
     "LOKI_PUSH_URL=${var.loki_push_url}",
     "ALLOY_MACHINE=${var.machine}",
+    "TEMPO_OTLP_URL=${var.tempo_otlp_url}",
   ]
 
   volumes {

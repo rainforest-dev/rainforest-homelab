@@ -180,6 +180,12 @@ resource "kubernetes_deployment" "n8n" {
               N8N_METRICS_INCLUDE_MESSAGE_EVENT_BUS_METRICS   = "true"
               N8N_METRICS_INCLUDE_WORKFLOW_EXECUTION_DURATION = "true"
               N8N_METRICS_INCLUDE_WORKFLOW_STATISTICS         = "true"
+              N8N_OTEL_ENABLED                                = "true"
+              N8N_OTEL_EXPORTER_OTLP_ENDPOINT                 = "http://host.docker.internal:4318"
+              N8N_OTEL_EXPORTER_OTLP_PROTOCOL                 = "http/protobuf"
+              N8N_OTEL_EXPORTER_SERVICE_NAME                  = "n8n"
+              N8N_OTEL_TRACES_INCLUDE_NODE_SPANS              = "true"
+              N8N_OTEL_TRACES_SAMPLE_RATE                     = "1"
             }
             content {
               name  = env.key
