@@ -847,6 +847,10 @@ module "whisper" {
 - `condition_on_previous_text` defaulted to `True`, so one bad segment was fed into every
   segment after it. The server now sets it to `False`.
 
+A prompt only steers the first 30-second window, so long Mandarin recordings drifted into
+Simplified Chinese partway through. The server runs OpenCC `s2twp` on every `zh` result, so
+the text comes back in Traditional Chinese with Taiwan phrasing.
+
 Identical requests (same audio, model, language, prompt and temperature) share one
 transcription. A long file outlasts n8n's 2-minute schedule, so the next run sends it again;
 that request waits for the first and gets its result.
@@ -859,7 +863,7 @@ that request waits for the first and gets its result.
 | small | 244MB | 312s (7.5x) | 476% | 1.5GB | 99% conf | Important meetings |
 | medium | 769MB | ~600s (4x) | 500% | 2GB | 99% conf | Production quality |
 | large-v3 | 1.5GB | ~900s (2.5x) | 500% | 3GB | 99% conf | Maximum accuracy |
-| **large-v3-turbo** | **1.6GB** | **not measured** | | **3Gi limit** | | **✓ Default** |
+| **large-v3-turbo** | **1.6GB** | **~7 min (5.4x)** | | **2.7GB peak** | | **✓ Default** |
 
 **Recommendations:**
 - **Mac**: `large-v3-turbo` for anything you will read later; `base` only for quick drafts
@@ -931,9 +935,9 @@ curl http://localhost:9000/health
 ### **Performance Optimization**
 
 **CPU (Current Setup):**
-- Model: `large-v3-turbo`, int8. Its speed on the Mac has not been measured yet; expect it
-  between `small` and `large-v3` in the table above, so minutes for a long meeting
-- Memory: container limit 3Gi
+- Model: `large-v3-turbo`, int8. Measured 2026-10-14: an 18:36 meeting took 207 s (5.4x
+  realtime) and peaked at 2.72 GiB; a 6-minute memo took 67 s
+- Memory: container limit 4Gi, raised from 3Gi after that peak
 
 **GPU (Future):**
 ```hcl
