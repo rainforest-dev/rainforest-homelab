@@ -327,6 +327,39 @@ reminder half; the activity-logging half is the HA `bambii_music` → webhook pa
 checklist in the `Build reminder` node is a **starter template — edit it** to match Bambii's
 real routine (meds, vet dates).
 
+## Upgrading n8n
+
+The version is pinned by `n8n_version` in the root `main.tf`. A new version migrates the
+database on first start, and n8n cannot run against a database a newer version has
+migrated, so **take a dump before every upgrade**. That dump is the only way back.
+
+```bash
+# 1. Dump Postgres now, using the nightly backup job's own spec
+kubectl create job -n homelab --from=cronjob/postgres-backup pg-dump-pre-n8n-upgrade
+kubectl wait -n homelab --for=condition=complete job/pg-dump-pre-n8n-upgrade --timeout=10m
+kubectl logs -n homelab job/pg-dump-pre-n8n-upgrade     # "wrote /dump/pg_dumpall-<ts>.sql.gz (N bytes)"
+
+# 2. Apply the version bump (the Deployment uses Recreate, so only one version ever runs)
+terraform apply -target=module.n8n
+
+# 3. Watch the migrations finish and the editor come up
+kubectl logs -n homelab deploy/homelab-n8n -f | grep -iE "migration|editor is now accessible|error"
+```
+
+Then check that the workflows still run: the shared inbox picks up a test file, and
+`n8n_list_workflows` through the gateway returns the list.
+
+**Rolling back** means setting `n8n_version` back *and* restoring the dump; the old image
+alone will refuse the migrated schema. Follow "Restore the Postgres database" in
+`configs/backup/RESTORE.md`, using the `pg_dumpall-<ts>.sql.gz` that step 1 wrote.
+
+### Instance-level MCP server (n8n 2.18.4 and later)
+
+n8n ships its own MCP server at `/mcp-server/http`. Turn it on in **Settings → Instance-level
+MCP**, then opt each workflow in from its settings; workflows not opted in are invisible to
+clients. Clients authenticate with OAuth or a personal access token. A proxy in front of it
+must pass the `MCP-Protocol-Version`, `Mcp-Method` and `Mcp-Name` headers through.
+
 ## Re-importing a workflow (IMPORTANT)
 
 `n8n import:workflow` **sets the workflow `active = false`**, silently unregistering any
