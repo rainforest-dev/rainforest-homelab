@@ -327,6 +327,22 @@ reminder half; the activity-logging half is the HA `bambii_music` → webhook pa
 checklist in the `Build reminder` node is a **starter template — edit it** to match Bambii's
 real routine (meds, vet dates).
 
+### `workflow-error-alert.json` — error workflow for all the others
+
+Every workflow here sets `settings.errorWorkflow` to this one, so any failed production
+execution is recorded once in the `workflow_errors` data table (workflow, node, message,
+execution link) and appended to the daily note as `- HH:MM ⚠️ workflow failed: … #n8n-error`.
+Manual and test runs do not trigger it.
+
+- **Import it first.** n8n refuses an `errorWorkflow` that has no published version, so a
+  rebuild imports and activates this workflow before the others.
+- **The data table is not in git.** Create `workflow_errors` (Data tables, in the personal
+  project) with string columns `workflow`, `workflow_id`, `execution_id`, `node`, `message`,
+  `url` and a date column `failed_at`. The committed node finds it by name.
+- **The table is the record that survives.** The daily-note append continues on error, so a
+  broken Obsidian credential (which is itself a common cause of failures) cannot hide the
+  failure. Ask Claude, or open the table, to list recent ones.
+
 ## Upgrading n8n
 
 The version is pinned by `n8n_version` in the root `main.tf`. A new version migrates the

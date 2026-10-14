@@ -1,0 +1,199 @@
+{
+  "id": "o9idc9gNkhOZ4dpn",
+  "name": "Workflow error alert",
+  "active": true,
+  "nodes": [
+    {
+      "id": "90822aa7-aacf-40bb-a96f-b10b9fc3b57d",
+      "name": "On workflow error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        96
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "cc486710-dd17-41a0-8b11-11e3b2841450",
+      "name": "Build error record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        96
+      ],
+      "parameters": {
+        "jsCode": "// One record per failed production execution of any workflow that names this\n// one as its error workflow. Times are Asia/Taipei (GENERIC_TIMEZONE is not home time).\nconst e = $json.execution || {};\nconst w = $json.workflow || {};\nconst err = e.error || {};\nconst nodeName = (err.node && err.node.name) || e.lastNodeExecuted || '';\nconst message = String(err.message || 'unknown error').slice(0, 500);\nconst time = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit' });\nconst link = e.url ? ' [execution](' + e.url + ')' : '';\nreturn [{ json: {\n  workflow: w.name || '',\n  workflow_id: String(w.id || ''),\n  execution_id: String(e.id || ''),\n  node: nodeName,\n  message,\n  url: e.url || '',\n  failed_at: new Date().toISOString(),\n  body: '\\n- ' + time + ' ⚠️ workflow failed: **' + (w.name || 'unknown') + '**' + (nodeName ? ' at ' + nodeName : '') + ': ' + message + link + ' #n8n-error',\n} }];"
+      }
+    },
+    {
+      "id": "12eaf7e8-ba21-4ec0-8885-adc81a07704d",
+      "name": "Record in workflow_errors",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "workflow_errors"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow": "={{ $json.workflow }}",
+            "workflow_id": "={{ $json.workflow_id }}",
+            "execution_id": "={{ $json.execution_id }}",
+            "node": "={{ $json.node }}",
+            "message": "={{ $json.message }}",
+            "url": "={{ $json.url }}",
+            "failed_at": "={{ $json.failed_at }}"
+          },
+          "schema": [
+            {
+              "id": "workflow",
+              "displayName": "workflow",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workflow_id",
+              "displayName": "workflow_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "execution_id",
+              "displayName": "execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "node",
+              "displayName": "node",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "failed_at",
+              "displayName": "failed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "aec2de66-c6f8-4c5f-a0f2-c43619ad7680",
+      "name": "Append to daily note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        192
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://host.docker.internal:27124/periodic/daily/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/markdown"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/markdown",
+        "body": "={{ $json.body }}",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obsidianrestapi1",
+          "name": "Obsidian Local REST API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "On workflow error": {
+      "main": [
+        [
+          {
+            "node": "Build error record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build error record": {
+      "main": [
+        [
+          {
+            "node": "Record in workflow_errors",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append to daily note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
