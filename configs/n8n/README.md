@@ -226,6 +226,18 @@ Constraints worth preserving when editing:
   posted once to `ha-events` as `inbox_rejected`, so it shows up in the daily note. Renaming
   the file retries it. The delivery nodes send a failed item to their error output, so one
   bad file never fails the run or counts against the rest of its batch.
+- **One voice file at a time, through the `inbox_lock` data table.** Whisper gets a
+  30-minute timeout for long recordings, but static data is only saved when a run ends, so
+  a run still waiting on Whisper is invisible to the next 2-minute tick, which would send
+  the same file again. `Read lock` reads the `shared-inbox` row; `Pick new` takes one voice
+  file per run and none while that row is younger than 35 minutes; `Take lock` (placed
+  above Whisper on the canvas, so v1 order runs it first) writes the row, and
+  `Release lock` deletes it after the note is written or Whisper fails. A crashed run
+  leaves the row, which expires on its own. Bujo is not locked. Create the table by hand
+  before importing: `inbox_lock` with `name` (string) and `started_at` (date).
+- **Whisper gets a Traditional Chinese `prompt`** (`以下是台灣華語的逐字稿，使用繁體中文與標點符號。`),
+  passed to faster-whisper as `initial_prompt`. Don't add `temperature`: a fixed value
+  disables faster-whisper's temperature fallback.
 - **Delivery is the target app's job.** n8n only routes; the bujo branch forwards the file to
   personal-calibre, which owns cropping, storage and dedup (by content hash).
 
