@@ -20,6 +20,11 @@ Workflows authenticate to the Obsidian Local REST API through an n8n credential 
 `Obsidian Local REST API` (id `obsidianrestapi1`, Header Auth). The n8n database is the only
 place the key lives: it is **not** in git, and Terraform no longer passes it anywhere.
 
+Every workflow that writes the daily note appends to `/vault/daily-notes/<yyyy-MM-dd>.md`
+(Taipei date), which creates the file when it is missing. Do not switch back to
+`/periodic/daily/`: on Local REST API 5.4.0 it returned 404 while the note existed and
+authentication passed, and an Obsidian restart did not fix it (2026-10-14).
+
 To change the key, edit the credential in the n8n UI (**Credentials → Obsidian Local REST API**):
 Name `Authorization`, Value `Bearer <key>`. It takes effect at once for every workflow that uses it.
 

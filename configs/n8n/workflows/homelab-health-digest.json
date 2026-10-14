@@ -128,7 +128,7 @@
         300
       ],
       "parameters": {
-        "jsCode": "const summary = ($('Summarise').first().json.response || '').trim();\nconst p = $('Build prompt').first().json;\nconst stamp = new Date().toISOString().slice(11, 16);\n\nconst body = [\n  '',\n  '## Homelab health',\n  '',\n  `*checked ${stamp} UTC*`,\n  '',\n  summary || '_summary unavailable_',\n  '',\n  `**Firing alerts:** ${p.alertCount}`,\n  ...(p.alertLines.length ? p.alertLines : ['- none']),\n  '',\n  '**Sensors**',\n  ...(p.sensorLines.length ? p.sensorLines : ['- none']),\n  '',\n].join('\\n');\n\nreturn [{ json: { body } }];"
+        "jsCode": "const summary = ($('Summarise').first().json.response || '').trim();\nconst p = $('Build prompt').first().json;\nconst stamp = $now.setZone('Asia/Taipei').toFormat('HH:mm');\n\nconst body = [\n  '',\n  '## Homelab health',\n  '',\n  `*checked ${stamp} UTC*`,\n  '',\n  summary || '_summary unavailable_',\n  '',\n  `**Firing alerts:** ${p.alertCount}`,\n  ...(p.alertLines.length ? p.alertLines : ['- none']),\n  '',\n  '**Sensors**',\n  ...(p.sensorLines.length ? p.sensorLines : ['- none']),\n  '',\n].join('\\n');\n\nreturn [{ json: { body } }];"
       }
     },
     {
@@ -142,7 +142,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "https://host.docker.internal:27124/periodic/daily/",
+        "url": "=https://host.docker.internal:27124/vault/daily-notes/{{ $now.setZone('Asia/Taipei').toFormat('yyyy-MM-dd') }}.md",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

@@ -379,7 +379,7 @@
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const routed = $('Route').item.json;\nconst text = ($json.text || '').trim();\nconst now = new Date().toISOString();\nconst body = [\n  '---',\n  'type: voice-memo',\n  `source: ${routed.src}`,\n  `date: ${now.slice(0, 10)}`,\n  `transcribed: ${now}`,\n  '---',\n  '',\n  text || '_(empty transcription)_',\n  '',\n].join('\\n');\nreturn { json: { noteName: routed.noteName, body } };"
+        "jsCode": "const routed = $('Route').item.json;\nconst text = ($json.text || '').trim();\nconst now = $now.setZone('Asia/Taipei');\nconst body = [\n  '---',\n  'type: voice-memo',\n  `source: ${routed.src}`,\n  `date: ${now.toFormat('yyyy-MM-dd')}`,\n  `transcribed: ${now.toISO({ suppressMilliseconds: true })}`,\n  '---',\n  '',\n  text || '_(empty transcription)_',\n  '',\n].join('\\n');\nreturn { json: { noteName: routed.noteName, body } };"
       }
     },
     {
