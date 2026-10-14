@@ -2,7 +2,9 @@ export type Backend = {
 	url: string;
 	forwardGithubToken: boolean;
 	hostnameOnly?: boolean;
-	gateway?: { header: string; secretEnv: string }[];
+	// Fixed backend path, for a backend that serves MCP somewhere other than /mcp.
+	path?: string;
+	gateway?: { header: string; secretEnv: string; prefix?: string }[];
 };
 
 export type Identity = {
@@ -23,6 +25,15 @@ export const BACKENDS: Record<string, Backend> = {
 		forwardGithubToken: false,
 		hostnameOnly: true,
 		gateway: [{ header: "x-memories-gateway", secretEnv: "MEMORIES_GATEWAY_SECRET" }],
+	},
+	// n8n's instance-level MCP server. The Worker swaps its own OAuth token for the n8n MCP
+	// access token, so clients never see the n8n token.
+	"n8n-mcp": {
+		url: "https://n8n-mcp-internal.rainforest.tools",
+		forwardGithubToken: false,
+		hostnameOnly: true,
+		path: "/mcp-server/http",
+		gateway: [{ header: "Authorization", secretEnv: "N8N_MCP_TOKEN", prefix: "Bearer " }],
 	},
 };
 
@@ -71,7 +82,7 @@ export function backendHeaders(
 		if (typeof secret !== "string" || secret === "") {
 			return { error: `${gate.secretEnv} is not configured` };
 		}
-		headers.set(gate.header, secret);
+		headers.set(gate.header, `${gate.prefix ?? ""}${secret}`);
 	}
 	return headers;
 }

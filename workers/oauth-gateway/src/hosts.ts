@@ -5,6 +5,7 @@ const PUBLIC_HOSTS = new Set([
 	"docker-mcp.rainforest.tools",
 	"calibre-mcp.rainforest.tools",
 	"memories-mcp.rainforest.tools",
+	"n8n-mcp.rainforest.tools",
 ]);
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
