@@ -863,7 +863,7 @@ that request waits for the first and gets its result.
 | small | 244MB | 312s (7.5x) | 476% | 1.5GB | 99% conf | Important meetings |
 | medium | 769MB | ~600s (4x) | 500% | 2GB | 99% conf | Production quality |
 | large-v3 | 1.5GB | ~900s (2.5x) | 500% | 3GB | 99% conf | Maximum accuracy |
-| **large-v3-turbo** | **1.6GB** | **~7 min (5.4x)** | | **2.7GB peak** | | **✓ Default** |
+| **large-v3-turbo** | **1.6GB** | **~7 min (5.4x, from 207 s for 18:36)** | | **2.72 GiB peak** | | **✓ Default** |
 
 **Recommendations:**
 - **Mac**: `large-v3-turbo` for anything you will read later; `base` only for quick drafts
@@ -954,10 +954,10 @@ module "whisper" {
 docker logs -f homelab-whisper
 ```
 
-**Rebuild after code changes:**
+**Rebuild after code changes:** a change to `Dockerfile`, `app/main.py` or `app/pyproject.toml`
+re-runs the build, and `replace_triggered_by` then recreates the container on the new image:
 ```bash
-terraform taint module.whisper[0].docker_image.whisper
-terraform apply
+terraform apply -target=module.whisper
 ```
 
 **Clear model cache:**

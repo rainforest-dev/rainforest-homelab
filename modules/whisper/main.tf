@@ -77,5 +77,10 @@ resource "docker_container" "whisper" {
     value = var.environment
   }
 
+  # The image tag never changes, so a rebuild alone leaves the old container running.
+  lifecycle {
+    replace_triggered_by = [null_resource.whisper_build]
+  }
+
   depends_on = [null_resource.whisper_build]
 }
