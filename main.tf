@@ -307,11 +307,13 @@ module "whisper" {
 
   project_name = var.project_name
   environment  = var.environment
-  model_size   = "base" # Optimal for Mac CPU: fast (36x), low memory, good quality
+  # base garbled Mandarin and looped on long recordings (2026-10-14 voice memos);
+  # turbo is large-v3 with a 4-layer decoder, so near large-v3 accuracy at a fraction of the cost.
+  model_size = "large-v3-turbo"
   # Port 9000 reserved for MinIO (infrastructure > app).
   # Cloudflare Tunnel routes to whisper.rainforest.tools regardless of port.
   external_port        = 9090
-  memory_limit         = "2Gi"
+  memory_limit         = "3Gi"
   enable_gpu           = false # Set true if GPU available
   use_external_storage = true
   image_tag            = "latest"
