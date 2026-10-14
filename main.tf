@@ -281,7 +281,7 @@ module "n8n" {
   n8n_version     = "2.43.4" # upgrade steps: configs/n8n/README.md "Upgrading n8n"
   n8n_host        = "n8n.${var.domain_suffix}"
   n8n_port        = 5678
-  memory_limit_mb = 512
+  memory_limit_mb = 1536
 
   # Database Configuration
   database_name    = "n8n_db"
