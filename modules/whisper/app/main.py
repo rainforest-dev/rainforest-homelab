@@ -50,6 +50,8 @@ _request_locks: Dict[str, threading.Lock] = {}
 _registry_lock = threading.Lock()
 
 
+# Locks are never dropped: removing one while a request waits on it would let a third
+# identical request run in parallel. One Lock per distinct request is a few bytes.
 def _request_lock(key: str) -> threading.Lock:
     with _registry_lock:
         return _request_locks.setdefault(key, threading.Lock())
@@ -143,8 +145,7 @@ def transcribe_audio(
             with _registry_lock:
                 _result_cache[key] = result
                 while len(_result_cache) > RESULT_CACHE_SIZE:
-                    evicted, _ = _result_cache.popitem(last=False)
-                    _request_locks.pop(evicted, None)
+                    _result_cache.popitem(last=False)
         else:
             logger.info(f"Reusing transcription of {file.filename} from an identical earlier request")
 

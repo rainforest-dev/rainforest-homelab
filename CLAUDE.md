@@ -819,7 +819,9 @@ enable_whisper = true
 terraform apply
 ```
 
-**3. First run downloads model (~150MB for 'base'):**
+**3. First start downloads the default model (~1.6GB for `large-v3-turbo`).** The server
+preloads it before it starts listening, so callers get connection errors until the download
+finishes:
 ```bash
 # Check logs to see model download progress
 docker logs -f homelab-whisper
@@ -853,10 +855,11 @@ that request waits for the first and gets its result.
 | Model | Size | Speed (39min audio) | CPU | Memory | Quality | Use Case |
 |-------|------|---------------------|-----|--------|---------|----------|
 | tiny | 39MB | 61s (38x) | 606% | 500MB | 96% conf | Ultra-fast drafts |
-| **base** | **74MB** | **65s (36x)** | **606%** | **750MB** | **97% conf** | **✓ Recommended for Mac** |
+| base | 74MB | 65s (36x) | 606% | 750MB | 97% conf | Quick drafts; weak on Mandarin |
 | small | 244MB | 312s (7.5x) | 476% | 1.5GB | 99% conf | Important meetings |
 | medium | 769MB | ~600s (4x) | 500% | 2GB | 99% conf | Production quality |
 | large-v3 | 1.5GB | ~900s (2.5x) | 500% | 3GB | 99% conf | Maximum accuracy |
+| **large-v3-turbo** | **1.6GB** | **not measured** | | **3Gi limit** | | **✓ Default** |
 
 **Recommendations:**
 - **Mac**: `large-v3-turbo` for anything you will read later; `base` only for quick drafts
@@ -922,15 +925,15 @@ curl -X POST "http://localhost:9000/v1/audio/transcriptions" \
 **Health check:**
 ```bash
 curl http://localhost:9000/health
-# {"status": "healthy", "model": "base", "device": "cpu"}
+# {"status": "healthy", "default_model": "large-v3-turbo", "device": "cpu", "compute_type": "int8", ...}
 ```
 
 ### **Performance Optimization**
 
 **CPU (Current Setup):**
-- Model: `base` (~5x realtime speed)
-- Memory: ~1GB during transcription
-- Typical: 30-second audio transcribed in ~6 seconds
+- Model: `large-v3-turbo`, int8. Its speed on the Mac has not been measured yet; expect it
+  between `small` and `large-v3` in the table above, so minutes for a long meeting
+- Memory: container limit 3Gi
 
 **GPU (Future):**
 ```hcl
