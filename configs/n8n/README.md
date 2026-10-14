@@ -227,6 +227,12 @@ Constraints worth preserving when editing:
   (`readWriteFile` cannot delete). `Pick new` keys each file by target, path and size in
   `$getWorkflowStaticData('global')`. Voice also keeps the old "note already exists" check,
   so files the old workflow transcribed are not redone.
+- **Voice notes are named by recording time:** `Voice memos/<yyyy-MM-dd HHmm> <recording
+  name>.md`, in Asia/Taipei. `Recorded at` reads the creation time from the m4a `mvhd` atom
+  (seconds since 1904-01-01 UTC); when the file has none, or it is implausible, the note
+  uses the time of transcription. The frontmatter keeps `source:` and adds `recorded:`. The
+  "note already exists" check strips the date prefix, so it matches both the new names and
+  the older bare `<recording name>.md`.
 - **Three attempts, then a report.** A file that fails three runs is marked rejected and
   posted once to `ha-events` as `inbox_rejected`, so it shows up in the daily note. Renaming
   the file retries it. The delivery nodes send a failed item to their error output, so one
