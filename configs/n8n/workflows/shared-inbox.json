@@ -574,6 +574,27 @@
       },
       "id": "releaselock",
       "executeOnce": true
+    },
+    {
+      "id": "reporterror",
+      "name": "Report delivery error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1580,
+        640
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:5678/webhook/ha-events",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ event: 'inbox_delivery_failed', detail: `${$('Route').item.json.target}: ${$('Route').item.json.src}: ${String(($json.error && $json.error.message) || 'unknown error').slice(0, 300)}`, ts: $now.toISO() }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -716,6 +737,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Report delivery error",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -731,6 +759,11 @@
         [
           {
             "node": "Release lock",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Report delivery error",
             "type": "main",
             "index": 0
           }
@@ -765,6 +798,11 @@
         [
           {
             "node": "Release lock",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Report delivery error",
             "type": "main",
             "index": 0
           }

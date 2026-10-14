@@ -225,7 +225,9 @@ Constraints worth preserving when editing:
 - **Three attempts, then a report.** A file that fails three runs is marked rejected and
   posted once to `ha-events` as `inbox_rejected`, so it shows up in the daily note. Renaming
   the file retries it. The delivery nodes send a failed item to their error output, so one
-  bad file never fails the run or counts against the rest of its batch.
+  bad file never fails the run or counts against the rest of its batch. Each error output also posts
+  `inbox_delivery_failed` (target, file, error) to `ha-events`, so a refused file is visible
+  the run it fails rather than only after the third attempt.
 - **One voice file at a time, through the `inbox_lock` data table.** Whisper gets a
   30-minute timeout for long recordings, but static data is only saved when a run ends, so
   a run still waiting on Whisper is invisible to the next 2-minute tick, which would send
