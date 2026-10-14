@@ -166,11 +166,6 @@ resource "kubernetes_deployment" "n8n" {
             value = var.timezone
           }
 
-          env {
-            name  = "OBSIDIAN_API_KEY"
-            value = var.obsidian_api_key
-          }
-
           volume_mount {
             name       = "n8n-data"
             mount_path = "/home/node/.n8n"

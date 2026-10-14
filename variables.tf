@@ -156,13 +156,6 @@ variable "google_oauth_client_secret" {
 
 
 
-variable "obsidian_api_key" {
-  description = "API key for Obsidian Local REST API"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
 variable "external_storage_path" {
   description = "Path to external storage for data persistence"
   type        = string

@@ -303,9 +303,6 @@ module "n8n" {
   # Encryption
   encryption_key = "n8n-homelab-encryption-key-2024"
 
-  # Obsidian Local REST API key, exposed to workflows as $env.OBSIDIAN_API_KEY
-  obsidian_api_key = var.obsidian_api_key
-
   # Shared inbox: only the iCloud Inbox/ folder is mounted into the pod
   inbox_host_path = pathexpand(var.inbox_host_path)
 

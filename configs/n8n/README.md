@@ -17,21 +17,27 @@ POD=$(kubectl get pod -n homelab -l app=n8n -o jsonpath='{.items[0].metadata.nam
 ### 1. Recreate the Obsidian credential
 
 Workflows authenticate to the Obsidian Local REST API through an n8n credential named
-`Obsidian Local REST API` (id `obsidianrestapi1`). It is **not** in git — recreate it from
-`obsidian_api_key` in `terraform.tfvars`.
+`Obsidian Local REST API` (id `obsidianrestapi1`, Header Auth). The n8n database is the only
+place the key lives: it is **not** in git, and Terraform no longer passes it anywhere.
+
+To change the key, edit the credential in the n8n UI (**Credentials → Obsidian Local REST API**):
+Name `Authorization`, Value `Bearer <key>`. It takes effect at once for every workflow that uses it.
+
+To recreate it from scratch, read the key from the Obsidian plugin's own settings, so it can
+never be a stale copy:
 
 ```bash
-python3 - /tmp/cred.json <<'EOF'
-import re, sys, json
-tf = open('terraform.tfvars').read()
-key = re.search(r'obsidian_api_key\s*=\s*"([^"]+)"', tf).group(1)
+PLUGIN="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/.obsidian/plugins/obsidian-local-rest-api/data.json"
+python3 - "$PLUGIN" /tmp/cred.json <<'EOF'
+import sys, json
+key = json.load(open(sys.argv[1]))['apiKey']
 json.dump([{
     "id": "obsidianrestapi1",
     "name": "Obsidian Local REST API",
     "type": "httpHeaderAuth",
     "nodesAccess": [{"nodeType": "n8n-nodes-base.httpRequest"}],
     "data": {"name": "Authorization", "value": f"Bearer {key}"},
-}], open(sys.argv[1], 'w'))
+}], open(sys.argv[2], 'w'))
 EOF
 chmod 600 /tmp/cred.json
 kubectl cp /tmp/cred.json "homelab/$POD:/tmp/cred.json"
@@ -42,9 +48,11 @@ kubectl exec -n homelab "$POD" -- rm -f /tmp/cred.json && rm -f /tmp/cred.json
 The credential must be a JSON **array** and include `nodesAccess`, or the import fails with
 an unhelpful "An error occurred while importing credentials".
 
-Do not substitute `$env.OBSIDIAN_API_KEY` for the credential. n8n 2.x denies env access in
+Do not pass the key to workflows through an environment variable. n8n 2.x denies env access in
 expressions by default, and enabling it (`N8N_BLOCK_ENV_ACCESS_IN_NODE=false`) would let
-every workflow read the Postgres password.
+every workflow read the Postgres password. The old `OBSIDIAN_API_KEY` env and the
+`obsidian_api_key` tfvar were removed for this reason on 2026-10-14; delete the line from
+`terraform.tfvars` if it is still there.
 
 ### 1b. Inbox secrets (shared inbox only)
 

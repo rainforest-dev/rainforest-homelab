@@ -22,7 +22,6 @@ resource "docker_container" "docker_mcp_gateway" {
   env = [
     "DOCKER_HOST=unix:///var/run/docker.sock",
     "MCP_DEBUG=${var.log_level == "debug" ? "true" : "false"}",
-    "OBSIDIAN_API_KEY=${var.obsidian_api_key}",
     "OBSIDIAN_REST_URL=https://${var.docker_host_address}:27124"
   ]
 
