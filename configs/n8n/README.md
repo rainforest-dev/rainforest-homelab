@@ -235,9 +235,10 @@ Constraints worth preserving when editing:
   when the memo was **shared**, not recorded: Voice Memos re-encodes on Share and the
   original time is not in the file (measured 2026-10-15, two memos of 18 and 6 minutes
   stamped 28 s apart). With neither, the note uses the time of transcription. The
-  frontmatter keeps `source:` and adds `shared:`. The "note already exists" check strips
-  the leading date from both the note and the file name, so it matches every form,
-  including the older bare `<recording name>.md`.
+  frontmatter keeps `source:` and adds `shared:`. The "note already exists" check only
+  matches the old voice workflow's notes, named exactly after the file
+  (`<recording name>.md`); everything since is deduped by the ledger, so a recurring title
+  ("standup", a place) gets a new note every time.
 - **Three attempts, then a report.** A file that fails three runs is marked rejected and
   posted once to `ha-events` as `inbox_rejected`, so it shows up in the daily note. Renaming
   the file retries it. The delivery nodes send a failed item to their error output, so one
