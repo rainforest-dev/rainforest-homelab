@@ -9,6 +9,9 @@ dependencies = [
     "faster-whisper>=1.2.1",
     "python-multipart>=0.0.31",
     "opencc-python-reimplemented>=0.1.7",
+    "funasr>=1.4.16",
+    "torch>=2.4",
+    "torchaudio>=2.4",
 ]
 
 [project.optional-dependencies]
