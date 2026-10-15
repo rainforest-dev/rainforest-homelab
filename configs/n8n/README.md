@@ -238,7 +238,10 @@ Constraints worth preserving when editing:
   frontmatter keeps `source:` and adds `shared:`. The "note already exists" check only
   matches the old voice workflow's notes, named exactly after the file
   (`<recording name>.md`); everything since is deduped by the ledger, so a recurring title
-  ("standup", a place) gets a new note every time.
+  ("standup", a place) gets a new note every time. `Create note` overwrites, so a name
+  already in `Voice memos/` (two same-day `1013 standup` recordings) gets ` (2)`, ` (3)`…
+  appended. A webhook upload has no folder listing, so a date-only name there gets the
+  transcription time (` (HHmmss)`) instead.
 - **Three attempts, then a report.** A file that fails three runs is marked rejected and
   posted once to `ha-events` as `inbox_rejected`, so it shows up in the daily note. Renaming
   the file retries it. The delivery nodes send a failed item to their error output, so one
