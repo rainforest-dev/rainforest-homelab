@@ -885,7 +885,31 @@ curl -X POST "https://whisper.yourdomain.com/v1/audio/transcriptions" \
   -F "whisper_model=small"  # Use specific model for this request
 ```
 
-Available models: `tiny`, `base`, `small`, `medium`, `large-v2`, `large-v3`, `large-v3-turbo`
+Available models: `tiny`, `base`, `small`, `medium`, `large-v2`, `large-v3`, `large-v3-turbo`,
+`fun-asr-nano`
+
+The container holds one model at a time, so a request for a different model unloads the current
+one and the next request for it pays the load again.
+
+### **Fun-ASR-Nano** (candidate default)
+
+`fun-asr-nano` is FunASR's `FunAudioLLM/Fun-ASR-Nano-2512`, not a Whisper size. In the
+2026-10-15 comparison it caught 12 of 14 medical terms in a Mandarin clinic recording where
+`large-v3-turbo` caught 7, using about 2 GiB. It reads about 30 seconds at a time, so FunASR's
+`fsmn-vad` cuts the file first. It ignores `prompt` and `language`, and its output goes through
+the same OpenCC `s2twp` conversion.
+
+It can emit a long run of `嗯。` over a quiet stretch. The server collapses any 1-8 character
+non-digit unit repeated five or more times in a row to one copy, for every model.
+
+Its models download from ModelScope into `/models/modelscope` on first use. To time it before
+making it the default (this unloads turbo until the next turbo request):
+```bash
+time curl -s -X POST "http://localhost:9090/v1/audio/transcriptions" \
+  -F "file=@clinic.m4a" -F "whisper_model=fun-asr-nano" | jq -r .text | head -c 300
+```
+If it is fast enough, set `model_size = "fun-asr-nano"` in the root `main.tf`; n8n sends no
+model, so it follows the default.
 
 ### **API Usage**
 
