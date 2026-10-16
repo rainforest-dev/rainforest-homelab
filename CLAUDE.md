@@ -931,15 +931,31 @@ n8n → whisper :9090 → host.docker.internal:9191 llama-swap → mlx-audio (Qw
 - **Measured 2026-10-16 through the container path:** the 6-minute clinic recording took 25 s
   cold, the 18:36 meeting 53 s; 11 of 14 clinic medical terms against turbo's 6-7.
 - **Fallback:** if the host request fails (llama-swap down, load error), the container
-  transcribes the file with `large-v3-turbo` instead, loading it on demand.
+  transcribes the file with `large-v3-turbo` instead, loading it on demand. The response says
+  `"model_used": "large-v3-turbo"`, and a fallback result is not cached, so n8n's retry of the
+  same file tries the host again.
 - **Quirks:** Qwen3-ASR writes Simplified Chinese whatever the prompt says, hence the OpenCC
-  step. mlx-audio's server truncates long transcripts unless `max_tokens` is raised; the
-  container sends 16384.
+  step. `prompt` is not forwarded: mlx-audio passes it as `context`, which Qwen3-ASR's
+  `generate()` does not take. `language` is mapped from ISO codes to the names the model knows
+  (`zh` → `Chinese`); an unmapped code is dropped and the model detects the language.
+  mlx-audio's server truncates long transcripts unless `max_tokens` is raised; the container
+  sends 16384. A forward gives up after 900 s, under n8n's 30-minute HTTP timeout, so the turbo
+  fallback still has time to answer.
 - **Prerequisite:** llama-swap from its author's tap, installed by you:
   `brew trust --formula mostlygeek/llama-swap/llama-swap && brew install llama-swap`.
-  `terraform apply` refuses to continue without `/opt/homebrew/bin/llama-swap`.
+  Without `/opt/homebrew/bin/llama-swap` the apply stops in `module.asr_mlx`, and `module.whisper`
+  waits on it, so whisper keeps its previous default.
+- **Install:** the apply puts the venv in `~/Library/Application Support/asr-mlx/venv`, outside
+  any checkout, and downloads the model (~2 GB) before launchd starts, so the first request does
+  not wait on Hugging Face.
+- **Auth:** llama-swap requires `random_password.asr_mlx_api_key`, which Terraform writes into
+  its config (`~/Library/Application Support/asr-mlx/llama-swap.yaml`, mode 0600) and into the
+  whisper container as `REMOTE_API_KEY`. Without it any container could reach mlx-audio's full
+  API through llama-swap's `/upstream/` passthrough and make the host download arbitrary models.
 - **Logs:** `~/Library/Logs/asr-mlx/llama-swap.log`. Model state:
-  `curl -s localhost:9191/v1/models` (`status.value` is `ready` or `unloaded`).
+  `curl -s -H "Authorization: Bearer $(terraform output -raw asr_mlx_api_key)" localhost:9191/v1/models`
+  (`status.value` is `ready` or `unloaded`). Remote responses carry no `duration`; mlx-audio does
+  not report one.
 
 ### **API Usage**
 

@@ -1,3 +1,9 @@
+variable "api_key" {
+  description = "Key llama-swap requires on every request; whisper sends it as a Bearer token"
+  type        = string
+  sensitive   = true
+}
+
 variable "port" {
   description = "Port llama-swap listens on (127.0.0.1 only)"
   type        = number

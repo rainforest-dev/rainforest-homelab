@@ -7,3 +7,8 @@ output "model_name" {
   description = "Model name to request"
   value       = var.model_name
 }
+
+output "ready" {
+  description = "Changes once llama-swap is loaded; depend on it before routing traffic here"
+  value       = null_resource.launchd.id
+}

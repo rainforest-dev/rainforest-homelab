@@ -316,9 +316,17 @@ module "n8n" {
 # Homepage moved to rainforest-iot folder
 # module "homepage" removed from this homelab configuration
 
+resource "random_password" "asr_mlx_api_key" {
+  count   = var.enable_asr_mlx ? 1 : 0
+  length  = 40
+  special = false
+}
+
 module "asr_mlx" {
   count  = var.enable_asr_mlx ? 1 : 0
   source = "./modules/asr-mlx"
+
+  api_key = random_password.asr_mlx_api_key[0].result
 }
 
 module "whisper" {
@@ -331,6 +339,9 @@ module "whisper" {
   model_size            = var.enable_asr_mlx ? module.asr_mlx[0].model_name : "large-v3-turbo"
   remote_models         = var.enable_asr_mlx ? { (module.asr_mlx[0].model_name) = module.asr_mlx[0].docker_url } : {}
   remote_fallback_model = var.enable_asr_mlx ? "large-v3-turbo" : ""
+  remote_api_key        = var.enable_asr_mlx ? random_password.asr_mlx_api_key[0].result : ""
+
+  depends_on = [module.asr_mlx]
   # Port 9000 reserved for MinIO (infrastructure > app).
   # Cloudflare Tunnel routes to whisper.rainforest.tools regardless of port.
   external_port = 9090

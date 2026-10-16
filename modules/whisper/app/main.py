@@ -46,9 +46,18 @@ def _parse_remote_models(spec: str) -> Dict[str, str]:
 
 REMOTE_MODELS = _parse_remote_models(os.getenv("REMOTE_MODELS", ""))
 REMOTE_FALLBACK_MODEL = os.getenv("REMOTE_FALLBACK_MODEL", "")
-REMOTE_TIMEOUT_S = float(os.getenv("REMOTE_TIMEOUT_S", "1800"))
+REMOTE_API_KEY = os.getenv("REMOTE_API_KEY", "")
+REMOTE_TIMEOUT_S = float(os.getenv("REMOTE_TIMEOUT_S", "900"))
 # mlx-audio's server stops a transcript early unless max_tokens is raised.
 REMOTE_MAX_TOKENS = os.getenv("REMOTE_MAX_TOKENS", "16384")
+
+# Qwen3-ASR matches language names, not ISO codes; an unknown code becomes a prompt it never saw.
+_REMOTE_LANGUAGES = {
+    "zh": "Chinese", "en": "English", "yue": "Cantonese", "ja": "Japanese", "ko": "Korean",
+    "fr": "French", "de": "German", "es": "Spanish", "it": "Italian", "pt": "Portuguese",
+    "ru": "Russian", "th": "Thai", "vi": "Vietnamese", "id": "Indonesian", "ms": "Malay",
+}
+_REMOTE_LANGUAGE_CODES = {name.lower(): code for code, name in _REMOTE_LANGUAGES.items()}
 
 AVAILABLE_MODELS = LOCAL_MODELS + [name for name in REMOTE_MODELS if name not in LOCAL_MODELS]
 
@@ -185,7 +194,7 @@ def transcribe_audio(
         if result is None:
             if selected_model in REMOTE_MODELS:
                 try:
-                    result = _transcribe_remote(content, file.filename, selected_model, language, prompt)
+                    result = _transcribe_remote(content, file.filename, selected_model, language)
                 except Exception as e:
                     if not REMOTE_FALLBACK_MODEL:
                         logger.error(f"Remote model {selected_model} failed: {e}")
@@ -194,10 +203,11 @@ def transcribe_audio(
                     result = _transcribe_local(content, file.filename, REMOTE_FALLBACK_MODEL, language, prompt, temperature)
             else:
                 result = _transcribe_local(content, file.filename, selected_model, language, prompt, temperature)
-            with _registry_lock:
-                _result_cache[key] = result
-                while len(_result_cache) > RESULT_CACHE_SIZE:
-                    _result_cache.popitem(last=False)
+            if result["model_used"] == selected_model:
+                with _registry_lock:
+                    _result_cache[key] = result
+                    while len(_result_cache) > RESULT_CACHE_SIZE:
+                        _result_cache.popitem(last=False)
         else:
             logger.info(f"Reusing transcription of {file.filename} from an identical earlier request")
 
@@ -219,28 +229,30 @@ def _transcribe_local(content, filename, selected_model, language, prompt, tempe
         return _transcribe(model, content, filename, selected_model, language, prompt, temperature)
 
 
-def _transcribe_remote(content, filename, selected_model, language, prompt) -> dict:
+def _transcribe_remote(content, filename, selected_model, language) -> dict:
     logger.info(f"Forwarding {filename} to remote model={selected_model}, language={language or 'auto'}")
-    data = {"model": selected_model, "response_format": "json", "max_tokens": REMOTE_MAX_TOKENS}
-    if language:
-        data["language"] = language
-    if prompt:
-        data["context"] = prompt
+    data = {"model": selected_model, "response_format": "verbose_json", "max_tokens": REMOTE_MAX_TOKENS}
+    if language in _REMOTE_LANGUAGES:
+        data["language"] = _REMOTE_LANGUAGES[language]
     response = httpx.post(
         f"{REMOTE_MODELS[selected_model]}/v1/audio/transcriptions",
         data=data,
         files={"file": (filename, content)},
+        headers={"Authorization": f"Bearer {REMOTE_API_KEY}"} if REMOTE_API_KEY else None,
         timeout=REMOTE_TIMEOUT_S,
     )
     response.raise_for_status()
     body = response.json()
+    detected = body.get("language")
+    if isinstance(detected, list):
+        detected = detected[0] if detected else None
     # The remote model writes Simplified Chinese whatever it is asked; s2twp leaves other
     # languages untouched.
     transcription = _s2twp.convert(collapse_repeats(body.get("text", "").strip()))
     logger.info(f"Remote transcription complete: {len(transcription)} chars, model={selected_model}")
     return {
         "text": transcription,
-        "language": body.get("language") or language,
+        "language": _REMOTE_LANGUAGE_CODES.get(str(detected).lower(), detected) if detected else language,
         "duration": body.get("duration"),
         "language_probability": None,
         "model_used": selected_model,
@@ -304,7 +316,7 @@ async def health_check():
         "compute_type": COMPUTE_TYPE,
         "loaded_models": list(model_cache.keys()),
         "available_models": AVAILABLE_MODELS,
-        "remote_models": REMOTE_MODELS,
+        "remote_models": list(REMOTE_MODELS),
     }
 
 

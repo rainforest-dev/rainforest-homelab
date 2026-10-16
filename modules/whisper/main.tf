@@ -56,6 +56,7 @@ resource "docker_container" "whisper" {
     "CUDA_AVAILABLE=${var.enable_gpu ? "true" : "false"}",
     "REMOTE_MODELS=${join(",", [for name, url in var.remote_models : "${name}=${url}"])}",
     "REMOTE_FALLBACK_MODEL=${var.remote_fallback_model}",
+    "REMOTE_API_KEY=${var.remote_api_key}",
   ]
 
   # Model cache volume

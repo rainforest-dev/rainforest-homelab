@@ -96,3 +96,9 @@ output "teleport_connection_instructions" {
   description = "Instructions for connecting to Teleport"
   value       = var.enable_teleport ? module.teleport[0].connection_instructions : "Teleport is not enabled. Set enable_teleport = true in terraform.tfvars to deploy."
 }
+
+output "asr_mlx_api_key" {
+  description = "Key llama-swap requires (Authorization: Bearer) for the host Qwen3-ASR"
+  value       = var.enable_asr_mlx ? random_password.asr_mlx_api_key[0].result : null
+  sensitive   = true
+}

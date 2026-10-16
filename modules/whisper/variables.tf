@@ -55,6 +55,13 @@ variable "remote_models" {
   default     = {}
 }
 
+variable "remote_api_key" {
+  description = "Bearer token sent to remote_models"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "remote_fallback_model" {
   description = "Local Whisper model to use when a remote model fails; empty returns the error instead"
   type        = string
