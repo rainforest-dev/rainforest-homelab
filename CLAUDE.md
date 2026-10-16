@@ -912,6 +912,11 @@ FunASR needs `torch` and `torchaudio`, which `pyproject.toml` pins to the PyTorc
 PyPI's Linux arm64 `torch` is the CUDA build: it pulls about 2.9 GiB of `nvidia-*` and `triton`
 wheels that cannot run in Docker on a Mac, and the first build with them ran past 25 minutes.
 
+At full precision it was OOM-killed at the 4 GiB limit on 2026-10-16: funasr built the LLM in
+fp32, read the whole checkpoint into memory and then deep-copied it. The loader now skips that
+copy, memory-maps the checkpoint, and builds the LLM in `FUN_ASR_LLM_DTYPE` (default `bf16`;
+`fp16` and `fp32` are accepted). The audio encoder always runs in fp32.
+
 Its models download from ModelScope into `/models/modelscope` on first use. To time it before
 making it the default (this unloads turbo until the next turbo request):
 ```bash
