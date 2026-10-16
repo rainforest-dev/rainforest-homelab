@@ -31,10 +31,6 @@ RUN mkdir -p /models && chmod 777 /models
 # Add virtual environment to PATH
 ENV PATH="/app/.venv/bin:$PATH"
 
-# FunASR downloads fun-asr-nano and its VAD model from ModelScope; keep them on the
-# model volume so a recreated container does not download them again.
-ENV MODELSCOPE_CACHE=/models/modelscope
-
 EXPOSE 8000
 
 # Health check

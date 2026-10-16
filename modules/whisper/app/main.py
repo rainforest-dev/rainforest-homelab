@@ -9,7 +9,6 @@ from faster_whisper import WhisperModel
 from opencc import OpenCC
 import hashlib
 import re
-import subprocess
 import tempfile
 import threading
 import os
@@ -33,15 +32,8 @@ DEVICE = "cuda" if os.getenv("CUDA_AVAILABLE", "false").lower() == "true" else "
 COMPUTE_TYPE = "float16" if DEVICE == "cuda" else "int8"
 MODELS_DIR = "/models"
 
-# Available model sizes. fun-asr-nano is FunASR's LLM-based recogniser, not a Whisper
-# size; it scored 12/14 on medical terms in a Mandarin clinic recording where
-# large-v3-turbo scored 7/14 (2026-10-15 comparison).
-FUN_ASR_NANO = "fun-asr-nano"
-FUN_ASR_NANO_ID = "FunAudioLLM/Fun-ASR-Nano-2512"
-FUN_ASR_LLM_DTYPE = os.getenv("FUN_ASR_LLM_DTYPE", "bf16")
-if FUN_ASR_LLM_DTYPE not in ("bf16", "fp16", "fp32"):
-    raise ValueError(f"FUN_ASR_LLM_DTYPE must be bf16, fp16 or fp32, got {FUN_ASR_LLM_DTYPE!r}")
-AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "large-v3-turbo", FUN_ASR_NANO]
+# Available model sizes
+AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "large-v3-turbo"]
 
 # faster-whisper retries a segment at the next temperature when its output is too
 # repetitive (compression_ratio_threshold) or too unlikely. A single fixed temperature
@@ -53,14 +45,13 @@ DEFAULT_TEMPERATURES = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
 # with Taiwan phrasing after decoding instead.
 _s2twp = OpenCC("s2twp")
 
-# Model cache: {model_size: loaded model}. Holds one model at a time: turbo and
-# fun-asr-nano together do not fit the container's memory limit.
+# Model cache: {model_size: loaded model}. Holds one model at a time: two large models
+# together do not fit the container's memory limit.
 model_cache: Dict[str, object] = {}
 
-# A unit of 1-8 non-digit characters repeated five or more times in a row. Fun-ASR-Nano can
-# emit a thousand "嗯。" for a quiet stretch, and Whisper ends a bad file in "像 像 像".
+# A unit of 1-8 non-digit characters repeated five or more times in a row. Whisper can end
+# a bad file in "像 像 像".
 _REPEAT_RE = re.compile(r"([^0-9]{1,8}?)(?:\s*\1){4,}", re.DOTALL)
-_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
 
 
 def collapse_repeats(text: str) -> str:
@@ -89,48 +80,6 @@ def _request_lock(key: str) -> threading.Lock:
 _model_load_lock = threading.Lock()
 
 
-def _load_fun_asr_nano():
-    # Imported here so a whisper-only container never pays for loading torch.
-    import copy
-    import gc
-
-    import torch
-    from funasr import AutoModel
-    from funasr.train_utils import load_pretrained_model as checkpoint
-
-    # Loading at full precision was OOM-killed at the 4 GiB limit (2026-10-16): funasr
-    # builds the LLM in fp32, reads the whole checkpoint into memory, then deep-copies it.
-    # The copy is never written to, so skip it; memory-map the checkpoint so its pages
-    # stay reclaimable; and build the LLM in FUN_ASR_LLM_DTYPE. The audio encoder always
-    # runs in fp32.
-    real_load, real_copy = torch.load, checkpoint.copy
-
-    def mmap_load(*args, **kwargs):
-        try:
-            return real_load(*args, mmap=True, **kwargs)
-        except RuntimeError:
-            # mmap needs the zip checkpoint format; fall back for anything older.
-            return real_load(*args, **kwargs)
-
-    torch.load = mmap_load
-    checkpoint.copy = type("NoCopy", (), {"deepcopy": staticmethod(lambda obj: obj)})
-    try:
-        # Recordings run to tens of minutes and the model takes about 30 seconds of audio
-        # per pass, so the VAD cuts the file first.
-        return AutoModel(
-            model=FUN_ASR_NANO_ID,
-            vad_model="fsmn-vad",
-            vad_kwargs={"max_single_segment_time": 30000},
-            device="cuda" if DEVICE == "cuda" else "cpu",
-            disable_update=True,
-            llm_dtype=FUN_ASR_LLM_DTYPE,
-            llm_conf={"llm_dtype": FUN_ASR_LLM_DTYPE},
-        )
-    finally:
-        torch.load, checkpoint.copy = real_load, real_copy
-        gc.collect()
-
-
 def get_or_load_model(model_size: str):
     """
     Get cached model or load new one.
@@ -142,17 +91,13 @@ def get_or_load_model(model_size: str):
     with _model_load_lock:
         if model_size not in model_cache:
             model_cache.clear()
-            if model_size == FUN_ASR_NANO:
-                logger.info(f"Loading {FUN_ASR_NANO_ID} on {DEVICE}")
-                model_cache[model_size] = _load_fun_asr_nano()
-            else:
-                logger.info(f"Loading Whisper model: {model_size} on {DEVICE} with {COMPUTE_TYPE}")
-                model_cache[model_size] = WhisperModel(
-                    model_size_or_path=model_size,
-                    device=DEVICE,
-                    compute_type=COMPUTE_TYPE,
-                    download_root=MODELS_DIR
-                )
+            logger.info(f"Loading Whisper model: {model_size} on {DEVICE} with {COMPUTE_TYPE}")
+            model_cache[model_size] = WhisperModel(
+                model_size_or_path=model_size,
+                device=DEVICE,
+                compute_type=COMPUTE_TYPE,
+                download_root=MODELS_DIR
+            )
             logger.info(f"Model {model_size} loaded and cached successfully")
 
         return model_cache[model_size]
@@ -249,9 +194,6 @@ def _transcribe(model, content, filename, selected_model, language, prompt, temp
     try:
         logger.info(f"Transcribing {filename} with model={selected_model}, language={language or 'auto'}")
 
-        if selected_model == FUN_ASR_NANO:
-            return _transcribe_fun_asr_nano(model, tmp_path, selected_model)
-
         # Transcribe audio using faster-whisper
         segments, info = model.transcribe(
             tmp_path,
@@ -288,36 +230,6 @@ def _transcribe(model, content, filename, selected_model, language, prompt, temp
         # Cleanup temporary file
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
-
-
-def _audio_duration(path: str) -> Optional[float]:
-    try:
-        out = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path],
-            capture_output=True, text=True, timeout=30, check=True,
-        )
-        return round(float(out.stdout.strip()), 2)
-    except (subprocess.SubprocessError, ValueError):
-        return None
-
-
-def _transcribe_fun_asr_nano(model, path: str, selected_model: str) -> dict:
-    # Fun-ASR-Nano takes no free-text prompt or language code the way Whisper does;
-    # it detects Chinese, English and Japanese on its own.
-    results = model.generate(input=path, batch_size_s=120)
-    transcription = collapse_repeats("".join(r.get("text", "") for r in results).strip())
-    language = "zh" if _CJK_RE.search(transcription) else None
-    if language == "zh":
-        transcription = _s2twp.convert(transcription)
-
-    logger.info(f"Transcription complete: {len(transcription)} chars, model={selected_model}")
-    return {
-        "text": transcription,
-        "language": language,
-        "duration": _audio_duration(path),
-        "language_probability": None,
-        "model_used": selected_model,
-    }
 
 
 @app.get("/health")

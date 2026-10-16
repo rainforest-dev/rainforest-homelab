@@ -891,40 +891,26 @@ curl -X POST "https://whisper.yourdomain.com/v1/audio/transcriptions" \
   -F "whisper_model=small"  # Use specific model for this request
 ```
 
-Available models: `tiny`, `base`, `small`, `medium`, `large-v2`, `large-v3`, `large-v3-turbo`,
-`fun-asr-nano`
+Available models: `tiny`, `base`, `small`, `medium`, `large-v2`, `large-v3`, `large-v3-turbo`
 
 The container holds one model at a time, so a request for a different model unloads the current
 one and the next request for it pays the load again.
 
-### **Fun-ASR-Nano** (candidate default)
+### **Fun-ASR-Nano** (tried and removed, 2026-10-16)
 
-`fun-asr-nano` is FunASR's `FunAudioLLM/Fun-ASR-Nano-2512`, not a Whisper size. In the
-2026-10-15 comparison it caught 12 of 14 medical terms in a Mandarin clinic recording where
-`large-v3-turbo` caught 7, using about 2 GiB. It reads about 30 seconds at a time, so FunASR's
-`fsmn-vad` cuts the file first. It ignores `prompt` and `language`, and its output goes through
-the same OpenCC `s2twp` conversion.
+`fun-asr-nano` (FunASR's `FunAudioLLM/Fun-ASR-Nano-2512`) was a selectable model from #109 to
+its removal. It caught 12 of 14 medical terms in a Mandarin clinic recording where
+`large-v3-turbo` caught 7, but in this container it cannot run usefully:
 
-It can emit a long run of `嗯。` over a quiet stretch. The server collapses any 1-8 character
-non-digit unit repeated five or more times in a row to one copy, for every model.
+- At full precision it was OOM-killed at the 4 GiB limit.
+- Loaded in bf16 (#112) it fit at about 3.1-3.5 GiB, but on CPU a 6-minute clinic recording was
+  still unfinished after 28 minutes at ~400% CPU. Turbo does it in 60 s. While it ran, every
+  other transcription queued behind it.
+- FunASR needs `torch`, and PyPI's Linux arm64 `torch` is the CUDA build (about 2.9 GiB of
+  `nvidia-*` and `triton` wheels); the CPU index had to be pinned to build at all.
 
-FunASR needs `torch` and `torchaudio`, which `pyproject.toml` pins to the PyTorch CPU index.
-PyPI's Linux arm64 `torch` is the CUDA build: it pulls about 2.9 GiB of `nvidia-*` and `triton`
-wheels that cannot run in Docker on a Mac, and the first build with them ran past 25 minutes.
-
-At full precision it was OOM-killed at the 4 GiB limit on 2026-10-16: funasr built the LLM in
-fp32, read the whole checkpoint into memory and then deep-copied it. The loader now skips that
-copy, memory-maps the checkpoint, and builds the LLM in `FUN_ASR_LLM_DTYPE` (default `bf16`;
-`fp16` and `fp32` are accepted). The audio encoder always runs in fp32.
-
-Its models download from ModelScope into `/models/modelscope` on first use. To time it before
-making it the default (this unloads turbo until the next turbo request):
-```bash
-time curl -s -X POST "http://localhost:9090/v1/audio/transcriptions" \
-  -F "file=@clinic.m4a" -F "whisper_model=fun-asr-nano" | jq -r .text | head -c 300
-```
-If it is fast enough, set `model_size = "fun-asr-nano"` in the root `main.tf`; n8n sends no
-model, so it follows the default.
+Running it with MLX on the Mac host took 18 s for the same recording. If it comes back, it
+belongs there, not in this container. The code is recoverable from `git show e18ba76`.
 
 ### **API Usage**
 
