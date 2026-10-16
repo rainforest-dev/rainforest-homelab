@@ -32,6 +32,7 @@ resource "local_sensitive_file" "llama_swap_config" {
   file_permission = "0600"
   content = templatefile("${path.module}/llama-swap.yaml.tftpl", {
     api_key    = var.api_key
+    log_dir    = local.log_dir
     model_name = var.model_name
     model_repo = var.model_repo
     python     = local.venv_python
@@ -47,6 +48,7 @@ resource "local_file" "plist" {
     config     = local.config_path
     port       = var.port
     log_dir    = local.log_dir
+    state_dir  = local.state_dir
     home_dir   = pathexpand("~")
   })
 }

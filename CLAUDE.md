@@ -939,7 +939,8 @@ n8n → whisper :9090 → host.docker.internal:9191 llama-swap → mlx-audio (Qw
   `generate()` does not take. `language` is mapped from ISO codes to the names the model knows
   (`zh` → `Chinese`); an unmapped code is dropped and the model detects the language.
   mlx-audio's server truncates long transcripts unless `max_tokens` is raised; the container
-  sends 16384. A forward gives up after 900 s, under n8n's 30-minute HTTP timeout, so the turbo
+  sends 16384. launchd starts processes in `/`, and mlx-audio's server creates a relative
+  `logs` directory unless given `--log-dir`, so the llama-swap command passes one. A forward gives up after 900 s, under n8n's 30-minute HTTP timeout, so the turbo
   fallback still has time to answer.
 - **Prerequisite:** llama-swap from its author's tap, installed by you:
   `brew trust --formula mostlygeek/llama-swap/llama-swap && brew install llama-swap`.
