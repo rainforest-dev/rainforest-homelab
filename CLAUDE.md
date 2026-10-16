@@ -772,6 +772,12 @@ applied first.
   on the host; with the URL unset, search stays lexical-only.
 - **Order:** `terraform apply` before `npx wrangler deploy`. A Worker that routes calibre with a
   gateway but has no `CALIBRE_GATEWAY_SECRET` answers 503.
+- **Notebook OCR:** a worker in the app sends each untranscribed notebook page to the host's
+  Ollama with the vision model in `calibre_ocr_model` (default `qwen3-vl:8b-instruct`), one page
+  at a time, 20–50 s a page. Pull it on the host first (`ollama pull qwen3-vl:8b-instruct`).
+  Until it is pulled the worker logs `[ocr] … is not ready` once and waits; no page is charged.
+  Use the instruct tag: the default `qwen3-vl:8b` thinks first and ran out of output on a page.
+  Set the variable to `""` to turn OCR off.
 
 ## n8n MCP (official, behind the OAuth Worker)
 

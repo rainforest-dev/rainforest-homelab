@@ -59,6 +59,7 @@ resource "docker_container" "personal_calibre" {
       "CALIBRE_OLLAMA_URL=${var.ollama_url}",
     ],
     var.embed_model != "" ? ["CALIBRE_EMBED_MODEL=${var.embed_model}"] : [],
+    var.ocr_model != "" ? ["CALIBRE_OCR_MODEL=${var.ocr_model}"] : [],
   )
 
   # Calibre library — bind-mounted read-only so the app never modifies it
