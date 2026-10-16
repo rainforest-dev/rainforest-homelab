@@ -1,0 +1,10 @@
+healthCheckTimeout: 180
+apiKeys:
+  - "${api_key}"
+models:
+  ${model_name}:
+    cmd: ${python} -m mlx_audio.server --host 127.0.0.1 --port $${PORT}
+    proxy: http://127.0.0.1:$${PORT}
+    checkEndpoint: /
+    useModelName: ${model_repo}
+    ttl: ${ttl}

@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 
 [[package]]
@@ -1084,6 +1084,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "faster-whisper" },
+    { name = "httpx" },
     { name = "opencc-python-reimplemented" },
     { name = "python-multipart" },
     { name = "uvicorn", extra = ["standard"] },
@@ -1099,6 +1100,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.128.0" },
     { name = "faster-whisper", specifier = ">=1.2.1" },
+    { name = "httpx", specifier = ">=0.27.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27.0" },
     { name = "opencc-python-reimplemented", specifier = ">=0.1.7" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.3" },

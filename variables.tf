@@ -341,6 +341,12 @@ variable "synology_drive_path" {
   default     = ""
 }
 
+variable "enable_asr_mlx" {
+  description = "Run Qwen3-ASR on the host with MLX behind llama-swap and make it whisper's default model"
+  type        = bool
+  default     = false
+}
+
 variable "enable_comfyui_adapter" {
   description = "Enable the ComfyUI OpenAI-compatible image generation adapter"
   type        = bool

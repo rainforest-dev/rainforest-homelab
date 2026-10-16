@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from faster_whisper import WhisperModel
 from opencc import OpenCC
 import hashlib
+import httpx
 import re
 import tempfile
 import threading
@@ -32,8 +33,33 @@ DEVICE = "cuda" if os.getenv("CUDA_AVAILABLE", "false").lower() == "true" else "
 COMPUTE_TYPE = "float16" if DEVICE == "cuda" else "int8"
 MODELS_DIR = "/models"
 
-# Available model sizes
-AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "large-v3-turbo"]
+LOCAL_MODELS = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "large-v3-turbo"]
+
+
+def _parse_remote_models(spec: str) -> Dict[str, str]:
+    models = {}
+    for item in filter(None, (part.strip() for part in spec.split(","))):
+        name, _, url = item.partition("=")
+        models[name.strip()] = url.strip().rstrip("/")
+    return models
+
+
+REMOTE_MODELS = _parse_remote_models(os.getenv("REMOTE_MODELS", ""))
+REMOTE_FALLBACK_MODEL = os.getenv("REMOTE_FALLBACK_MODEL", "")
+REMOTE_API_KEY = os.getenv("REMOTE_API_KEY", "")
+REMOTE_TIMEOUT_S = float(os.getenv("REMOTE_TIMEOUT_S", "900"))
+# mlx-audio's server stops a transcript early unless max_tokens is raised.
+REMOTE_MAX_TOKENS = os.getenv("REMOTE_MAX_TOKENS", "16384")
+
+# Qwen3-ASR matches language names, not ISO codes; an unknown code becomes a prompt it never saw.
+_REMOTE_LANGUAGES = {
+    "zh": "Chinese", "en": "English", "yue": "Cantonese", "ja": "Japanese", "ko": "Korean",
+    "fr": "French", "de": "German", "es": "Spanish", "it": "Italian", "pt": "Portuguese",
+    "ru": "Russian", "th": "Thai", "vi": "Vietnamese", "id": "Indonesian", "ms": "Malay",
+}
+_REMOTE_LANGUAGE_CODES = {name.lower(): code for code, name in _REMOTE_LANGUAGES.items()}
+
+AVAILABLE_MODELS = LOCAL_MODELS + [name for name in REMOTE_MODELS if name not in LOCAL_MODELS]
 
 # faster-whisper retries a segment at the next temperature when its output is too
 # repetitive (compression_ratio_threshold) or too unlikely. A single fixed temperature
@@ -85,8 +111,8 @@ def get_or_load_model(model_size: str):
     Get cached model or load new one.
     Loading a different model drops the one already loaded.
     """
-    if model_size not in AVAILABLE_MODELS:
-        raise ValueError(f"Invalid model size. Available: {', '.join(AVAILABLE_MODELS)}")
+    if model_size not in LOCAL_MODELS:
+        raise ValueError(f"Invalid model size. Available: {', '.join(LOCAL_MODELS)}")
 
     with _model_load_lock:
         if model_size not in model_cache:
@@ -110,7 +136,10 @@ async def startup_event():
     logger.info(f"Device: {DEVICE}, Compute type: {COMPUTE_TYPE}")
     logger.info(f"Available models: {', '.join(AVAILABLE_MODELS)}")
 
-    # Preload default model
+    if DEFAULT_MODEL_SIZE in REMOTE_MODELS:
+        logger.info(f"Default model {DEFAULT_MODEL_SIZE} is remote at {REMOTE_MODELS[DEFAULT_MODEL_SIZE]}; nothing to preload")
+        return
+
     try:
         get_or_load_model(DEFAULT_MODEL_SIZE)
         logger.info("Default model preloaded successfully")
@@ -163,19 +192,22 @@ def transcribe_audio(
         with _registry_lock:
             result = _result_cache.get(key)
         if result is None:
-            with _transcribe_lock:
-                # Loaded under the decode lock so a model is never swapped out
-                # while another request is still decoding with it.
+            if selected_model in REMOTE_MODELS:
                 try:
-                    model = get_or_load_model(selected_model)
+                    result = _transcribe_remote(content, file.filename, selected_model, language)
                 except Exception as e:
-                    logger.error(f"Failed to load model {selected_model}: {e}")
-                    raise HTTPException(status_code=500, detail=f"Model loading failed: {str(e)}")
-                result = _transcribe(model, content, file.filename, selected_model, language, prompt, temperature)
-            with _registry_lock:
-                _result_cache[key] = result
-                while len(_result_cache) > RESULT_CACHE_SIZE:
-                    _result_cache.popitem(last=False)
+                    if not REMOTE_FALLBACK_MODEL:
+                        logger.error(f"Remote model {selected_model} failed: {e}")
+                        raise HTTPException(status_code=502, detail=f"Remote transcription failed: {e}")
+                    logger.warning(f"Remote model {selected_model} failed ({e}); falling back to {REMOTE_FALLBACK_MODEL}")
+                    result = _transcribe_local(content, file.filename, REMOTE_FALLBACK_MODEL, language, prompt, temperature)
+            else:
+                result = _transcribe_local(content, file.filename, selected_model, language, prompt, temperature)
+            if result["model_used"] == selected_model:
+                with _registry_lock:
+                    _result_cache[key] = result
+                    while len(_result_cache) > RESULT_CACHE_SIZE:
+                        _result_cache.popitem(last=False)
         else:
             logger.info(f"Reusing transcription of {file.filename} from an identical earlier request")
 
@@ -183,6 +215,48 @@ def transcribe_audio(
     if response_format == "text":
         return result["text"]
     return JSONResponse(result)
+
+
+def _transcribe_local(content, filename, selected_model, language, prompt, temperature) -> dict:
+    with _transcribe_lock:
+        # Loaded under the decode lock so a model is never swapped out
+        # while another request is still decoding with it.
+        try:
+            model = get_or_load_model(selected_model)
+        except Exception as e:
+            logger.error(f"Failed to load model {selected_model}: {e}")
+            raise HTTPException(status_code=500, detail=f"Model loading failed: {str(e)}")
+        return _transcribe(model, content, filename, selected_model, language, prompt, temperature)
+
+
+def _transcribe_remote(content, filename, selected_model, language) -> dict:
+    logger.info(f"Forwarding {filename} to remote model={selected_model}, language={language or 'auto'}")
+    data = {"model": selected_model, "response_format": "verbose_json", "max_tokens": REMOTE_MAX_TOKENS}
+    if language in _REMOTE_LANGUAGES:
+        data["language"] = _REMOTE_LANGUAGES[language]
+    response = httpx.post(
+        f"{REMOTE_MODELS[selected_model]}/v1/audio/transcriptions",
+        data=data,
+        files={"file": (filename, content)},
+        headers={"Authorization": f"Bearer {REMOTE_API_KEY}"} if REMOTE_API_KEY else None,
+        timeout=REMOTE_TIMEOUT_S,
+    )
+    response.raise_for_status()
+    body = response.json()
+    detected = body.get("language")
+    if isinstance(detected, list):
+        detected = detected[0] if detected else None
+    # The remote model writes Simplified Chinese whatever it is asked; s2twp leaves other
+    # languages untouched.
+    transcription = _s2twp.convert(collapse_repeats(body.get("text", "").strip()))
+    logger.info(f"Remote transcription complete: {len(transcription)} chars, model={selected_model}")
+    return {
+        "text": transcription,
+        "language": _REMOTE_LANGUAGE_CODES.get(str(detected).lower(), detected) if detected else language,
+        "duration": body.get("duration"),
+        "language_probability": None,
+        "model_used": selected_model,
+    }
 
 
 def _transcribe(model, content, filename, selected_model, language, prompt, temperature) -> dict:
@@ -241,7 +315,8 @@ async def health_check():
         "device": DEVICE,
         "compute_type": COMPUTE_TYPE,
         "loaded_models": list(model_cache.keys()),
-        "available_models": AVAILABLE_MODELS
+        "available_models": AVAILABLE_MODELS,
+        "remote_models": list(REMOTE_MODELS),
     }
 
 

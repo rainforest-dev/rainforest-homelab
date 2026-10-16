@@ -316,6 +316,19 @@ module "n8n" {
 # Homepage moved to rainforest-iot folder
 # module "homepage" removed from this homelab configuration
 
+resource "random_password" "asr_mlx_api_key" {
+  count   = var.enable_asr_mlx ? 1 : 0
+  length  = 40
+  special = false
+}
+
+module "asr_mlx" {
+  count  = var.enable_asr_mlx ? 1 : 0
+  source = "./modules/asr-mlx"
+
+  api_key = random_password.asr_mlx_api_key[0].result
+}
+
 module "whisper" {
   source = "./modules/whisper"
 
@@ -323,10 +336,15 @@ module "whisper" {
   environment  = var.environment
   # base garbled Mandarin and looped on long recordings (2026-10-14 voice memos);
   # turbo is large-v3 with a 4-layer decoder, so near large-v3 accuracy at a fraction of the cost.
-  model_size = "large-v3-turbo"
+  model_size            = var.enable_asr_mlx ? module.asr_mlx[0].model_name : "large-v3-turbo"
+  remote_models         = var.enable_asr_mlx ? { (module.asr_mlx[0].model_name) = module.asr_mlx[0].docker_url } : {}
+  remote_fallback_model = var.enable_asr_mlx ? "large-v3-turbo" : ""
+  remote_api_key        = var.enable_asr_mlx ? random_password.asr_mlx_api_key[0].result : ""
+
+  depends_on = [module.asr_mlx]
   # Port 9000 reserved for MinIO (infrastructure > app).
   # Cloudflare Tunnel routes to whisper.rainforest.tools regardless of port.
-  external_port        = 9090
+  external_port = 9090
   # An 18-minute recording peaked at 2.72 of 3 GiB on large-v3-turbo.
   memory_limit         = "4Gi"
   enable_gpu           = false # Set true if GPU available

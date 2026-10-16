@@ -9,14 +9,9 @@ variable "environment" {
 }
 
 variable "model_size" {
-  description = "Whisper model size (tiny, base, small, medium, large, large-v2, large-v3, large-v3-turbo)"
+  description = "Default model: a Whisper size or a key of remote_models"
   type        = string
   default     = "base"
-
-  validation {
-    condition     = contains(["tiny", "base", "small", "medium", "large", "large-v2", "large-v3", "large-v3-turbo"], var.model_size)
-    error_message = "Model size must be one of: tiny, base, small, medium, large, large-v2, large-v3, large-v3-turbo"
-  }
 }
 
 variable "external_port" {
@@ -53,4 +48,22 @@ variable "memory_limit" {
   description = "Memory limit for Whisper container (e.g. 512Mi, 1Gi)"
   type        = string
   default     = "512Mi"
+}
+variable "remote_models" {
+  description = "Models served outside the container, as name => base URL (e.g. qwen3-asr => http://host.docker.internal:9191)"
+  type        = map(string)
+  default     = {}
+}
+
+variable "remote_api_key" {
+  description = "Bearer token sent to remote_models"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "remote_fallback_model" {
+  description = "Local Whisper model to use when a remote model fails; empty returns the error instead"
+  type        = string
+  default     = ""
 }
