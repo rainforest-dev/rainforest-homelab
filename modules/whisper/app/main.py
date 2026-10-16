@@ -38,6 +38,9 @@ MODELS_DIR = "/models"
 # large-v3-turbo scored 7/14 (2026-10-15 comparison).
 FUN_ASR_NANO = "fun-asr-nano"
 FUN_ASR_NANO_ID = "FunAudioLLM/Fun-ASR-Nano-2512"
+FUN_ASR_LLM_DTYPE = os.getenv("FUN_ASR_LLM_DTYPE", "bf16")
+if FUN_ASR_LLM_DTYPE not in ("bf16", "fp16", "fp32"):
+    raise ValueError(f"FUN_ASR_LLM_DTYPE must be bf16, fp16 or fp32, got {FUN_ASR_LLM_DTYPE!r}")
 AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "large-v3-turbo", FUN_ASR_NANO]
 
 # faster-whisper retries a segment at the next temperature when its output is too
@@ -88,17 +91,44 @@ _model_load_lock = threading.Lock()
 
 def _load_fun_asr_nano():
     # Imported here so a whisper-only container never pays for loading torch.
-    from funasr import AutoModel
+    import copy
+    import gc
 
-    # Recordings run to tens of minutes and the model takes about 30 seconds of audio
-    # per pass, so the VAD cuts the file first.
-    return AutoModel(
-        model=FUN_ASR_NANO_ID,
-        vad_model="fsmn-vad",
-        vad_kwargs={"max_single_segment_time": 30000},
-        device="cuda" if DEVICE == "cuda" else "cpu",
-        disable_update=True,
-    )
+    import torch
+    from funasr import AutoModel
+    from funasr.train_utils import load_pretrained_model as checkpoint
+
+    # Loading at full precision was OOM-killed at the 4 GiB limit (2026-10-16): funasr
+    # builds the LLM in fp32, reads the whole checkpoint into memory, then deep-copies it.
+    # The copy is never written to, so skip it; memory-map the checkpoint so its pages
+    # stay reclaimable; and build the LLM in FUN_ASR_LLM_DTYPE. The audio encoder always
+    # runs in fp32.
+    real_load, real_copy = torch.load, checkpoint.copy
+
+    def mmap_load(*args, **kwargs):
+        try:
+            return real_load(*args, mmap=True, **kwargs)
+        except RuntimeError:
+            # mmap needs the zip checkpoint format; fall back for anything older.
+            return real_load(*args, **kwargs)
+
+    torch.load = mmap_load
+    checkpoint.copy = type("NoCopy", (), {"deepcopy": staticmethod(lambda obj: obj)})
+    try:
+        # Recordings run to tens of minutes and the model takes about 30 seconds of audio
+        # per pass, so the VAD cuts the file first.
+        return AutoModel(
+            model=FUN_ASR_NANO_ID,
+            vad_model="fsmn-vad",
+            vad_kwargs={"max_single_segment_time": 30000},
+            device="cuda" if DEVICE == "cuda" else "cpu",
+            disable_update=True,
+            llm_dtype=FUN_ASR_LLM_DTYPE,
+            llm_conf={"llm_dtype": FUN_ASR_LLM_DTYPE},
+        )
+    finally:
+        torch.load, checkpoint.copy = real_load, real_copy
+        gc.collect()
 
 
 def get_or_load_model(model_size: str):
