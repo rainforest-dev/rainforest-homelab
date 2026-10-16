@@ -902,6 +902,10 @@ the same OpenCC `s2twp` conversion.
 It can emit a long run of `嗯。` over a quiet stretch. The server collapses any 1-8 character
 non-digit unit repeated five or more times in a row to one copy, for every model.
 
+FunASR needs `torch` and `torchaudio`, which `pyproject.toml` pins to the PyTorch CPU index.
+PyPI's Linux arm64 `torch` is the CUDA build: it pulls about 2.9 GiB of `nvidia-*` and `triton`
+wheels that cannot run in Docker on a Mac, and the first build with them ran past 25 minutes.
+
 Its models download from ModelScope into `/models/modelscope` on first use. To time it before
 making it the default (this unloads turbo until the next turbo request):
 ```bash
