@@ -180,6 +180,12 @@ variable "personal_calibre_image" {
   default     = "ghcr.io/rainforest-dev/personal-calibre:latest"
 }
 
+variable "calibre_ocr_model" {
+  description = "Ollama vision model that transcribes notebook pages in personal-calibre; empty turns OCR off. Keep it 12B or smaller: loading a 35B model knocked the Mac offline."
+  type        = string
+  default     = "qwen3-vl:8b-instruct"
+}
+
 variable "calibre_library_path" {
   description = "Host path to the Calibre library directory (contains metadata.db and book subdirs)"
   type        = string

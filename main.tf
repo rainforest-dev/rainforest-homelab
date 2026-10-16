@@ -213,6 +213,7 @@ module "personal-calibre" {
   calibre_library_path = var.calibre_library_path
   mcp_secret           = random_password.calibre_mcp_secret.result
   inbox_secret         = random_password.inbox_secret.result
+  ocr_model            = var.calibre_ocr_model
 }
 
 resource "random_password" "calibre_mcp_secret" {

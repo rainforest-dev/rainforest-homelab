@@ -79,3 +79,9 @@ variable "embed_model" {
   type        = string
   default     = ""
 }
+
+variable "ocr_model" {
+  description = "Ollama vision model that transcribes notebook pages; empty turns notebook OCR off"
+  type        = string
+  default     = ""
+}
