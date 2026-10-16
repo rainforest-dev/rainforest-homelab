@@ -9,13 +9,13 @@ variable "environment" {
 }
 
 variable "model_size" {
-  description = "Default model: a Whisper size (tiny … large-v3-turbo) or fun-asr-nano"
+  description = "Whisper model size (tiny, base, small, medium, large, large-v2, large-v3, large-v3-turbo)"
   type        = string
   default     = "base"
 
   validation {
-    condition     = contains(["tiny", "base", "small", "medium", "large", "large-v2", "large-v3", "large-v3-turbo", "fun-asr-nano"], var.model_size)
-    error_message = "Model size must be one of: tiny, base, small, medium, large, large-v2, large-v3, large-v3-turbo, fun-asr-nano"
+    condition     = contains(["tiny", "base", "small", "medium", "large", "large-v2", "large-v3", "large-v3-turbo"], var.model_size)
+    error_message = "Model size must be one of: tiny, base, small, medium, large, large-v2, large-v3, large-v3-turbo"
   }
 }
 
