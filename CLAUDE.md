@@ -891,7 +891,8 @@ curl -X POST "https://whisper.yourdomain.com/v1/audio/transcriptions" \
   -F "whisper_model=small"  # Use specific model for this request
 ```
 
-Available models: `tiny`, `base`, `small`, `medium`, `large-v2`, `large-v3`, `large-v3-turbo`
+Available models: `tiny`, `base`, `small`, `medium`, `large-v2`, `large-v3`, `large-v3-turbo`, plus
+`qwen3-asr` when `enable_asr_mlx` is on
 
 The container holds one model at a time, so a request for a different model unloads the current
 one and the next request for it pays the load again.
@@ -911,6 +912,34 @@ its removal. It caught 12 of 14 medical terms in a Mandarin clinic recording whe
 
 Running it with MLX on the Mac host took 18 s for the same recording. If it comes back, it
 belongs there, not in this container. The code is recoverable from `git show e18ba76`.
+
+### **Qwen3-ASR on the host** (`enable_asr_mlx`)
+
+With `enable_asr_mlx = true` the default model is `qwen3-asr`, which runs outside the container:
+Qwen3-ASR 1.7B 8-bit on the Mac's GPU through mlx-audio. Clients and n8n still call whisper; the
+container forwards the audio and applies the same OpenCC `s2twp`, repeat collapsing and dedupe
+to the result.
+
+```
+n8n → whisper :9090 → host.docker.internal:9191 llama-swap → mlx-audio (Qwen3-ASR)
+```
+
+- **On demand:** `modules/asr-mlx` runs llama-swap under launchd (`tools.rainforest.asr-mlx`,
+  `127.0.0.1:9191`). It starts mlx-audio on the first request and stops it after `ttl_seconds`
+  (600) idle, so the model's ~3 GB exists only while transcribing; llama-swap itself is ~18 MB.
+  The first request after an idle period pays a few seconds of load.
+- **Measured 2026-10-16 through the container path:** the 6-minute clinic recording took 25 s
+  cold, the 18:36 meeting 53 s; 11 of 14 clinic medical terms against turbo's 6-7.
+- **Fallback:** if the host request fails (llama-swap down, load error), the container
+  transcribes the file with `large-v3-turbo` instead, loading it on demand.
+- **Quirks:** Qwen3-ASR writes Simplified Chinese whatever the prompt says, hence the OpenCC
+  step. mlx-audio's server truncates long transcripts unless `max_tokens` is raised; the
+  container sends 16384.
+- **Prerequisite:** llama-swap from its author's tap, installed by you:
+  `brew trust --formula mostlygeek/llama-swap/llama-swap && brew install llama-swap`.
+  `terraform apply` refuses to continue without `/opt/homebrew/bin/llama-swap`.
+- **Logs:** `~/Library/Logs/asr-mlx/llama-swap.log`. Model state:
+  `curl -s localhost:9191/v1/models` (`status.value` is `ready` or `unloaded`).
 
 ### **API Usage**
 
