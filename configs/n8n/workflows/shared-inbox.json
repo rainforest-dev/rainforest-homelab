@@ -847,6 +847,7 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "errorWorkflow": "o9idc9gNkhOZ4dpn"
+    "errorWorkflow": "o9idc9gNkhOZ4dpn",
+    "saveDataSuccessExecution": "none"
   }
 }

@@ -168,6 +168,21 @@ resource "kubernetes_deployment" "n8n" {
           }
 
           env {
+            name  = "EXECUTIONS_DATA_PRUNE"
+            value = "true"
+          }
+
+          env {
+            name  = "EXECUTIONS_DATA_MAX_AGE"
+            value = tostring(var.executions_max_age_hours)
+          }
+
+          env {
+            name  = "EXECUTIONS_DATA_PRUNE_MAX_COUNT"
+            value = "5000"
+          }
+
+          env {
             name  = "GENERIC_TIMEZONE"
             value = var.timezone
           }

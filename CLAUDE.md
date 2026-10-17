@@ -511,6 +511,12 @@ The iCloud `Inbox/` folder (`inbox_host_path`) is the only iCloud path mounted i
 memories auto-import drop folder. Agents reach it through the existing `n8n` gateway server;
 there is no inbox-specific MCP server. See `configs/n8n/README.md` (`shared-inbox.json`).
 
+`shared-inbox` runs every 2 minutes and its file nodes store every file they read as n8n binary
+data on the T7 (`homelab-data/n8n/binaryData`). With executions never pruned that reached 113 GB
+in four days, filled the T7, and turned the Docker VM disk read-only (2026-10-17). The workflow
+now saves only failed executions (`saveDataSuccessExecution: none`), and n8n prunes executions
+and their binary data after `executions_max_age_hours` (72).
+
 ### Gotcha: tool-name collisions
 
 The managed gateway refuses to start on a tool-name collision (older gateway versions
