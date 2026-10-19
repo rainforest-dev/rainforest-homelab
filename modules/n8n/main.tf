@@ -334,3 +334,60 @@ resource "kubernetes_service" "n8n" {
     type = "LoadBalancer"
   }
 }
+# n8n 2.43 leaves an unsaved execution's binary files on disk, where the execution prune never finds them.
+resource "kubernetes_cron_job_v1" "binary_data_cleanup" {
+  count = var.use_external_storage ? 1 : 0
+
+  metadata {
+    name      = "${var.project_name}-n8n-binary-cleanup"
+    namespace = var.namespace
+    labels    = { app = "n8n-binary-cleanup" }
+  }
+
+  spec {
+    schedule                      = "17 * * * *"
+    concurrency_policy            = "Forbid"
+    successful_jobs_history_limit = 1
+    failed_jobs_history_limit     = 3
+
+    job_template {
+      metadata { labels = { app = "n8n-binary-cleanup" } }
+      spec {
+        backoff_limit = 1
+        template {
+          metadata { labels = { app = "n8n-binary-cleanup" } }
+          spec {
+            restart_policy = "Never"
+
+            container {
+              name    = "cleanup"
+              image   = "busybox:1.36"
+              command = ["/bin/sh", "-c"]
+              args = [
+                "set -eu; before=$(du -sk /binary | cut -f1); find /binary/workflows -mindepth 3 -maxdepth 3 -type d -path '*/executions/*' -mmin +${var.binary_data_max_age_minutes} -exec rm -rf {} +; echo \"binaryData $before KiB -> $(du -sk /binary | cut -f1) KiB\""
+              ]
+
+              resources {
+                limits   = { cpu = "200m", memory = "64Mi" }
+                requests = { cpu = "10m", memory = "16Mi" }
+              }
+
+              volume_mount {
+                name       = "binary"
+                mount_path = "/binary"
+              }
+            }
+
+            volume {
+              name = "binary"
+              host_path {
+                path = "${var.external_storage_path}/n8n/binaryData"
+                type = "DirectoryOrCreate"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
