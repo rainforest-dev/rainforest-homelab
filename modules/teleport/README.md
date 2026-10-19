@@ -81,7 +81,7 @@ cert matches:
 |-----|----------------------------------------|
 | The Mac's own agent (`scripts/enroll-teleport-node.sh`) | `/etc/hosts`: `127.0.0.1 tp.rainforest.tools` |
 | Pi agent | `extra_hosts` in rainforest-iot (`teleport_proxy_direct_ip`) |
-| Laptop/phone on Tailscale | Pi-hole record → `100.86.67.66`, and in the Tailscale admin console under DNS, a split-DNS entry for `tp.rainforest.tools` → Pi-hole (`100.81.160.108`) |
+| Laptop/phone on Tailscale | Pi-hole record → `<MAC_TAILNET_IP>`, and in the Tailscale admin console under DNS, a split-DNS entry for `tp.rainforest.tools` → Pi-hole (`<PIHOLE_TAILNET_IP>`) |
 | Anything else | Public DNS → Cloudflare (unchanged) |
 
 ### On a phone
