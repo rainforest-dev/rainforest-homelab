@@ -70,7 +70,8 @@ With `teleport_direct_access = true` (plus `acme_email`):
 
 - cert-manager issues a Let's Encrypt cert for `tp.<domain>` and `*.tp.<domain>` (DNS-01 via Cloudflare).
 - The proxy Service becomes `LoadBalancer`, so Docker Desktop binds `:443` on the Mac's LAN and tailnet
-  addresses. Check that nothing else on the Mac uses 443 before applying.
+  addresses. Nothing else may hold host :443 first: as of 2026-10-19 `tailscale serve` (ttyd) does,
+  so move it (`tailscale serve --https=8443 ...`) before applying.
 - Cloudflare Tunnel keeps working unchanged, as a fallback for devices that are off the tailnet.
 
 Then point clients at the Mac when they can reach it directly. The hostname stays `tp.<domain>`, so the
