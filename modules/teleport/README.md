@@ -83,6 +83,20 @@ cert matches:
 | Laptop/phone on Tailscale | Pi-hole record → `100.86.67.66`, and in the Tailscale admin console under DNS, a split-DNS entry for `tp.rainforest.tools` → Pi-hole (`100.81.160.108`) |
 | Anything else | Public DNS → Cloudflare (unchanged) |
 
+### On a phone
+
+Teleport has no mobile app, so a phone only gets the web UI. Before direct access, the admin apps
+(Pi-hole, Homebridge, ntopng) could not be opened from it at all. Teleport serves each app at
+`<app>.tp.rainforest.tools`, and those names have no public DNS record (checked 2026-10-19: no
+answer for `pihole.tp.rainforest.tools`). Cloudflare's free Universal SSL also covers only one
+level of `*.rainforest.tools`, so routing them through the tunnel would fail TLS. On a desktop,
+`tsh proxy app` hides this.
+
+With direct access, Tailscale on the phone fixes it. The split-DNS entry and the Pi-hole wildcard
+(rainforest-iot `local_dns_hosts`) resolve `tp.rainforest.tools` and every `*.tp.rainforest.tools`
+to the Mac, and the Let's Encrypt cert covers both. Log in once at `https://tp.rainforest.tools`
+with a passkey, then tap an app.
+
 To check: `curl -so /dev/null -w '%{time_total}\n' https://tp.rainforest.tools/webapi/ping`
 should drop from ~0.3 s to a few ms, and the "Network Connection" panel in the Teleport UI should show
 both legs well under 50 ms.
