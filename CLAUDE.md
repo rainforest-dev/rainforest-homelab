@@ -951,6 +951,12 @@ n8n → whisper :9090 → host.docker.internal:9191 llama-swap → mlx-audio (Qw
   transcribes the file with `large-v3-turbo` instead, loading it on demand. The response says
   `"model_used": "large-v3-turbo"`, and a fallback result is not cached, so n8n's retry of the
   same file tries the host again.
+- **Audio format:** the container converts every upload to 16 kHz mono WAV with ffmpeg before
+  forwarding. mlx-audio 0.5.9 answers an `.m4a` upload with 500 (`Unsupported output format:
+  m4a`, from writing its temp file), and m4a bytes under another name decode to near silence.
+  Until 2026-10-19 every Voice Memos file failed this way and was quietly transcribed by the
+  turbo fallback, which the container cannot hold for long recordings: a 1h24m memo
+  OOM-killed whisper at its 4Gi limit.
 - **Quirks:** Qwen3-ASR writes Simplified Chinese whatever the prompt says, hence the OpenCC
   step. `prompt` is not forwarded: mlx-audio passes it as `context`, which Qwen3-ASR's
   `generate()` does not take. `language` is mapped from ISO codes to the names the model knows

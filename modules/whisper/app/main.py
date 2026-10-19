@@ -10,6 +10,7 @@ from opencc import OpenCC
 import hashlib
 import httpx
 import re
+import subprocess
 import tempfile
 import threading
 import os
@@ -229,15 +230,31 @@ def _transcribe_local(content, filename, selected_model, language, prompt, tempe
         return _transcribe(model, content, filename, selected_model, language, prompt, temperature)
 
 
+def _to_wav(content, filename) -> bytes:
+    # mlx-audio 0.5.9 cannot write an .m4a temp file (500) and decodes m4a bytes to near silence.
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / f"in{Path(filename).suffix or '.audio'}"
+        dst = Path(tmp) / "out.wav"
+        src.write_bytes(content)
+        subprocess.run(
+            ["ffmpeg", "-nostdin", "-loglevel", "error", "-i", str(src), "-ac", "1", "-ar", "16000", str(dst)],
+            check=True,
+            capture_output=True,
+            timeout=600,
+        )
+        return dst.read_bytes()
+
+
 def _transcribe_remote(content, filename, selected_model, language) -> dict:
     logger.info(f"Forwarding {filename} to remote model={selected_model}, language={language or 'auto'}")
+    wav = _to_wav(content, filename)
     data = {"model": selected_model, "response_format": "verbose_json", "max_tokens": REMOTE_MAX_TOKENS}
     if language in _REMOTE_LANGUAGES:
         data["language"] = _REMOTE_LANGUAGES[language]
     response = httpx.post(
         f"{REMOTE_MODELS[selected_model]}/v1/audio/transcriptions",
         data=data,
-        files={"file": (filename, content)},
+        files={"file": (f"{Path(filename).stem}.wav", wav, "audio/wav")},
         headers={"Authorization": f"Bearer {REMOTE_API_KEY}"} if REMOTE_API_KEY else None,
         timeout=REMOTE_TIMEOUT_S,
     )
