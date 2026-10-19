@@ -234,7 +234,11 @@ Constraints worth preserving when editing:
   `Recorded at` reads the m4a `mvhd` creation time (seconds since 1904-01-01 UTC). That is
   when the memo was **shared**, not recorded: Voice Memos re-encodes on Share and the
   original time is not in the file (measured 2026-10-15, two memos of 18 and 6 minutes
-  stamped 28 s apart). With neither, the note uses the time of transcription. The
+  stamped 28 s apart). `Recorded at` skips files over 8 MB, and names that already carry
+  a date: the Code node's task runner receives the file as a JSON array of bytes, and a
+  42.5 MB memo OOM-killed n8n at its 1536Mi limit (2026-10-19). A crash saves no static
+  data, so the attempt never counts toward rejection and the file came back every time the
+  lock expired. With neither, the note uses the time of transcription. The
   frontmatter keeps `source:` and adds `shared:`. The "note already exists" check only
   matches the old voice workflow's notes, named exactly after the file
   (`<recording name>.md`); everything since is deduped by the ledger, so a recurring title
