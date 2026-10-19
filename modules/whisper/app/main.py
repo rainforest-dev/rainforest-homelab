@@ -47,6 +47,7 @@ def _parse_remote_models(spec: str) -> Dict[str, str]:
 
 REMOTE_MODELS = _parse_remote_models(os.getenv("REMOTE_MODELS", ""))
 REMOTE_FALLBACK_MODEL = os.getenv("REMOTE_FALLBACK_MODEL", "")
+REMOTE_MAX_AUDIO_S = int(os.getenv("REMOTE_MAX_AUDIO_S", "14400"))
 REMOTE_API_KEY = os.getenv("REMOTE_API_KEY", "")
 REMOTE_TIMEOUT_S = float(os.getenv("REMOTE_TIMEOUT_S", "900"))
 # mlx-audio's server stops a transcript early unless max_tokens is raised.
@@ -237,7 +238,7 @@ def _to_wav(content, filename) -> bytes:
         dst = Path(tmp) / "out.wav"
         src.write_bytes(content)
         subprocess.run(
-            ["ffmpeg", "-nostdin", "-loglevel", "error", "-i", str(src), "-ac", "1", "-ar", "16000", str(dst)],
+            ["ffmpeg", "-nostdin", "-loglevel", "error", "-i", str(src), "-t", str(REMOTE_MAX_AUDIO_S), "-ac", "1", "-ar", "16000", str(dst)],
             check=True,
             capture_output=True,
             timeout=600,
