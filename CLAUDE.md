@@ -793,12 +793,40 @@ applied first.
   on the host; with the URL unset, search stays lexical-only.
 - **Order:** `terraform apply` before `npx wrangler deploy`. A Worker that routes calibre with a
   gateway but has no `CALIBRE_GATEWAY_SECRET` answers 503.
-- **Notebook OCR:** a worker in the app sends each untranscribed notebook page to the host's
-  Ollama with the vision model in `calibre_ocr_model` (default `qwen3-vl:8b-instruct`), one page
+- **Notebook tools:** calibre still lists the nine notebook tools, but forwards each call to
+  personal-notebook (see below) with `x-notebook-gateway` and the caller's login. Without
+  `NOTEBOOK_INTERNAL_URL` the tools stay listed and every call says why it cannot run.
+
+## Personal Notebook (`library.rainforest.tools/notebooks`)
+
+`modules/personal-notebook` runs the notebook app split out of calibre: the notebook DB, page
+images, page search index, OCR, the bujo inbox and the notebook MCP tools. It is a Next app with
+`basePath: /notebooks`, published on `127.0.0.1:8086` with 256Mi (calibre went from 512Mi to
+256Mi in the same change). The tunnel routes `library.rainforest.tools` path `^/notebooks(/|$)`
+to it behind Access; every other path on that hostname is a 404 until the other library apps
+are routed.
+
+- **Data move:** the container mounts calibre's app-data volume read-only at
+  `/calibre-app-data` (`NOTEBOOK_IMPORT_FROM`). On the first start with an empty
+  `homelab-personal-notebook-data` volume it copies the notebook tables, page images and page
+  index, keeping ids, and logs `notebook import: copied N notebooks, P pages (T transcribed)`.
+  After that it never reads the source. Calibre's DB keeps its old notebook tables untouched.
+  Compare the counts with `docker logs homelab-personal-notebook | grep 'notebook import'`.
+- **Order:** the notebook image must exist in GHCR before the plan (it is published by the
+  monorepo release). Calibre's new image, which no longer has notebooks, and this module go out
+  in the same apply.
+- **MCP:** clients keep `calibre-mcp`; calibre forwards to
+  `http://host.docker.internal:8086/notebooks/mcp` with `random_password.notebook_mcp_secret`.
+  The notebook app answers 404 there without `NOTEBOOK_MCP_SECRET` and 401 without the header.
+- **Inbox:** n8n still posts bujo scans to calibre's `/api/inbox/bujo`; calibre passes them
+  through to `/notebooks/api/inbox/bujo`, which checks the same `inbox_secret`. Pointing n8n at
+  the notebook directly is a later change to the live workflow.
+- **OCR:** a worker sends each untranscribed page to the host's Ollama with the vision model in
+  `notebook_ocr_model` (default `qwen3-vl:8b-instruct`, formerly `calibre_ocr_model`), one page
   at a time, 20–50 s a page. Pull it on the host first (`ollama pull qwen3-vl:8b-instruct`).
   Until it is pulled the worker logs `[ocr] … is not ready` once and waits; no page is charged.
   Use the instruct tag: the default `qwen3-vl:8b` thinks first and ran out of output on a page.
-  Set the variable to `""` to turn OCR off.
+  Set the variable to `""` to turn OCR off. Restarting calibre no longer touches OCR.
 
 ## n8n MCP (official, behind the OAuth Worker)
 

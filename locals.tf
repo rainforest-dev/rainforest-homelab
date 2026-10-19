@@ -50,6 +50,20 @@ locals {
       }
     },
 
+    # library.rainforest.tools: one hostname, one app per path (see the library architecture).
+    # Only /notebooks is routed so far; any other path gets the tunnel's 404. This first entry
+    # owns the hostname's DNS record and Access application; later entries on it set
+    # internal = true, so the hostname keeps one of each.
+    {
+      "library-notebooks" = {
+        hostname    = "library"
+        service_url = module.personal-notebook.tunnel_service_url
+        enable_auth = true
+        type        = "docker"
+        path        = "^/notebooks(/|$)"
+      }
+    },
+
     {
       "rss" = {
         hostname    = "rss"

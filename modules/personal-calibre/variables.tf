@@ -61,13 +61,6 @@ variable "mcp_secret" {
   sensitive   = true
 }
 
-variable "inbox_secret" {
-  description = "Shared secret n8n sends as x-inbox-secret to POST /api/inbox/bujo; empty disables the route"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
 variable "ollama_url" {
   description = "Ollama endpoint for search embeddings, as reached from inside the container"
   type        = string
@@ -80,8 +73,21 @@ variable "embed_model" {
   default     = ""
 }
 
-variable "ocr_model" {
-  description = "Ollama vision model that transcribes notebook pages; empty turns notebook OCR off"
+variable "notebook_url" {
+  description = "personal-notebook's public URL, base path included; calibre's old /notebooks links redirect there. Empty answers 404"
   type        = string
+  default     = ""
+}
+
+variable "notebook_internal_url" {
+  description = "personal-notebook as this container reaches it, base path included; calibre forwards the notebook MCP tools and /api/inbox/bujo there. Empty leaves both unconfigured"
+  type        = string
+  default     = ""
+}
+
+variable "notebook_mcp_secret" {
+  description = "Shared secret calibre sends as x-notebook-gateway when it forwards a notebook MCP tool"
+  type        = string
+  sensitive   = true
   default     = ""
 }

@@ -64,7 +64,8 @@ every workflow read the Postgres password. The old `OBSIDIAN_API_KEY` env and th
 `shared-inbox` needs two more credentials, also not in git, each with its own secret:
 
 - `Inbox secret` (id `inboxsecret00001`, header `x-inbox-secret`, from
-  `terraform output -raw inbox_secret`): what n8n sends to personal-calibre with a bujo scan.
+  `terraform output -raw inbox_secret`): what n8n sends to personal-calibre with a bujo scan
+  (calibre passes it on to personal-notebook, which checks it).
 - `Inbox upload secret` (id `inboxupload00001`, header `x-inbox-upload-secret`, from
   `terraform output -raw inbox_upload_secret`): what an uploader must send to the
   `/webhook/inbox-upload-0001/inbox/<target>` webhook. Kept separate so an upload client never holds the key

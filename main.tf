@@ -212,8 +212,33 @@ module "personal-calibre" {
   external_port        = 8082
   calibre_library_path = var.calibre_library_path
   mcp_secret           = random_password.calibre_mcp_secret.result
-  inbox_secret         = random_password.inbox_secret.result
-  ocr_model            = var.calibre_ocr_model
+  # Half of the old 512Mi: notebooks, OCR and image work moved to personal-notebook.
+  memory_limit = "256Mi"
+  # Calibre still lists the notebook MCP tools and forwards each call to personal-notebook,
+  # passes /api/inbox/bujo through, and redirects old /notebooks links.
+  notebook_url          = "https://library.${var.domain_suffix}/notebooks"
+  notebook_internal_url = module.personal-notebook.internal_url
+  notebook_mcp_secret   = random_password.notebook_mcp_secret.result
+}
+
+module "personal-notebook" {
+  source = "./modules/personal-notebook"
+
+  project_name = var.project_name
+  environment  = var.environment
+  docker_host  = var.docker_host
+  image        = var.personal_notebook_image
+  mcp_secret   = random_password.notebook_mcp_secret.result
+  inbox_secret = random_password.inbox_secret.result
+  ocr_model    = var.notebook_ocr_model
+  # First start copies calibre's notebooks from its volume (read-only), then never reads it again.
+  import_volume = module.personal-calibre.app_data_volume
+}
+
+# Shared by personal-calibre (x-notebook-gateway) and personal-notebook's /notebooks/mcp
+resource "random_password" "notebook_mcp_secret" {
+  length  = 48
+  special = false
 }
 
 resource "random_password" "calibre_mcp_secret" {
