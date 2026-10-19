@@ -43,12 +43,6 @@ variable "kb_readwise_path" {
   default     = ""
 }
 
-variable "kb_redact_terms" {
-  description = "Words that mark company content in /kb, passed as KB_REDACT_TERMS"
-  type        = list(string)
-  default     = ["angible"]
-}
-
 variable "node_env" {
   description = "NODE_ENV value passed to the container"
   type        = string

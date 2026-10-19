@@ -51,7 +51,6 @@ resource "docker_container" "rss_manager" {
     "VAULT_PATH=/vault",
     "KB_WIKI_PATH=/kb/wiki",
     "KB_READWISE_PATH=/kb/readwise",
-    "KB_REDACT_TERMS=${join(",", var.kb_redact_terms)}",
   ]
 
   # Obsidian vault registry folder. Writable: the app's Activate / Retire /

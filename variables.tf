@@ -232,12 +232,6 @@ variable "kb_readwise_path" {
   default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/readwise"
 }
 
-variable "kb_redact_terms" {
-  description = "Words that mark company content in /kb: a page whose title, tag or summary names one is hidden, and any other block naming one is dropped. Put internal project names in terraform.tfvars, not here; this repository is public"
-  type        = list(string)
-  default     = ["angible"]
-}
-
 variable "enable_personal_memories" {
   description = "Deploy the personal-memories album"
   type        = bool

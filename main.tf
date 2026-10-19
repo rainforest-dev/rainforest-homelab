@@ -243,7 +243,6 @@ module "rss-manager" {
   vault_registry_path = var.vault_registry_path
   kb_wiki_pages_path  = var.kb_wiki_pages_path
   kb_readwise_path    = var.kb_readwise_path
-  kb_redact_terms     = var.kb_redact_terms
 }
 
 module "personal-memories" {
