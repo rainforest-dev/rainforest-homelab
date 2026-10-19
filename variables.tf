@@ -209,9 +209,9 @@ variable "calibre_library_path" {
 }
 
 variable "rss_manager_image" {
-  description = "Docker image for rss-manager (e.g. ghcr.io/rainforest-dev/rss-manager:latest)"
+  description = "Docker image for rss-manager, published as reading-room (e.g. ghcr.io/rainforest-dev/reading-room:latest)"
   type        = string
-  default     = "ghcr.io/rainforest-dev/rss-manager:latest"
+  default     = "ghcr.io/rainforest-dev/reading-room:latest"
 }
 
 variable "vault_registry_path" {
