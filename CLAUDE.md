@@ -207,7 +207,11 @@ services = merge(
 - `service_url`: Internal service URL (Kubernetes service or Docker host)
 - `enable_auth`: Enable/disable Zero Trust authentication
 - `type`: "kubernetes" or "docker" (for documentation)
-- `internal`: Set to `true` to skip DNS record creation (for OAuth Worker proxy pattern)
+- `internal`: Set to `true` to skip DNS record creation and the Access application (for OAuth Worker proxy pattern)
+- `path`: Regex the request path must match. Several entries may share a `hostname`: each
+  hostname's path rules are emitted before its catch-all (no `path`), whatever their key order.
+  Give every entry after the first on a hostname `internal = true`, so the hostname gets one DNS
+  record and one Access application, which covers all its paths.
 
 **For Docker containers**, use `host.docker.internal` to route to Docker host:
 ```hcl
