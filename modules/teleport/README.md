@@ -58,6 +58,35 @@ Internet -> Cloudflare Tunnel -> Teleport Proxy (tp.rainforest.tools)
 
 All protocols are multiplexed on a single port via `proxyListenerMode: multiplex`, which is required for Cloudflare Tunnel routing.
 
+## Direct access (skip Cloudflare)
+
+From HiNet, `tp.rainforest.tools` is served by Cloudflare's San Jose edge (`/cdn-cgi/trace` shows
+`colo=SJC`). Every connection through the tunnel goes to California and back, about 300 ms each way.
+The Teleport UI showed 289 ms from you to the proxy and 308 ms from the proxy to the server, 597 ms
+in total. Agents that join through `tp.rainforest.tools:443` pay the same cost even when they run on
+the Mac itself.
+
+With `teleport_direct_access = true` (plus `acme_email`):
+
+- cert-manager issues a Let's Encrypt cert for `tp.<domain>` and `*.tp.<domain>` (DNS-01 via Cloudflare).
+- The proxy Service becomes `LoadBalancer`, so Docker Desktop binds `:443` on the Mac's LAN and tailnet
+  addresses. Check that nothing else on the Mac uses 443 before applying.
+- Cloudflare Tunnel keeps working unchanged, as a fallback for devices that are off the tailnet.
+
+Then point clients at the Mac when they can reach it directly. The hostname stays `tp.<domain>`, so the
+cert matches:
+
+| Who | How it resolves `tp.rainforest.tools` |
+|-----|----------------------------------------|
+| The Mac's own agent (`scripts/enroll-teleport-node.sh`) | `/etc/hosts`: `127.0.0.1 tp.rainforest.tools` |
+| Pi agent | `extra_hosts` in rainforest-iot (`teleport_proxy_direct_ip`) |
+| Laptop/phone on Tailscale | Pi-hole record → `100.86.67.66`, and in the Tailscale admin console under DNS, a split-DNS entry for `tp.rainforest.tools` → Pi-hole (`100.81.160.108`) |
+| Anything else | Public DNS → Cloudflare (unchanged) |
+
+To check: `curl -so /dev/null -w '%{time_total}\n' https://tp.rainforest.tools/webapi/ping`
+should drop from ~0.3 s to a few ms, and the "Network Connection" panel in the Teleport UI should show
+both legs well under 50 ms.
+
 ## Configuration
 
 | Variable | Description | Default |
@@ -71,6 +100,9 @@ All protocols are multiplexed on a single port via `proxyListenerMode: multiplex
 | `storage_size` | PV size for session data | `10Gi` |
 | `use_external_storage` | Use host path PV | `false` |
 | `external_storage_path` | Host path for PV | `/var/lib/teleport` |
+| `direct_access` | Expose the proxy on host port 443 (LoadBalancer) | `false` |
+| `cert_manager_issuer_name` | cert-manager issuer for the proxy cert; empty = self-signed | `""` |
+| `cert_manager_issuer_kind` | `Issuer` or `ClusterIssuer` | `ClusterIssuer` |
 
 ## Outputs
 

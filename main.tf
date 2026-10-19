@@ -378,6 +378,15 @@ module "metrics_server" {
 # CoreDNS removed - using Cloudflare Tunnel for external DNS
 # Legacy module kept in /modules for reference
 
+# Only needed for Teleport direct access today: issues the proxy's public cert.
+module "cert_manager" {
+  count  = var.enable_teleport && var.teleport_direct_access ? 1 : 0
+  source = "./modules/cert-manager"
+
+  acme_email           = var.acme_email
+  cloudflare_api_token = var.cloudflare_api_token
+}
+
 module "teleport" {
   count  = var.enable_teleport ? 1 : 0
   source = "./modules/teleport"
@@ -392,7 +401,13 @@ module "teleport" {
   use_external_storage    = false # exFAT on Samsung T7 doesn't support Unix sockets needed by Teleport v15.5+
   external_storage_path   = var.external_storage_path
 
-  depends_on = [kubernetes_namespace.homelab]
+  # Cloudflare's free plan serves HiNet from San Jose, so every Teleport hop
+  # through the tunnel costs ~300 ms. Direct access lets Taiwan clients and
+  # agents reach the proxy over the LAN or tailnet instead (see the module README).
+  direct_access            = var.teleport_direct_access
+  cert_manager_issuer_name = var.teleport_direct_access ? module.cert_manager[0].issuer_name : ""
+
+  depends_on = [kubernetes_namespace.homelab, module.cert_manager]
 }
 
 module "cloudflare_tunnel" {

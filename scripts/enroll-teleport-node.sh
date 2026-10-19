@@ -29,3 +29,8 @@ echo "=== Generating a fresh join token against the current cluster ==="
 echo "(Run the install command it prints below to complete enrollment.)"
 echo
 kubectl exec -n "$NAMESPACE" "$DEPLOY" -- tctl nodes add --ttl=10m
+
+echo
+echo "=== Direct path (only when teleport_direct_access = true) ==="
+echo "Make this agent reach the proxy on the Mac instead of via Cloudflare San Jose:"
+echo "  echo '127.0.0.1 ${PROXY%%:*}' | sudo tee -a /etc/hosts"
