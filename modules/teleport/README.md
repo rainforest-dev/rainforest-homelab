@@ -69,9 +69,12 @@ the Mac itself.
 With `teleport_direct_access = true` (plus `acme_email`):
 
 - cert-manager issues a Let's Encrypt cert for `tp.<domain>` and `*.tp.<domain>` (DNS-01 via Cloudflare).
+  It reuses `cloudflare_api_token`, which must have `Zone:DNS:Edit`. The apply does not wait for the
+  Certificate: if the challenge fails, Terraform still succeeds and the new proxy pod waits on
+  `teleport-tls`. Check with `kubectl get certificate -n homelab` (READY should be True).
 - The proxy Service becomes `LoadBalancer`, so Docker Desktop binds `:443` on the Mac's LAN and tailnet
-  addresses. Nothing else may hold host :443 first: as of 2026-10-19 `tailscale serve` (ttyd) does,
-  so move it (`tailscale serve --https=8443 ...`) before applying.
+  addresses. Nothing else may hold host :443 first. ttyd's `tailscale serve` was moved
+  to :8443 on 2026-10-19 for this.
 - Cloudflare Tunnel keeps working unchanged, as a fallback for devices that are off the tailnet.
 
 Then point clients at the Mac when they can reach it directly. The hostname stays `tp.<domain>`, so the
