@@ -43,6 +43,7 @@ resource "docker_container" "rss_manager" {
   ports {
     internal = 3002
     external = var.external_port
+    ip       = var.bind_ip
   }
 
   env = [
