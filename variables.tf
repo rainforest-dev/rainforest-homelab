@@ -220,6 +220,24 @@ variable "vault_registry_path" {
   default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/_system"
 }
 
+variable "kb_wiki_pages_path" {
+  description = "Host path to the vault's notes/wiki/pages, mounted read-only for the reading room's /kb; empty leaves the wiki unmounted"
+  type        = string
+  default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/notes/wiki/pages"
+}
+
+variable "kb_readwise_path" {
+  description = "Host path to the vault's readwise folder, mounted read-only for the reading room's /kb; empty leaves Readwise unmounted"
+  type        = string
+  default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/readwise"
+}
+
+variable "kb_redact_terms" {
+  description = "Words that mark company content in /kb: a page whose title, tag or summary names one is hidden, and any other block naming one is dropped. Put internal project names in terraform.tfvars, not here; this repository is public"
+  type        = list(string)
+  default     = ["angible"]
+}
+
 variable "enable_personal_memories" {
   description = "Deploy the personal-memories album"
   type        = bool

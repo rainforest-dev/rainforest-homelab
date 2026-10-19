@@ -31,6 +31,24 @@ variable "vault_registry_path" {
   type        = string
 }
 
+variable "kb_wiki_pages_path" {
+  description = "Host path to the vault's notes/wiki/pages, mounted read-only at /kb/wiki; empty mounts nothing"
+  type        = string
+  default     = ""
+}
+
+variable "kb_readwise_path" {
+  description = "Host path to the vault's readwise folder, mounted read-only at /kb/readwise; empty mounts nothing"
+  type        = string
+  default     = ""
+}
+
+variable "kb_redact_terms" {
+  description = "Words that mark company content in /kb, passed as KB_REDACT_TERMS"
+  type        = list(string)
+  default     = ["angible"]
+}
+
 variable "node_env" {
   description = "NODE_ENV value passed to the container"
   type        = string

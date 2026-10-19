@@ -49,6 +49,9 @@ resource "docker_container" "rss_manager" {
   env = [
     "NODE_ENV=${var.node_env}",
     "VAULT_PATH=/vault",
+    "KB_WIKI_PATH=/kb/wiki",
+    "KB_READWISE_PATH=/kb/readwise",
+    "KB_REDACT_TERMS=${join(",", var.kb_redact_terms)}",
   ]
 
   # Obsidian vault registry folder. Writable: the app's Activate / Retire /
@@ -60,6 +63,20 @@ resource "docker_container" "rss_manager" {
     container_path = "/vault"
     host_path      = var.vault_registry_path
     read_only      = false
+  }
+
+  # The knowledge base at /kb: the wiki's pages and Readwise, each read-only on its own. The
+  # vault's notes/ is never mounted, because a bind mount cannot leave out notes/personal/.
+  dynamic "volumes" {
+    for_each = { for path, host in {
+      "/kb/wiki"     = var.kb_wiki_pages_path
+      "/kb/readwise" = var.kb_readwise_path
+    } : path => host if host != "" }
+    content {
+      container_path = volumes.key
+      host_path      = volumes.value
+      read_only      = true
+    }
   }
 
   labels {
