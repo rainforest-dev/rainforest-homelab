@@ -12,6 +12,26 @@ locals {
   # Hash of the services config — injected into the cloudflared pod template annotation so
   # any service routing change triggers an automatic rolling restart of cloudflared pods.
   services_checksum = sha256(jsonencode(var.services))
+
+  # cloudflared serves the first rule that matches, and iterating var.services yields
+  # entries in key order. Group the rules by hostname (in order of first appearance)
+  # and put each hostname's path-specific rules before its catch-all, so a path rule
+  # is never shadowed by a catch-all on the same hostname whose key sorts first.
+  # With one entry per hostname this is exactly key order.
+  ingress_rules = flatten([
+    for host in distinct([for name, config in var.services : config.hostname]) : concat(
+      [for name, config in var.services : config if config.hostname == host && config.path != ""],
+      [for name, config in var.services : config if config.hostname == host && config.path == ""],
+    )
+  ])
+
+  # Access applications cover a whole hostname, every path on it. An internal entry
+  # (no DNS record) shares a hostname with another entry, whose application already
+  # covers it, so creating one per entry would put two applications on one domain.
+  access_services = {
+    for name, config in var.services : name => config
+    if !config.internal && (config.service_auth_only || (config.enable_auth && length(var.allowed_email_domains) > 0))
+  }
 }
 
 # Google SSO identity provider (only created when credentials are provided)
@@ -65,7 +85,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
 
     # Dynamic ingress rules from service configuration
     dynamic "ingress_rule" {
-      for_each = var.services
+      for_each = local.ingress_rules
       content {
         hostname = "${ingress_rule.value.hostname}.${var.domain_suffix}"
         path     = ingress_rule.value.path != "" ? ingress_rule.value.path : null
@@ -109,10 +129,7 @@ resource "cloudflare_record" "services" {
 
 # Create Zero Trust Application for each service (only if email domains are configured)
 resource "cloudflare_zero_trust_access_application" "services" {
-  for_each = {
-    for name, config in var.services : name => config
-    if config.service_auth_only || (config.enable_auth && length(var.allowed_email_domains) > 0)
-  }
+  for_each = local.access_services
 
   zone_id          = local.zone_id
   name             = "${title(each.value.hostname)} - ${var.project_name}"
@@ -135,7 +152,7 @@ resource "cloudflare_zero_trust_access_application" "services" {
 # Create Zero Trust Access Policy - Email verification (only if applications exist)
 resource "cloudflare_zero_trust_access_policy" "email_policy" {
   for_each = length(var.allowed_email_domains) > 0 ? {
-    for name, config in var.services : name => config
+    for name, config in local.access_services : name => config
     if config.enable_auth && !config.service_auth_only
   } : {}
 
@@ -156,7 +173,7 @@ resource "cloudflare_zero_trust_access_policy" "email_policy" {
 
 locals {
   service_auth_only = {
-    for name, config in var.services : name => config
+    for name, config in local.access_services : name => config
     if config.service_auth_only
   }
 }
@@ -284,7 +301,7 @@ data:
     no-autoupdate: true
     
     ingress:
-%{for name, config in var.services~}
+%{for config in local.ingress_rules~}
       - hostname: ${config.hostname}.${var.domain_suffix}
 %{if config.path != ""~}
         path: '${config.path}'

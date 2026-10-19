@@ -48,3 +48,9 @@ variable "docker_host" {
   type        = string
   default     = "unix:///var/run/docker.sock"
 }
+
+variable "bind_ip" {
+  description = "Host address the published port binds to; 127.0.0.1 keeps it off the LAN while cloudflared still reaches it through host.docker.internal"
+  type        = string
+  default     = "127.0.0.1"
+}
