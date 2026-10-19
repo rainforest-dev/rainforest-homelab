@@ -73,3 +73,21 @@ variable "admin_logins" {
   type        = string
   default     = "root"
 }
+
+variable "direct_access" {
+  description = "Expose the proxy on the host's LAN and tailnet addresses (port 443) in addition to Cloudflare Tunnel"
+  type        = bool
+  default     = false
+}
+
+variable "cert_manager_issuer_name" {
+  description = "cert-manager issuer that signs the proxy's TLS cert; empty keeps Teleport's self-signed cert"
+  type        = string
+  default     = ""
+}
+
+variable "cert_manager_issuer_kind" {
+  description = "Kind of the cert-manager issuer (Issuer or ClusterIssuer)"
+  type        = string
+  default     = "ClusterIssuer"
+}

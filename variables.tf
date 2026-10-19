@@ -87,6 +87,18 @@ variable "enable_teleport" {
   default     = false
 }
 
+variable "teleport_direct_access" {
+  description = "Also serve the Teleport proxy on the Mac's LAN and tailnet addresses with a Let's Encrypt cert, so nearby clients skip Cloudflare. cert-manager solves DNS-01 with cloudflare_api_token, which then needs Zone:DNS:Edit; without it the apply still succeeds but the Certificate never becomes Ready"
+  type        = bool
+  default     = false
+}
+
+variable "acme_email" {
+  description = "Email for Let's Encrypt expiry notices (required when teleport_direct_access is true)"
+  type        = string
+  default     = ""
+}
+
 variable "enable_postgresql" {
   description = "Enable PostgreSQL database service"
   type        = bool

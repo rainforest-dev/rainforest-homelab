@@ -27,6 +27,8 @@ enable_calibre_web       = true   # Enable Calibre Web ebook server
 enable_homepage          = true   # Enable Homepage dashboard
 enable_openspeedtest     = false  # Enable OpenSpeedTest (can run on separate machine)
 enable_teleport          = false  # Enable Teleport for secure SSH, Kubernetes, and database access
+teleport_direct_access   = false  # Serve Teleport on LAN/tailnet with a real cert (skips Cloudflare SJC); needs acme_email and Zone:DNS:Edit on cloudflare_api_token
+acme_email               = ""
 
 # Resource Sizing
 default_cpu_limit    = "500m"

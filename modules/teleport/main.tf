@@ -78,9 +78,25 @@ resource "helm_release" "teleport" {
 
       # Authentication configured via auth.teleportConfig below
 
-      # ClusterIP service since Cloudflare Tunnel handles external access
+      # ClusterIP when Cloudflare Tunnel is the only way in. With direct access on,
+      # LoadBalancer makes Docker Desktop bind 443 on every host interface (LAN and
+      # tailnet), so nearby clients and agents skip the Cloudflare round trip.
       service = {
-        type = "ClusterIP"
+        type = var.direct_access ? "LoadBalancer" : "ClusterIP"
+      }
+
+      # A publicly trusted cert for clusterName and *.clusterName. Clients that
+      # reach the proxy directly see it instead of the default self-signed one;
+      # the Cloudflare Tunnel path is unaffected.
+      highAvailability = {
+        replicaCount        = 1
+        requireAntiAffinity = false
+        certManager = {
+          enabled     = var.cert_manager_issuer_name != ""
+          issuerName  = var.cert_manager_issuer_name
+          issuerKind  = var.cert_manager_issuer_kind
+          issuerGroup = "cert-manager.io"
+        }
       }
 
       # Persistence configuration
@@ -99,12 +115,6 @@ resource "helm_release" "teleport" {
         limits = {
           memory = var.memory_limit
         }
-      }
-
-      # Single replica for homelab
-      highAvailability = {
-        replicaCount        = 1
-        requireAntiAffinity = false
       }
 
       # Operator not needed for standalone deployment
