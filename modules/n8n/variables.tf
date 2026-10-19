@@ -140,3 +140,9 @@ variable "executions_max_age_hours" {
   type        = number
   default     = 72
 }
+
+variable "binary_data_max_age_minutes" {
+  description = "Hourly cleanup deletes n8n execution binary folders older than this; keep it above the longest run (Whisper times out at 30 min)"
+  type        = number
+  default     = 120
+}

@@ -520,8 +520,10 @@ and their binary data after `executions_max_age_hours` (72).
 That does not bound it while files sit in `Inbox/`. Every run reads every file there in full
 (the ledger filters afterwards), and n8n 2.43 leaves the binary files of an unsaved execution
 on disk with no execution row for the prune to find: 47 MB a run, about 34 GB a day, measured
-2026-10-19 with three files left in the inbox. Keep `Inbox/` empty once files are handled
-(`Inbox-hold/` beside it holds parked ones), and check
+2026-10-19 with three files left in the inbox. The `homelab-n8n-binary-cleanup` CronJob
+(`modules/n8n`) deletes execution binary folders older than `binary_data_max_age_minutes` (120)
+every hour at :17, which caps the leak at about two hours of runs. Check it with
+`kubectl logs -n homelab -l app=n8n-binary-cleanup` and
 `du -sh "/Volumes/Samsung T7 Touch/homelab-data/n8n/binaryData"` after touching the workflow.
 The live workflow is not deployed from git: compare it with
 `n8n export:workflow --id=sharedinbox00001` before assuming the repo's version is running.
