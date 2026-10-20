@@ -73,12 +73,6 @@ variable "embed_model" {
   default     = ""
 }
 
-variable "notebook_url" {
-  description = "personal-notebook's public URL, base path included; calibre's old /notebooks links redirect there. Empty answers 404"
-  type        = string
-  default     = ""
-}
-
 variable "notebook_internal_url" {
   description = "personal-notebook as this container reaches it, base path included; calibre forwards the notebook MCP tools and /api/inbox/bujo there. Empty leaves both unconfigured"
   type        = string

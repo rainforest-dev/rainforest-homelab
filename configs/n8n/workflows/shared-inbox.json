@@ -297,7 +297,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "http://host.docker.internal:8082/api/inbox/bujo",
+        "url": "http://host.docker.internal:8086/notebooks/api/inbox/bujo",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,

@@ -214,9 +214,8 @@ module "personal-calibre" {
   mcp_secret           = random_password.calibre_mcp_secret.result
   # Half of the old 512Mi: notebooks, OCR and image work moved to personal-notebook.
   memory_limit = "256Mi"
-  # Calibre still lists the notebook MCP tools and forwards each call to personal-notebook,
-  # passes /api/inbox/bujo through, and redirects old /notebooks links.
-  notebook_url          = "https://library.${var.domain_suffix}/notebooks"
+  # Calibre still lists the notebook MCP tools and forwards each call to personal-notebook, and
+  # passes /api/inbox/bujo through. Old /notebooks links redirect in the app itself.
   notebook_internal_url = module.personal-notebook.internal_url
   notebook_mcp_secret   = random_password.notebook_mcp_secret.result
 }
@@ -255,6 +254,22 @@ resource "random_password" "inbox_secret" {
 resource "random_password" "inbox_upload_secret" {
   length  = 48
   special = false
+}
+
+# The hall at / of library.rainforest.tools; reads every collection's hall items without Cloudflare.
+module "library-hall" {
+  source = "./modules/library-hall"
+
+  project_name = var.project_name
+  environment  = var.environment
+  docker_host  = var.docker_host
+  image        = var.library_hall_image
+  collection_urls = {
+    books     = "${module.personal-calibre.tunnel_service_url}/books"
+    notebooks = module.personal-notebook.internal_url
+    rack      = "${module.rss-manager.tunnel_service_url}/rack"
+    kb        = "${module.rss-manager.tunnel_service_url}/kb"
+  }
 }
 
 module "rss-manager" {

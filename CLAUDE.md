@@ -773,9 +773,11 @@ Access grant for `node` and the uv Python; the setup and verification steps are 
 ## Calibre MCP (behind the OAuth Worker)
 
 Clients connect at `https://calibre-mcp.rainforest.tools/mcp`. The Worker routes that hostname
-(never `?backend=`) to `https://personal-calibre-internal.rainforest.tools`, whose tunnel rule
-matches only `^/mcp$`; the library UI, `/files`, `/opds` and `/api/*` stay behind Access on
-`calibre`. The app also serves `/api/mcp`, which no client uses through the Worker.
+(never `?backend=`) to `https://personal-calibre-internal.rainforest.tools/books/mcp`, under
+calibre's base path, whose tunnel rule matches only `^(/books)?/mcp$`; the library UI, `/files`,
+`/opds` and `/api/*` stay behind Access. The app also serves `/books/api/mcp`, which no client
+uses through the Worker. `/mcp` answers `308` to `/books/mcp`, so a Worker deployed before this
+change still reaches it, one redirect later.
 
 The Worker sends `x-calibre-gateway: <secret>` and `X-Forwarded-Login`, and drops
 `X-GitHub-Token`, `X-GitHub-User` and `X-Forwarded-User`; calibre never read them. An image that
@@ -797,14 +799,41 @@ applied first.
   personal-notebook (see below) with `x-notebook-gateway` and the caller's login. Without
   `NOTEBOOK_INTERNAL_URL` the tools stay listed and every call says why it cannot run.
 
+## Library (`library.rainforest.tools`)
+
+One hostname, one app per path, one Access application (owned by the `library` entry in
+`locals.tf`; the path entries set `internal = true`):
+
+| Path | App | Port |
+|---|---|---|
+| `^/(books\|opds)(/\|$)` | personal-calibre (Next `basePath: /books`) | 8082 |
+| `^/notebooks(/\|$)` | personal-notebook (`basePath: /notebooks`) | 8086 |
+| `^/(rack\|kb)(/\|$)` | reading-room (`modules/rss-manager`) | 8084 |
+| everything else | library-hall, the 3D hall at `/`, and `/_shell/*` | 8087 |
+
+- **Hall:** `modules/library-hall`, 256Mi, no volume. Its page is static and `/api/items`
+  gathers each collection's `/api/hall-items` server-side through `LIBRARY_<NAME>_URL`
+  (`host.docker.internal:<port>/<base>`), never through Cloudflare. A collection that is down is
+  named on the page and the other shelves still load.
+- **Old hostnames:** `calibre.rainforest.tools` and `rss.rainforest.tools` keep their routes.
+  Both apps answer an old page URL with a permanent redirect to the same page in the library,
+  and keep serving feeds, APIs and MCP on the old hostname. Calibre answers nothing outside
+  `/books`, so `/opds`, `/api/*`, `/files/*` and `/mcp` answer `308` to the same path under it
+  on any hostname; an OPDS reader that does not follow redirects needs its URL changed to
+  `/books/opds`.
+- **Order:** the `library-hall` image must exist in GHCR before the plan: the module resolves
+  its digest at plan time, so a missing image fails the whole plan. It is published by the
+  monorepo release, with the calibre image that serves `/books`.
+- **Check after an apply:** `curl -sI https://library.rainforest.tools/` is a `302` to Access, and
+  `docker logs homelab-library-hall` is quiet. The hall names any shelf it could not load.
+
 ## Personal Notebook (`library.rainforest.tools/notebooks`)
 
 `modules/personal-notebook` runs the notebook app split out of calibre: the notebook DB, page
 images, page search index, OCR, the bujo inbox and the notebook MCP tools. It is a Next app with
 `basePath: /notebooks`, published on `127.0.0.1:8086` with 256Mi (calibre went from 512Mi to
 256Mi in the same change). The tunnel routes `library.rainforest.tools` path `^/notebooks(/|$)`
-to it behind Access; every other path on that hostname is a 404 until the other library apps
-are routed.
+to it behind Access. The other paths on that hostname are in "Library" above.
 
 - **Data move:** the container mounts calibre's app-data volume read-only at
   `/calibre-app-data` (`NOTEBOOK_IMPORT_FROM`). On the first start with an empty
@@ -818,9 +847,11 @@ are routed.
 - **MCP:** clients keep `calibre-mcp`; calibre forwards to
   `http://host.docker.internal:8086/notebooks/mcp` with `random_password.notebook_mcp_secret`.
   The notebook app answers 404 there without `NOTEBOOK_MCP_SECRET` and 401 without the header.
-- **Inbox:** n8n still posts bujo scans to calibre's `/api/inbox/bujo`; calibre passes them
-  through to `/notebooks/api/inbox/bujo`, which checks the same `inbox_secret`. Pointing n8n at
-  the notebook directly is a later change to the live workflow.
+- **Inbox:** `configs/n8n/workflows/shared-inbox.json` posts bujo scans straight to
+  `http://host.docker.internal:8086/notebooks/api/inbox/bujo`, which checks `inbox_secret`. The
+  live workflow is not deployed from git, so change its `Send to calibre` node by hand (or through
+  the official n8n MCP) after the apply. Until then scans still go to calibre's `/api/inbox/bujo`,
+  which answers `308` to `/books/api/inbox/bujo` and passes them through.
 - **OCR:** a worker sends each untranscribed page to the host's Ollama with the vision model in
   `notebook_ocr_model` (default `qwen3-vl:8b-instruct`, formerly `calibre_ocr_model`), one page
   at a time, 20–50 s a page. Pull it on the host first (`ollama pull qwen3-vl:8b-instruct`).
