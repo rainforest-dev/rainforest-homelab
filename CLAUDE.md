@@ -821,6 +821,9 @@ One hostname, one app per path, one Access application (owned by the `library` e
   `/books`, so `/opds`, `/api/*`, `/files/*` and `/mcp` answer `308` to the same path under it
   on any hostname; an OPDS reader that does not follow redirects needs its URL changed to
   `/books/opds`.
+- **Order:** the `library-hall` image must exist in GHCR before the plan: the module resolves
+  its digest at plan time, so a missing image fails the whole plan. It is published by the
+  monorepo release, with the calibre image that serves `/books`.
 - **Check after an apply:** `curl -sI https://library.rainforest.tools/` is a `302` to Access, and
   `docker logs homelab-library-hall` is quiet. The hall names any shelf it could not load.
 
@@ -844,9 +847,11 @@ to it behind Access. The other paths on that hostname are in "Library" above.
 - **MCP:** clients keep `calibre-mcp`; calibre forwards to
   `http://host.docker.internal:8086/notebooks/mcp` with `random_password.notebook_mcp_secret`.
   The notebook app answers 404 there without `NOTEBOOK_MCP_SECRET` and 401 without the header.
-- **Inbox:** n8n posts bujo scans straight to `http://host.docker.internal:8086/notebooks/api/inbox/bujo`,
-  which checks `inbox_secret`. Calibre still passes `/books/api/inbox/bujo` through for anything
-  that posts to it.
+- **Inbox:** `configs/n8n/workflows/shared-inbox.json` posts bujo scans straight to
+  `http://host.docker.internal:8086/notebooks/api/inbox/bujo`, which checks `inbox_secret`. The
+  live workflow is not deployed from git, so change its `Send to calibre` node by hand (or through
+  the official n8n MCP) after the apply. Until then scans still go to calibre's `/api/inbox/bujo`,
+  which answers `308` to `/books/api/inbox/bujo` and passes them through.
 - **OCR:** a worker sends each untranscribed page to the host's Ollama with the vision model in
   `notebook_ocr_model` (default `qwen3-vl:8b-instruct`, formerly `calibre_ocr_model`), one page
   at a time, 20–50 s a page. Pull it on the host first (`ollama pull qwen3-vl:8b-instruct`).
