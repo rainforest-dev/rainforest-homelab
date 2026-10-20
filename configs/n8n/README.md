@@ -64,8 +64,8 @@ every workflow read the Postgres password. The old `OBSIDIAN_API_KEY` env and th
 `shared-inbox` needs two more credentials, also not in git, each with its own secret:
 
 - `Inbox secret` (id `inboxsecret00001`, header `x-inbox-secret`, from
-  `terraform output -raw inbox_secret`): what n8n sends to personal-calibre with a bujo scan
-  (calibre passes it on to personal-notebook, which checks it).
+  `terraform output -raw inbox_secret`): what n8n sends to personal-notebook with a bujo scan,
+  which checks it. The node is still named `Send to calibre`, from when calibre passed scans on.
 - `Inbox upload secret` (id `inboxupload00001`, header `x-inbox-upload-secret`, from
   `terraform output -raw inbox_upload_secret`): what an uploader must send to the
   `/webhook/inbox-upload-0001/inbox/<target>` webhook. Kept separate so an upload client never holds the key
@@ -200,7 +200,7 @@ One inbox for every target:
 
 | Target | Drop into iCloud Drive | Delivered to |
 |---|---|---|
-| `bujo` | `Inbox/bujo/<notebook>/` | personal-calibre `POST /api/inbox/bujo` (needs `CALIBRE_INBOX_SECRET`) |
+| `bujo` | `Inbox/bujo/<notebook>/` | personal-notebook `POST /notebooks/api/inbox/bujo` (needs `NOTEBOOK_INBOX_SECRET`) |
 | `voice` | `Inbox/voice/` (and the legacy T7 `voice-inbox/`) | Whisper, then an Obsidian note in `Voice memos/` |
 | `memories` | `Inbox/memories/` | not n8n: the `memories-auto-import` launchd job watches it |
 

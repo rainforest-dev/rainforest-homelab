@@ -41,6 +41,8 @@ locals {
     },
 
 
+    # The hostnames before the library. Both apps answer their old page URLs with a permanent
+    # redirect into library.rainforest.tools and keep serving feeds, APIs and MCP here.
     {
       "calibre" = {
         hostname    = "calibre"
@@ -51,16 +53,40 @@ locals {
     },
 
     # library.rainforest.tools: one hostname, one app per path (see the library architecture).
-    # Only /notebooks is routed so far; any other path gets the tunnel's 404. This first entry
-    # owns the hostname's DNS record and Access application; later entries on it set
-    # internal = true, so the hostname keeps one of each.
+    # The hall's catch-all owns the hostname's DNS record and Access application; every path
+    # entry on it sets internal = true, so the hostname keeps one of each, and the tunnel emits
+    # path rules before the catch-all whatever their key order.
     {
+      "library" = {
+        hostname    = "library"
+        service_url = module.library-hall.tunnel_service_url
+        enable_auth = true
+        type        = "docker"
+      }
+      "library-books" = {
+        hostname    = "library"
+        service_url = module.personal-calibre.tunnel_service_url
+        enable_auth = true
+        type        = "docker"
+        internal    = true
+        # /opds answers with a redirect to /books/opds, under calibre's base path.
+        path = "^/(books|opds)(/|$)"
+      }
       "library-notebooks" = {
         hostname    = "library"
         service_url = module.personal-notebook.tunnel_service_url
         enable_auth = true
         type        = "docker"
+        internal    = true
         path        = "^/notebooks(/|$)"
+      }
+      "library-reading-room" = {
+        hostname    = "library"
+        service_url = module.rss-manager.tunnel_service_url
+        enable_auth = true
+        type        = "docker"
+        internal    = true
+        path        = "^/(rack|kb)(/|$)"
       }
     },
 
@@ -99,7 +125,8 @@ locals {
         service_url = module.personal-calibre.tunnel_service_url
         enable_auth = false # The OAuth Worker sends the gateway secret; the app rejects calls without it
         type        = "docker"
-        path        = "^/mcp$"
+        # The Worker calls /books/mcp, under calibre's base path; /mcp redirects there.
+        path = "^(/books)?/mcp$"
       }
     },
 

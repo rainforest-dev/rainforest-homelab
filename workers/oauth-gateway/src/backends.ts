@@ -18,6 +18,8 @@ export const BACKENDS: Record<string, Backend> = {
 		url: "https://personal-calibre-internal.rainforest.tools",
 		forwardGithubToken: false,
 		hostnameOnly: true,
+		// Under calibre's base path; the app redirects /mcp here, but a redirect costs a round trip.
+		path: "/books/mcp",
 		gateway: [{ header: "x-calibre-gateway", secretEnv: "CALIBRE_GATEWAY_SECRET" }],
 	},
 	"memories-mcp": {

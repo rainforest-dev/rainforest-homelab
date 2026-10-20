@@ -59,7 +59,6 @@ resource "docker_container" "personal_calibre" {
       "CALIBRE_OLLAMA_URL=${var.ollama_url}",
     ],
     var.embed_model != "" ? ["CALIBRE_EMBED_MODEL=${var.embed_model}"] : [],
-    var.notebook_url != "" ? ["NOTEBOOK_URL=${var.notebook_url}"] : [],
     var.notebook_internal_url != "" ? [
       "NOTEBOOK_INTERNAL_URL=${var.notebook_internal_url}",
       "NOTEBOOK_MCP_SECRET=${var.notebook_mcp_secret}",

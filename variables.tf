@@ -214,6 +214,12 @@ variable "calibre_library_path" {
   }
 }
 
+variable "library_hall_image" {
+  description = "Docker image for library-hall (e.g. ghcr.io/rainforest-dev/library-hall:latest)"
+  type        = string
+  default     = "ghcr.io/rainforest-dev/library-hall:latest"
+}
+
 variable "rss_manager_image" {
   description = "Docker image for rss-manager, published as reading-room (e.g. ghcr.io/rainforest-dev/reading-room:latest)"
   type        = string
