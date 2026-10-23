@@ -34,7 +34,20 @@ resource "docker_container" "library_hall" {
   env = concat(
     ["NODE_ENV=${var.node_env}"],
     [for name, url in var.collection_urls : "LIBRARY_${upper(name)}_URL=${url}" if url != ""],
+    var.vault_system_path != "" ? ["LIBRARY_TOPIC_MAP=/vault-system/Topic-Map.md"] : [],
   )
+
+  # The vault's _system folder, read-only, for Topic-Map.md: the tags each collection uses, mapped
+  # to one topic per bookcase. The folder rather than the file, because Obsidian and iCloud save
+  # by replacing the file, and a bind mount of a single file would keep showing the old one.
+  dynamic "volumes" {
+    for_each = var.vault_system_path != "" ? [var.vault_system_path] : []
+    content {
+      container_path = "/vault-system"
+      host_path      = volumes.value
+      read_only      = true
+    }
+  }
 
   labels {
     label = "project"

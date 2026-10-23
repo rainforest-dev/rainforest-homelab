@@ -270,6 +270,7 @@ module "library-hall" {
     rack      = "${module.rss-manager.tunnel_service_url}/rack"
     kb        = "${module.rss-manager.tunnel_service_url}/kb"
   }
+  vault_system_path = var.vault_registry_path
 }
 
 module "rss-manager" {

@@ -815,6 +815,9 @@ One hostname, one app per path, one Access application (owned by the `library` e
   gathers each collection's `/api/hall-items` server-side through `LIBRARY_<NAME>_URL`
   (`host.docker.internal:<port>/<base>`), never through Cloudflare. A collection that is down is
   named on the page and the other shelves still load.
+- **Topics:** the hall renames every item's topics through the vault's `_system/Topic-Map.md`,
+  mounted read-only with the rest of `_system` at `/vault-system`. Edit the map in Obsidian; the
+  hall rereads it when it changes, with no apply or restart.
 - **Old hostnames:** `calibre.rainforest.tools` and `rss.rainforest.tools` keep their routes.
   Both apps answer an old page URL with a permanent redirect to the same page in the library,
   and keep serving feeds, APIs and MCP on the old hostname. Calibre answers nothing outside
