@@ -6,6 +6,7 @@ locals {
     filemd5("${path.module}/app/main.py"),
     filemd5("${path.module}/app/workflow.json"),
     filemd5("${path.module}/app/pyproject.toml"),
+    filemd5("${path.module}/app/uv.lock"),
   ])
 }
 
@@ -59,8 +60,10 @@ resource "docker_container" "comfyui_adapter" {
     value = var.environment
   }
 
+  # The image tag never changes, so a rebuild alone leaves the old container running.
   lifecycle {
-    ignore_changes = [memory_swap]
+    ignore_changes       = [memory_swap]
+    replace_triggered_by = [null_resource.build]
   }
 
   depends_on = [docker_image.comfyui_adapter]

@@ -21,6 +21,7 @@ resource "null_resource" "whisper_build" {
     dockerfile_hash = filemd5("${path.module}/Dockerfile")
     main_py_hash    = filemd5("${path.module}/app/main.py")
     pyproject_hash  = filemd5("${path.module}/app/pyproject.toml")
+    uv_lock_hash    = filemd5("${path.module}/app/uv.lock")
   }
 
   provisioner "local-exec" {
