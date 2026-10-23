@@ -60,3 +60,9 @@ variable "collection_urls" {
     error_message = "collection_urls keys must be books, notebooks, rack or kb."
   }
 }
+
+variable "vault_system_path" {
+  description = "Host path to the vault's _system folder, mounted read-only so the hall reads Topic-Map.md; empty leaves every collection's topics as they are"
+  type        = string
+  default     = ""
+}
