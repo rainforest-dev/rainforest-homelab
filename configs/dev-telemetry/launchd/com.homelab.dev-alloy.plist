@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Grafana Alloy for the company MacBook Air.
+
+  Endpoints live here rather than in config.alloy so the config file stays
+  machine-independent. No secrets: the tailnet is the auth boundary, and the
+  Pi's Prometheus and Loki NodePorts carry no credentials.
+
+  StoragePath holds the remote_write WAL. That WAL is why the Pi being offline
+  is survivable — Alloy buffers to disk and replays on reconnect — so the
+  directory must be on a real disk and must not be cleaned up.
+
+  Reloading after an edit: `launchctl kickstart -k` does NOT re-read the plist,
+  it restarts from launchd's in-memory copy, so the old arguments keep running
+  while the command appears to succeed. Use bootout + bootstrap.
+
+  Installed by install.sh, which substitutes __HOME__ and __BREW__.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.homelab.dev-alloy</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__BREW__/bin/alloy</string>
+        <string>run</string>
+        <string>--server.http.listen-addr=127.0.0.1:12345</string>
+        <string>--storage.path=__HOME__/.local/state/dev-telemetry/alloy</string>
+        <string>__HOME__/.config/dev-telemetry/alloy/config.alloy</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PROMETHEUS_REMOTE_WRITE_URL</key>
+        <string>http://raspberrypi-5:30090/api/v1/write</string>
+        <key>LOKI_PUSH_URL</key>
+        <string>http://raspberrypi-5:30100/loki/api/v1/push</string>
+        <key>DEV_EVENTS_SPOOL</key>
+        <string>__HOME__/.local/state/dev-telemetry/events.jsonl</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>__HOME__/Library/Logs/dev-alloy.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/Library/Logs/dev-alloy.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>Nice</key>
+    <integer>5</integer>
+</dict>
+</plist>
