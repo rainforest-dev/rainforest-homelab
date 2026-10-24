@@ -4,6 +4,7 @@ export const PROTECTED_RESOURCE_METADATA_PATH = "/.well-known/oauth-protected-re
 const PUBLIC_HOSTS = new Set([
 	"docker-mcp.rainforest.tools",
 	"calibre-mcp.rainforest.tools",
+	"library-mcp.rainforest.tools",
 	"memories-mcp.rainforest.tools",
 	"n8n-mcp.rainforest.tools",
 ]);

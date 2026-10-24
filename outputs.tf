@@ -53,6 +53,12 @@ output "inbox_upload_secret" {
   sensitive   = true
 }
 
+output "library_mcp_secret" {
+  description = "Shared secret between the OAuth Worker and the library-hall container (x-library-gateway)"
+  value       = random_password.library_mcp_secret.result
+  sensitive   = true
+}
+
 output "calibre_mcp_secret" {
   description = "Shared secret between the OAuth Worker and the personal-calibre container (x-calibre-gateway)"
   value       = random_password.calibre_mcp_secret.result

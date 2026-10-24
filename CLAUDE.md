@@ -799,6 +799,24 @@ applied first.
   personal-notebook (see below) with `x-notebook-gateway` and the caller's login. Without
   `NOTEBOOK_INTERNAL_URL` the tools stay listed and every call says why it cannot run.
 
+## Library MCP (behind the OAuth Worker)
+
+Clients connect at `https://library-mcp.rainforest.tools/mcp`. The Worker routes that hostname
+(never `?backend=`) to `https://library-mcp-internal.rainforest.tools/api/mcp`, whose tunnel rule
+matches only `^/api/mcp$`; the hall's pages stay behind Access on `library`. It serves
+`search_library`, the hall's merged search over books, notebooks, the rack and the KB, and lists
+calibre's book tools and the notebook tools, forwarding each call to `<collection url>/mcp` with
+that app's own gateway secret and the caller's login. `calibre-mcp` keeps working for clients
+that have not moved.
+
+- **Secret:** `random_password.library_mcp_secret`, written to the Worker as
+  `LIBRARY_GATEWAY_SECRET` and to the hall as `LIBRARY_MCP_SECRET`. The hall also gets
+  `LIBRARY_BOOKS_MCP_SECRET` (calibre's secret) and `LIBRARY_NOTEBOOKS_MCP_SECRET`. Read it with
+  `terraform output -raw library_mcp_secret`.
+- **Order:** the hall image with `/api/mcp` (monorepo release), then `terraform apply`, then
+  `npx wrangler deploy` from `workers/oauth-gateway`. A Worker that routes library-mcp with no
+  `LIBRARY_GATEWAY_SECRET` answers 503.
+
 ## Library (`library.rainforest.tools`)
 
 One hostname, one app per path, one Access application (owned by the `library` entry in

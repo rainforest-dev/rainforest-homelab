@@ -47,6 +47,12 @@ variable "calibre_gateway_secret" {
   sensitive   = true
 }
 
+variable "library_gateway_secret" {
+  description = "Value the Worker sends as x-library-gateway; must equal the library-hall container's LIBRARY_MCP_SECRET"
+  type        = string
+  sensitive   = true
+}
+
 variable "enable_n8n_mcp" {
   description = "Route n8n-mcp.<domain> through the Worker to n8n's instance-level MCP server"
   type        = bool
