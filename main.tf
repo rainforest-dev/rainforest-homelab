@@ -67,6 +67,7 @@ module "oauth_worker" {
   enable_memories_mcp     = var.enable_personal_memories
   memories_gateway_secret = var.enable_personal_memories ? random_password.memories_mcp_secret[0].result : null
   calibre_gateway_secret  = random_password.calibre_mcp_secret.result
+  library_gateway_secret  = random_password.library_mcp_secret.result
 
   enable_n8n_mcp = var.enable_n8n_mcp
   n8n_mcp_token  = var.n8n_mcp_token
@@ -245,6 +246,12 @@ resource "random_password" "calibre_mcp_secret" {
   special = false
 }
 
+# Shared by the OAuth Worker (x-library-gateway) and library-hall's /api/mcp
+resource "random_password" "library_mcp_secret" {
+  length  = 48
+  special = false
+}
+
 # Shared by the n8n inbox workflow and the apps it delivers to (x-inbox-secret)
 resource "random_password" "inbox_secret" {
   length  = 48
@@ -271,6 +278,14 @@ module "library-hall" {
     kb        = "${module.rss-manager.tunnel_service_url}/kb"
   }
   vault_system_path = var.vault_registry_path
+
+  # The library MCP: the hall checks mcp_secret, and forwards the book and notebook tools to
+  # calibre and personal-notebook with their own gateway secrets.
+  mcp_secret = random_password.library_mcp_secret.result
+  collection_mcp_secrets = {
+    books     = random_password.calibre_mcp_secret.result
+    notebooks = random_password.notebook_mcp_secret.result
+  }
 }
 
 module "rss-manager" {

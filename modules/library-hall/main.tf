@@ -35,6 +35,8 @@ resource "docker_container" "library_hall" {
     ["NODE_ENV=${var.node_env}"],
     [for name, url in var.collection_urls : "LIBRARY_${upper(name)}_URL=${url}" if url != ""],
     var.vault_system_path != "" ? ["LIBRARY_TOPIC_MAP=/vault-system/Topic-Map.md"] : [],
+    var.mcp_secret != "" ? ["LIBRARY_MCP_SECRET=${var.mcp_secret}"] : [],
+    [for name, secret in var.collection_mcp_secrets : "LIBRARY_${upper(name)}_MCP_SECRET=${secret}" if secret != ""],
   )
 
   # The vault's _system folder, read-only, for Topic-Map.md: the tags each collection uses, mapped

@@ -22,6 +22,15 @@ export const BACKENDS: Record<string, Backend> = {
 		path: "/books/mcp",
 		gateway: [{ header: "x-calibre-gateway", secretEnv: "CALIBRE_GATEWAY_SECRET" }],
 	},
+	// The whole library: search_library over every collection, plus the book and notebook
+	// tools, which the hall forwards to calibre and personal-notebook.
+	"library-mcp": {
+		url: "https://library-mcp-internal.rainforest.tools",
+		forwardGithubToken: false,
+		hostnameOnly: true,
+		path: "/api/mcp",
+		gateway: [{ header: "x-library-gateway", secretEnv: "LIBRARY_GATEWAY_SECRET" }],
+	},
 	"memories-mcp": {
 		url: "https://memories-mcp-internal.rainforest.tools",
 		forwardGithubToken: false,

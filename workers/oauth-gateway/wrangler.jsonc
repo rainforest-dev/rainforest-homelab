@@ -25,7 +25,7 @@
 		 * npx wrangler secret put GITHUB_CLIENT_SECRET
 		 * npx wrangler secret put COOKIE_ENCRYPTION_KEY
 		 *
-		 * MEMORIES_GATEWAY_SECRET, CALIBRE_GATEWAY_SECRET and N8N_MCP_TOKEN are set by
+		 * MEMORIES_GATEWAY_SECRET, CALIBRE_GATEWAY_SECRET, LIBRARY_GATEWAY_SECRET and N8N_MCP_TOKEN are set by
 		 * Terraform (modules/oauth-worker); do not put them by hand.
 		 */
 	"kv_namespaces": [

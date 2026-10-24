@@ -66,3 +66,22 @@ variable "vault_system_path" {
   type        = string
   default     = ""
 }
+
+variable "mcp_secret" {
+  description = "Gateway secret the hall's /api/mcp checks (x-library-gateway, sent by the OAuth Worker); empty turns the library MCP off"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "collection_mcp_secrets" {
+  description = "Gateway secret of each collection's own MCP endpoint, keyed books and notebooks; the hall forwards those collections' tools to <collection url>/mcp with it"
+  type        = map(string)
+  default     = {}
+  sensitive   = true
+
+  validation {
+    condition     = alltrue([for name in keys(var.collection_mcp_secrets) : contains(["books", "notebooks"], name)])
+    error_message = "collection_mcp_secrets keys must be books or notebooks."
+  }
+}

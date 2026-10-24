@@ -1,6 +1,6 @@
 # The OAuth Worker is deployed via Wrangler with name "homelab-oauth-gateway" 
 # It has its own KV namespace and secrets configured via Wrangler, except
-# MEMORIES_GATEWAY_SECRET, CALIBRE_GATEWAY_SECRET and N8N_MCP_TOKEN, which Terraform
+# MEMORIES_GATEWAY_SECRET, CALIBRE_GATEWAY_SECRET, LIBRARY_GATEWAY_SECRET and N8N_MCP_TOKEN, which Terraform
 # owns so each matches its backend.
 
 # Custom domains for the OAuth Worker
@@ -48,6 +48,20 @@ resource "cloudflare_workers_secret" "calibre_gateway" {
   script_name = "${var.project_name}-oauth-gateway"
   name        = "CALIBRE_GATEWAY_SECRET"
   secret_text = var.calibre_gateway_secret
+}
+
+resource "cloudflare_workers_domain" "library_mcp_gateway" {
+  account_id = var.cloudflare_account_id
+  hostname   = "library-mcp.${var.domain_suffix}"
+  service    = "${var.project_name}-oauth-gateway"
+  zone_id    = var.cloudflare_zone_id
+}
+
+resource "cloudflare_workers_secret" "library_gateway" {
+  account_id  = var.cloudflare_account_id
+  script_name = "${var.project_name}-oauth-gateway"
+  name        = "LIBRARY_GATEWAY_SECRET"
+  secret_text = var.library_gateway_secret
 }
 
 # The n8n MCP access token (n8n → Settings → Instance-level MCP). The Worker sends it as

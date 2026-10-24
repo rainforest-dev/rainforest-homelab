@@ -120,6 +120,16 @@ locals {
     } : {},
 
     {
+      "library-mcp-internal" = {
+        hostname    = "library-mcp-internal"
+        service_url = module.library-hall.tunnel_service_url
+        enable_auth = false # The OAuth Worker sends the gateway secret; the app rejects calls without it
+        type        = "docker"
+        path        = "^/api/mcp$"
+      }
+    },
+
+    {
       "personal-calibre-internal" = {
         hostname    = "personal-calibre-internal"
         service_url = module.personal-calibre.tunnel_service_url
