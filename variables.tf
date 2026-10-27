@@ -88,7 +88,7 @@ variable "enable_teleport" {
 }
 
 variable "teleport_direct_access" {
-  description = "Also serve the Teleport proxy on the Mac's LAN and tailnet addresses with a Let's Encrypt cert, so nearby clients skip Cloudflare. cert-manager solves DNS-01 with cloudflare_api_token, which then needs Zone:DNS:Edit; without it the apply still succeeds but the Certificate never becomes Ready"
+  description = "Also serve the Teleport proxy on the Mac's LAN and tailnet addresses with a Let's Encrypt cert, so nearby clients skip Cloudflare. cert-manager solves DNS-01 with cloudflare_api_token, which then needs Zone:DNS:Edit; without it the apply still succeeds but the Certificate never becomes Ready. The tunnel route to tp verifies this cert, so it 502s until the cert is Ready; with this off the route skips verification of the self-signed cert"
   type        = bool
   default     = false
 }

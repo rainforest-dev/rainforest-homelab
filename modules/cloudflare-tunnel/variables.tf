@@ -72,6 +72,7 @@ variable "services" {
     # whose DNS-rebinding guard accepts only localhost/127.0.0.1.
     http_host_header   = optional(string, "")
     origin_server_name = optional(string, "")
+    no_tls_verify      = optional(bool, false)
     path               = optional(string, "")
     service_auth_only  = optional(bool, false)
   }))

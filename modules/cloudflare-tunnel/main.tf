@@ -96,9 +96,10 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         # ConfigMap even though the Deployment passes --config, so per-route options
         # MUST be set here. Editing only the ConfigMap silently has no effect.
         dynamic "origin_request" {
-          for_each = ingress_rule.value.origin_server_name != "" || ingress_rule.value.http_host_header != "" ? [1] : []
+          for_each = ingress_rule.value.origin_server_name != "" || ingress_rule.value.no_tls_verify || ingress_rule.value.http_host_header != "" ? [1] : []
           content {
             origin_server_name = ingress_rule.value.origin_server_name
+            no_tls_verify      = ingress_rule.value.no_tls_verify
             http_host_header   = ingress_rule.value.http_host_header
           }
         }
@@ -317,10 +318,13 @@ data:
         path: '${config.path}'
 %{endif~}
         service: ${config.service_url}
-%{if config.origin_server_name != "" || config.http_host_header != ""~}
+%{if config.origin_server_name != "" || config.no_tls_verify || config.http_host_header != ""~}
         originRequest:
 %{if config.origin_server_name != ""~}
           originServerName: ${config.origin_server_name}
+%{endif~}
+%{if config.no_tls_verify~}
+          noTLSVerify: true
 %{endif~}
 %{if config.http_host_header != ""~}
           httpHostHeader: ${config.http_host_header}
