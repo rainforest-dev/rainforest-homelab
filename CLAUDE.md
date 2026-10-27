@@ -227,6 +227,9 @@ This pattern ensures consistency and eliminates the need to update multiple loca
 
 - `http_host_header`: Rewrite the `Host` sent to the origin. Needed by origins that
   reject unexpected `Host` values — see the Docker MCP Gateway's DNS-rebinding guard.
+- `origin_server_name`: SNI and certificate name for an `https://` origin. cloudflared verifies
+  every HTTPS origin, and it dials the cluster DNS name, which is not on the certificate, so set
+  the public hostname here (Teleport's `tp` entry does). Never set `noTLSVerify` instead.
 
 **⚠️ The remote tunnel config overrides the ConfigMap — edit the right one.**
 
