@@ -211,10 +211,11 @@ locals {
 
     var.enable_teleport ? {
       tp = {
-        hostname    = "tp"
-        service_url = "https://homelab-teleport.homelab.svc.cluster.local:443"
-        enable_auth = false # Teleport handles its own authentication
-        type        = "kubernetes"
+        hostname           = "tp"
+        service_url        = "https://homelab-teleport.homelab.svc.cluster.local:443"
+        origin_server_name = "tp.${var.domain_suffix}"
+        enable_auth        = false # Teleport handles its own authentication
+        type               = "kubernetes"
       }
     } : {},
 

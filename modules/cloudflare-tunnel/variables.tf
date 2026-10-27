@@ -70,9 +70,10 @@ variable "services" {
     # Rewrite the Host header sent to the origin. Required by origins that reject
     # unexpected Host values — e.g. the Docker MCP Gateway's streaming transport,
     # whose DNS-rebinding guard accepts only localhost/127.0.0.1.
-    http_host_header  = optional(string, "")
-    path              = optional(string, "")
-    service_auth_only = optional(bool, false)
+    http_host_header   = optional(string, "")
+    origin_server_name = optional(string, "")
+    path               = optional(string, "")
+    service_auth_only  = optional(bool, false)
   }))
   default = {}
 }
