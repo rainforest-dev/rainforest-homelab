@@ -227,6 +227,13 @@ This pattern ensures consistency and eliminates the need to update multiple loca
 
 - `http_host_header`: Rewrite the `Host` sent to the origin. Needed by origins that
   reject unexpected `Host` values — see the Docker MCP Gateway's DNS-rebinding guard.
+- `origin_server_name`: SNI and certificate name for an `https://` origin. cloudflared verifies
+  every HTTPS origin, and it dials the cluster DNS name, which is not on the certificate, so set
+  the public hostname here (Teleport's `tp` entry does). Never set `noTLSVerify` instead.
+- `no_tls_verify`: skip that check. Only `tp` uses it, and only with `teleport_direct_access = false`,
+  when Teleport has no cert-manager certificate and serves a self-signed one. With direct access on,
+  the tunnel path to Teleport depends on that Certificate being Ready: a failed DNS-01 issuance or
+  renewal makes `tp` 502 through Cloudflare too (`kubectl get certificate -n homelab`).
 
 **⚠️ The remote tunnel config overrides the ConfigMap — edit the right one.**
 

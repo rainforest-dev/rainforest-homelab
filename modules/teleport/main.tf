@@ -86,8 +86,8 @@ resource "helm_release" "teleport" {
       }
 
       # A publicly trusted cert for clusterName and *.clusterName. Clients that
-      # reach the proxy directly see it instead of the default self-signed one;
-      # the Cloudflare Tunnel path is unaffected.
+      # reach the proxy directly see it instead of the default self-signed one,
+      # and the Cloudflare Tunnel route verifies it.
       highAvailability = {
         replicaCount        = 1
         requireAntiAffinity = false

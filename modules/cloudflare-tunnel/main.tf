@@ -96,10 +96,11 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         # ConfigMap even though the Deployment passes --config, so per-route options
         # MUST be set here. Editing only the ConfigMap silently has no effect.
         dynamic "origin_request" {
-          for_each = startswith(ingress_rule.value.service_url, "https://") || ingress_rule.value.http_host_header != "" ? [1] : []
+          for_each = ingress_rule.value.origin_server_name != "" || ingress_rule.value.no_tls_verify || ingress_rule.value.http_host_header != "" ? [1] : []
           content {
-            no_tls_verify    = startswith(ingress_rule.value.service_url, "https://")
-            http_host_header = ingress_rule.value.http_host_header
+            origin_server_name = ingress_rule.value.origin_server_name
+            no_tls_verify      = ingress_rule.value.no_tls_verify
+            http_host_header   = ingress_rule.value.http_host_header
           }
         }
       }
@@ -233,6 +234,11 @@ metadata:
     app: cloudflared
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: cloudflared
@@ -258,6 +264,11 @@ spec:
           failureThreshold: 5
           initialDelaySeconds: 30
           periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 2000
+          periodSeconds: 5
         volumeMounts:
         - name: config
           mountPath: /etc/cloudflared/config
@@ -307,9 +318,12 @@ data:
         path: '${config.path}'
 %{endif~}
         service: ${config.service_url}
-%{if startswith(config.service_url, "https://") || config.http_host_header != ""~}
+%{if config.origin_server_name != "" || config.no_tls_verify || config.http_host_header != ""~}
         originRequest:
-%{if startswith(config.service_url, "https://")~}
+%{if config.origin_server_name != ""~}
+          originServerName: ${config.origin_server_name}
+%{endif~}
+%{if config.no_tls_verify~}
           noTLSVerify: true
 %{endif~}
 %{if config.http_host_header != ""~}

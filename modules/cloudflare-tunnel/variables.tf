@@ -70,9 +70,11 @@ variable "services" {
     # Rewrite the Host header sent to the origin. Required by origins that reject
     # unexpected Host values — e.g. the Docker MCP Gateway's streaming transport,
     # whose DNS-rebinding guard accepts only localhost/127.0.0.1.
-    http_host_header  = optional(string, "")
-    path              = optional(string, "")
-    service_auth_only = optional(bool, false)
+    http_host_header   = optional(string, "")
+    origin_server_name = optional(string, "")
+    no_tls_verify      = optional(bool, false)
+    path               = optional(string, "")
+    service_auth_only  = optional(bool, false)
   }))
   default = {}
 }
@@ -80,6 +82,6 @@ variable "services" {
 variable "cloudflared_version" {
   description = "cloudflared Docker image version"
   type        = string
-  default     = "2026.5.0"
+  default     = "2026.10.4"
 }
 
