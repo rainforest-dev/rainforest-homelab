@@ -368,7 +368,7 @@ variable "open_webui_image_version" {
 variable "cloudflared_version" {
   description = "cloudflared Docker image version"
   type        = string
-  default     = "2026.5.0"
+  default     = "2026.10.4"
 }
 
 variable "synology_drive_path" {

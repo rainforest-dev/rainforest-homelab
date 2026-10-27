@@ -80,6 +80,6 @@ variable "services" {
 variable "cloudflared_version" {
   description = "cloudflared Docker image version"
   type        = string
-  default     = "2026.5.0"
+  default     = "2026.10.4"
 }
 

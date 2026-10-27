@@ -233,6 +233,11 @@ metadata:
     app: cloudflared
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: cloudflared
@@ -258,6 +263,11 @@ spec:
           failureThreshold: 5
           initialDelaySeconds: 30
           periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 2000
+          periodSeconds: 5
         volumeMounts:
         - name: config
           mountPath: /etc/cloudflared/config
