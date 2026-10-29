@@ -24,13 +24,10 @@ Everything else is in the app's GUI, which no CLI or config file drives.
      proxy is needed, and one would put the API on the internet;
    - turn on Startup with macOS, and skip the Firebase/Google sign-in (only the BlueBubbles
      phone apps need it).
-4. Append the Hermes credentials and restart the gateway:
-   ```bash
-   terraform output -raw bluebubbles_hermes_env >> ~/.hermes/.env
-   echo 'BLUEBUBBLES_ALLOWED_USERS=<your phone or Apple ID>' >> ~/.hermes/.env
-   launchctl kickstart -k gui/$(id -u)/ai.hermes.gateway
-   ```
-   This needs a Hermes with the `bluebubbles` platform plugin (v0.22.x).
+4. Nothing to copy: the apply writes `BLUEBUBBLES_SERVER_URL`, `BLUEBUBBLES_PASSWORD` and, from
+   `bluebubbles_allowed_users`, `BLUEBUBBLES_ALLOWED_USERS` into `~/.hermes/.env` (other keys are
+   kept, mode 0600) and restarts `ai.hermes.gateway`. Set `hermes_env_path = ""` to skip it. This
+   needs a Hermes with the `bluebubbles` platform plugin (v0.22.x).
 5. Check `hermes logs gateway` for `[bluebubbles] connected to http://127.0.0.1:1234` and
    `webhook registered with server`, then text the agent's Apple ID from your phone.
 

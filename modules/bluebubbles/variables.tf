@@ -27,3 +27,21 @@ variable "app_dir" {
   type        = string
   default     = "/Applications"
 }
+
+variable "allowed_users" {
+  description = "Phone numbers or Apple IDs Hermes answers on iMessage (BLUEBUBBLES_ALLOWED_USERS)"
+  type        = list(string)
+  default     = []
+}
+
+variable "hermes_env_path" {
+  description = "Hermes .env to write the BLUEBUBBLES_* keys into; empty to leave Hermes alone"
+  type        = string
+  default     = "~/.hermes/.env"
+}
+
+variable "hermes_gateway_label" {
+  description = "launchd label of the Hermes gateway, restarted after the .env changes"
+  type        = string
+  default     = "ai.hermes.gateway"
+}

@@ -383,6 +383,12 @@ variable "enable_bluebubbles" {
   default     = false
 }
 
+variable "bluebubbles_allowed_users" {
+  description = "Phone numbers or Apple IDs Hermes answers on iMessage"
+  type        = list(string)
+  default     = []
+}
+
 variable "enable_asr_mlx" {
   description = "Run Qwen3-ASR on the host with MLX behind llama-swap and make it whisper's default model"
   type        = bool
