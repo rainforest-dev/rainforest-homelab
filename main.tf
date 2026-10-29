@@ -398,7 +398,6 @@ module "bluebubbles" {
   source = "./modules/bluebubbles"
 
   server_password = random_password.bluebubbles_password[0].result
-  allowed_users   = var.bluebubbles_allowed_users
 }
 
 module "whisper" {

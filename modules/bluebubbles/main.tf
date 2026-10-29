@@ -33,32 +33,3 @@ resource "null_resource" "install" {
     EOT
   }
 }
-
-locals {
-  hermes_env = join("\n", compact([
-    "BLUEBUBBLES_SERVER_URL=http://127.0.0.1:${var.port}",
-    "BLUEBUBBLES_PASSWORD=${var.server_password}",
-    length(var.allowed_users) > 0 ? "BLUEBUBBLES_ALLOWED_USERS=${join(",", var.allowed_users)}" : "",
-  ]))
-}
-
-resource "null_resource" "hermes_env" {
-  count = var.hermes_env_path == "" ? 0 : 1
-
-  triggers = {
-    env_sha = sha256(local.hermes_env)
-    script  = filemd5("${path.module}/set_env.py")
-    path    = pathexpand(var.hermes_env_path)
-  }
-
-  provisioner "local-exec" {
-    environment = {
-      BB_ENV = local.hermes_env
-    }
-    command = <<-EOT
-      set -euo pipefail
-      printf '%s\n' "$BB_ENV" | python3 -I "${abspath(path.module)}/set_env.py" "${self.triggers.path}"
-      launchctl kickstart -k "gui/$(id -u)/${var.hermes_gateway_label}" 2>/dev/null || true
-    EOT
-  }
-}
