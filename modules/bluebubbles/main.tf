@@ -35,11 +35,11 @@ resource "null_resource" "install" {
 }
 
 locals {
-  hermes_env = join("\n", compact([
+  hermes_env = join("\n", [
     "BLUEBUBBLES_SERVER_URL=http://127.0.0.1:${var.port}",
     "BLUEBUBBLES_PASSWORD=${var.server_password}",
-    length(var.allowed_users) > 0 ? "BLUEBUBBLES_ALLOWED_USERS=${join(",", var.allowed_users)}" : "",
-  ]))
+    "BLUEBUBBLES_ALLOWED_USERS=${join(",", var.allowed_users)}",
+  ])
 }
 
 resource "null_resource" "hermes_env" {
