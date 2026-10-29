@@ -362,7 +362,7 @@ variable "teleport_storage_path" {
 variable "open_webui_image_version" {
   description = "Open WebUI Docker image version"
   type        = string
-  default     = "v0.9.5"
+  default     = "v0.11.4"
 }
 
 variable "cloudflared_version" {
