@@ -120,7 +120,7 @@ variable "external_storage_path" {
 variable "image_version" {
   description = "Open WebUI Docker image version"
   type        = string
-  default     = "v0.9.5"
+  default     = "v0.11.4"
 }
 
 variable "image_gen_url" {
