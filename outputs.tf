@@ -108,3 +108,15 @@ output "asr_mlx_api_key" {
   value       = var.enable_asr_mlx ? random_password.asr_mlx_api_key[0].result : null
   sensitive   = true
 }
+
+output "bluebubbles_password" {
+  description = "Password to set in BlueBubbles Server > Settings > Connection"
+  value       = var.enable_bluebubbles ? random_password.bluebubbles_password[0].result : null
+  sensitive   = true
+}
+
+output "bluebubbles_hermes_env" {
+  description = "BLUEBUBBLES_* lines for ~/.hermes/.env"
+  value       = var.enable_bluebubbles ? module.bluebubbles[0].hermes_env : null
+  sensitive   = true
+}

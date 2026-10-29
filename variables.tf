@@ -377,6 +377,12 @@ variable "synology_drive_path" {
   default     = ""
 }
 
+variable "enable_bluebubbles" {
+  description = "Install BlueBubbles Server on this Mac so Hermes can use iMessage"
+  type        = bool
+  default     = false
+}
+
 variable "enable_asr_mlx" {
   description = "Run Qwen3-ASR on the host with MLX behind llama-swap and make it whisper's default model"
   type        = bool

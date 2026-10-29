@@ -909,6 +909,16 @@ header passes through, which n8n needs (`MCP-Protocol-Version`, `Mcp-Method`, `M
 - The older catalog `n8n` server in the Docker MCP gateway (n8n-mcp 2.22.17) still reads
   workflows but cannot create them (a Zod 4 bug); prefer this one for building.
 
+## BlueBubbles (iMessage for Hermes Agent)
+
+`modules/bluebubbles` (`enable_bluebubbles`) installs BlueBubbles Server 1.9.12 from the pinned,
+SHA-256-checked GitHub DMG into `/Applications`; the Homebrew cask is stuck on a disabled 1.9.9.
+Hermes Agent (a git install at `~/.hermes/hermes-agent`, outside this repo) reaches it at
+`127.0.0.1:1234`, and BlueBubbles posts to Hermes's webhook at `127.0.0.1:8645`. Use the LAN proxy
+mode in the app, never its Cloudflare or Ngrok proxy. The app's wizard, permissions and password
+are GUI-only; `modules/bluebubbles/README.md` has the steps. Whoever is signed into Messages on
+this Mac is the account Hermes reads in full.
+
 ## Whisper Speech-to-Text Service
 
 The homelab includes a self-hosted **Whisper STT API** for speech-to-text transcription using OpenAI's Whisper model.

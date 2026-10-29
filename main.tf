@@ -387,6 +387,19 @@ module "asr_mlx" {
   api_key = random_password.asr_mlx_api_key[0].result
 }
 
+resource "random_password" "bluebubbles_password" {
+  count   = var.enable_bluebubbles ? 1 : 0
+  length  = 40
+  special = false
+}
+
+module "bluebubbles" {
+  count  = var.enable_bluebubbles ? 1 : 0
+  source = "./modules/bluebubbles"
+
+  server_password = random_password.bluebubbles_password[0].result
+}
+
 module "whisper" {
   source = "./modules/whisper"
 
