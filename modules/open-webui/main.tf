@@ -137,7 +137,15 @@ resource "helm_release" "open-webui" {
 
   values = [
     yamlencode({
-      fullnameOverride = "${var.project_name}-open-webui"
+      # Chart 10.x named every object after the chart ("open-webui"), chart 11+ after
+      # fullnameOverride. Keeping the old names keeps the live PVCs open-webui and
+      # open-webui-pipelines (webui.db lives there, reclaimPolicy Delete): any other
+      # name makes Helm delete them on upgrade.
+      fullnameOverride = "open-webui"
+
+      pipelines = {
+        fullnameOverride = "open-webui-pipelines"
+      }
 
       ollama = {
         enabled = var.ollama_enabled
