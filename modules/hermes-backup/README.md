@@ -6,8 +6,10 @@ the `hermes-agent` checkout: `config.yaml`, `.env`, `auth.json`, `SOUL.md`, prof
 plugins, memories, cron, `state.db` and sessions. That is about 165 MB, written in about 15 s
 (measured 2026-10-29).
 
-The zips hold Hermes's secrets, so the directory is `0700` and the job runs with `umask 077`.
-They stay on the T7, never in iCloud or Drive.
+The zips hold Hermes's secrets (`.env`, `auth.json`) in plain text. The directory is `0700` and the
+job runs with `umask 077`, but that only holds on this Mac: the T7 is unencrypted APFS with owners
+disabled, so anyone who plugs it into another machine can read every zip. Encrypting the T7, or
+moving `backup_dir` to an encrypted volume, is what protects them.
 
 The run is skipped and logged when the T7 is not mounted. Log: `~/Library/Logs/hermes-backup.log`.
 

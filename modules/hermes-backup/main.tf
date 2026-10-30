@@ -29,8 +29,7 @@ resource "null_resource" "launchd" {
   provisioner "local-exec" {
     command = <<-EOT
       set -e
-      mkdir -p "${local.backup_dir}"
-      chmod 700 "${local.backup_dir}"
+      if mkdir -p "${local.backup_dir}" 2>/dev/null; then chmod 700 "${local.backup_dir}"; else echo "hermes-backup: ${local.backup_dir} not reachable; the job skips nights until it is"; fi
       launchctl bootout "gui/$(id -u)/${self.triggers.label}" 2>/dev/null || true
       launchctl bootstrap "gui/$(id -u)" "${self.triggers.plist_path}"
     EOT
