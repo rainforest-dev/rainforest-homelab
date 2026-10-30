@@ -4,7 +4,7 @@ import { Octokit } from "octokit";
 import { servedOrigin } from "./hosts";
 import { fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, type Props } from "./utils";
 import {
-	OAUTH_STATE_COOKIE,
+	OAUTH_STATE_COOKIE_PREFIX,
 	SHORT_LIVED_SECONDS,
 	clientIdAlreadyApproved,
 	parseRedirectApproval,
@@ -25,6 +25,7 @@ interface ExtendedEnv {
 
 type PendingAuth = { oauthReqInfo: AuthRequest; originUrl: string };
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const stateKey = (nonce: string) => `oauth_state:${nonce}`;
 
 const app = new Hono<{ Bindings: ExtendedEnv }>();
@@ -89,7 +90,7 @@ app.get("/authorize", async (c) => {
 		if (
 			await clientIdAlreadyApproved(c.req.raw, oauthReqInfo.clientId, c.env.COOKIE_ENCRYPTION_KEY)
 		) {
-			return redirectToGithub(c.req.raw, oauthReqInfo, c.env);
+			return await redirectToGithub(c.req.raw, oauthReqInfo, c.env);
 		}
 
 		return renderApprovalDialog(c.req.raw, {
@@ -100,7 +101,6 @@ app.get("/authorize", async (c) => {
 				name: "Docker MCP Gateway",
 			},
 			state: { oauthReqInfo },
-			csrfToken: crypto.randomUUID(),
 		});
 	} catch (error) {
 		console.error("[OAuth] Authorization endpoint error:", error);
@@ -133,7 +133,7 @@ app.post("/authorize", async (c) => {
 			}, 400);
 		}
 
-		return redirectToGithub(c.req.raw, state.oauthReqInfo, c.env, headers);
+		return await redirectToGithub(c.req.raw, state.oauthReqInfo, c.env, headers);
 	} catch (error) {
 		console.error("[OAuth] Authorization approval error:", error);
 		const errorMessage = error instanceof Error ? error.message : String(error);
@@ -185,7 +185,7 @@ async function redirectToGithub(
 	const response = new Headers(headers);
 	response.append(
 		"Set-Cookie",
-		`${OAUTH_STATE_COOKIE}=${nonce}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${SHORT_LIVED_SECONDS}`,
+		`${OAUTH_STATE_COOKIE_PREFIX}${nonce}=1; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${SHORT_LIVED_SECONDS}`,
 	);
 	response.set(
 		"location",
@@ -219,7 +219,9 @@ app.get("/callback", async (c) => {
 			}, 400);
 		}
 
-		const stored = await c.env.OAUTH_KV.get<PendingAuth>(stateKey(stateParam), "json");
+		const stored = UUID.test(stateParam)
+			? await c.env.OAUTH_KV.get<PendingAuth>(stateKey(stateParam), "json")
+			: null;
 		if (!stored?.oauthReqInfo?.clientId) {
 			return c.json({
 				error: "invalid_request",
@@ -246,7 +248,7 @@ app.get("/callback", async (c) => {
 		}
 
 		// The cookie lives on the host that started the flow, so it is checked only there.
-		if (readCookie(c.req.header("Cookie") ?? null, OAUTH_STATE_COOKIE) !== stateParam) {
+		if (!readCookie(c.req.header("Cookie") ?? null, `${OAUTH_STATE_COOKIE_PREFIX}${stateParam}`)) {
 			return c.json({
 				error: "access_denied",
 				error_description: "This sign-in was not started in this browser"

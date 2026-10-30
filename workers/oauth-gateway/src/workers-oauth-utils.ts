@@ -5,7 +5,7 @@ import type { AuthRequest, ClientInfo } from "@cloudflare/workers-oauth-provider
 const COOKIE_NAME = "mcp-approved-clients";
 const ONE_YEAR_IN_SECONDS = 31536000;
 const CSRF_COOKIE = "__Host-mcp-csrf";
-export const OAUTH_STATE_COOKIE = "__Host-mcp-oauth-state";
+export const OAUTH_STATE_COOKIE_PREFIX = "__Host-mcp-oauth-state-";
 export const SHORT_LIVED_SECONDS = 600;
 
 export function readCookie(cookieHeader: string | null, name: string): string | null {
@@ -211,7 +211,6 @@ export interface ApprovalDialogOptions {
 	 * Will be encoded in the form and returned when approval is complete
 	 */
 	state: Record<string, any>;
-	csrfToken: string;
 	/**
 	 * Name of the cookie to use for storing approvals
 	 * @default "mcp_approved_clients"
@@ -250,7 +249,8 @@ export interface ApprovalDialogOptions {
  * @returns A Response containing the HTML approval dialog
  */
 export function renderApprovalDialog(request: Request, options: ApprovalDialogOptions): Response {
-	const { client, server, state, csrfToken } = options;
+	const { client, server, state } = options;
+	const csrfToken = readCookie(request.headers.get("Cookie"), CSRF_COOKIE) ?? crypto.randomUUID();
 
 	// Encode state for form submission
 	const encodedState = btoa(JSON.stringify(state));
