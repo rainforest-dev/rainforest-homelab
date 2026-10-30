@@ -4,8 +4,11 @@ import { Octokit } from "octokit";
 import { servedOrigin } from "./hosts";
 import { fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, type Props } from "./utils";
 import {
+	OAUTH_STATE_COOKIE,
+	SHORT_LIVED_SECONDS,
 	clientIdAlreadyApproved,
 	parseRedirectApproval,
+	readCookie,
 	renderApprovalDialog,
 } from "./workers-oauth-utils";
 
@@ -16,8 +19,13 @@ interface ExtendedEnv {
 	COOKIE_ENCRYPTION_KEY: string;
 	GITHUB_CALLBACK_URL: string;
 	ALLOWED_GITHUB_LOGINS: string;
+	OAUTH_KV: KVNamespace;
 	OAUTH_PROVIDER: OAuthHelpers;
 }
+
+type PendingAuth = { oauthReqInfo: AuthRequest; originUrl: string };
+
+const stateKey = (nonce: string) => `oauth_state:${nonce}`;
 
 const app = new Hono<{ Bindings: ExtendedEnv }>();
 
@@ -92,6 +100,7 @@ app.get("/authorize", async (c) => {
 				name: "Docker MCP Gateway",
 			},
 			state: { oauthReqInfo },
+			csrfToken: crypto.randomUUID(),
 		});
 	} catch (error) {
 		console.error("[OAuth] Authorization endpoint error:", error);
@@ -136,6 +145,11 @@ app.post("/authorize", async (c) => {
 				error_description: "OAuth service configuration error - cookie encryption not properly configured",
 				hint: "Administrator needs to set COOKIE_ENCRYPTION_KEY secret"
 			}, 500);
+		} else if (errorMessage.includes("Invalid CSRF token")) {
+			return c.json({
+				error: "access_denied",
+				error_description: "Approval form did not come from this server"
+			}, 403);
 		} else if (errorMessage.includes("Invalid request method")) {
 			return c.json({
 				error: "invalid_request",
@@ -162,21 +176,28 @@ async function redirectToGithub(
 	env: ExtendedEnv,
 	headers: Record<string, string> = {},
 ) {
-	// Store the originating hostname so the callback can complete auth on the correct issuer
-	const originUrl = new URL(request.url).origin;
-	return new Response(null, {
-		headers: {
-			...headers,
-			location: getUpstreamAuthorizeUrl({
-				client_id: env.GITHUB_CLIENT_ID,
-				redirect_uri: env.GITHUB_CALLBACK_URL,
-				scope: "read:user",
-				state: btoa(JSON.stringify({ oauthReqInfo, originUrl })),
-				upstream_url: "https://github.com/login/oauth/authorize",
-			}),
-		},
-		status: 302,
+	const nonce = crypto.randomUUID();
+	const pending: PendingAuth = { oauthReqInfo, originUrl: new URL(request.url).origin };
+	await env.OAUTH_KV.put(stateKey(nonce), JSON.stringify(pending), {
+		expirationTtl: SHORT_LIVED_SECONDS,
 	});
+
+	const response = new Headers(headers);
+	response.append(
+		"Set-Cookie",
+		`${OAUTH_STATE_COOKIE}=${nonce}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${SHORT_LIVED_SECONDS}`,
+	);
+	response.set(
+		"location",
+		getUpstreamAuthorizeUrl({
+			client_id: env.GITHUB_CLIENT_ID,
+			redirect_uri: env.GITHUB_CALLBACK_URL,
+			scope: "read:user",
+			state: nonce,
+			upstream_url: "https://github.com/login/oauth/authorize",
+		}),
+	);
+	return new Response(null, { headers: response, status: 302 });
 }
 
 /**
@@ -198,31 +219,19 @@ app.get("/callback", async (c) => {
 			}, 400);
 		}
 
-		let stateData: { oauthReqInfo: AuthRequest; originUrl?: string } | AuthRequest;
-		let oauthReqInfo: AuthRequest;
-		try {
-			stateData = JSON.parse(atob(stateParam));
-			oauthReqInfo = 'oauthReqInfo' in stateData ? stateData.oauthReqInfo : stateData;
-		} catch (error) {
-			console.error("[OAuth] Invalid state parameter:", error);
+		const stored = await c.env.OAUTH_KV.get<PendingAuth>(stateKey(stateParam), "json");
+		if (!stored?.oauthReqInfo?.clientId) {
 			return c.json({
 				error: "invalid_request",
-				error_description: "Invalid state parameter - unable to decode"
+				error_description: "Unknown or expired state"
 			}, 400);
 		}
-
-		if (!oauthReqInfo.clientId) {
-			return c.json({
-				error: "invalid_request",
-				error_description: "Invalid state - missing client_id"
-			}, 400);
-		}
+		const { oauthReqInfo, originUrl } = stored;
 
 		// If GitHub redirected to docker-mcp but auth originated from another hostname,
 		// forward to that hostname's /callback so completeAuthorization uses the correct issuer.
-		const originUrl = 'originUrl' in stateData ? stateData.originUrl : undefined;
 		const currentOrigin = new URL(c.req.url).origin;
-		if (originUrl && originUrl !== currentOrigin) {
+		if (originUrl !== currentOrigin) {
 			if (servedOrigin(new URL(originUrl)) !== originUrl) {
 				return c.json({
 					error: "invalid_request",
@@ -231,10 +240,19 @@ app.get("/callback", async (c) => {
 			}
 			const dest = new URL("/callback", originUrl);
 			dest.searchParams.set("code", c.req.query("code") || "");
-			dest.searchParams.set("state", btoa(JSON.stringify(oauthReqInfo)));
+			dest.searchParams.set("state", stateParam);
 			console.log(`[OAuth] Cross-origin callback: ${currentOrigin} → ${originUrl}`);
 			return Response.redirect(dest.toString());
 		}
+
+		// The cookie lives on the host that started the flow, so it is checked only there.
+		if (readCookie(c.req.header("Cookie") ?? null, OAUTH_STATE_COOKIE) !== stateParam) {
+			return c.json({
+				error: "access_denied",
+				error_description: "This sign-in was not started in this browser"
+			}, 403);
+		}
+		await c.env.OAUTH_KV.delete(stateKey(stateParam));
 
 		// Validate authorization code
 		const authCode = c.req.query("code");

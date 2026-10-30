@@ -608,142 +608,16 @@ reads `config.yaml`, not the profile, so it won't see profile-set config — the
 
 ## MCP Client Authentication
 
-### For Non-Web MCP Clients (Claude Code, etc.)
-
-**Option 1: Service Tokens (Recommended for Production)**
-
-1. **Create Service Token**:
-   ```bash
-   # In Cloudflare Zero Trust Dashboard:
-   # Access → Service Auth → Service Tokens → Create Service Token
-   # Name: "Docker MCP Gateway"
-   # Copy the Client ID and Client Secret
-   ```
-
-2. **Configure MCP Client**:
-   ```json
-   {
-     "mcpServers": {
-       "docker-remote": {
-         "type": "http",
-         "url": "https://docker-mcp.yourdomain.com/mcp",
-         "headers": {
-           "CF-Access-Client-Id": "your-service-token-id",
-           "CF-Access-Client-Secret": "your-service-token-secret"
-         }
-       }
-     }
-   }
-   ```
-
-3. **Update Zero Trust Policy** (add to Docker MCP service):
-   ```bash
-   # In Cloudflare Dashboard:
-   # Access → Applications → Docker MCP → Policies
-   # Edit policy → Add Include rule → Service Token
-   # Select your created service token
-   ```
-
-**Option 2: Disable Authentication (Development Only)**
-```hcl
-# In locals.tf - set enable_auth = false for docker-mcp
-"docker-mcp" = {
-  hostname     = "docker-mcp"
-  service_url  = "http://host.docker.internal:3101"
-  enable_auth  = false  # No Zero Trust authentication
-  type         = "docker"
-}
-```
-
-**Option 3: Local Development**
-```json
-{
-  "mcpServers": {
-    "docker-local": {
-      "type": "http",
-      "url": "http://localhost:3101/mcp"  // Bypasses Cloudflare entirely
-    }
-  }
-}
-```
-
-**Service Token Benefits:**
-- **Programmatic Access**: No browser interaction required
-- **Secure**: Scoped to specific applications  
-- **Rotatable**: Can be regenerated/revoked anytime
-- **Auditable**: All access logged in Cloudflare Analytics
-
-## Persistent OAuth Setup (Recommended)
-
-The OAuth Worker now provides **persistent client registration** managed by Terraform. This ensures OAuth credentials survive deployments and infrastructure changes.
-
-### **Automatic Client Registration**
-
-Terraform automatically registers an OAuth client when deploying the infrastructure:
-
-```bash
-terraform apply
-```
-
-The client registration happens via:
-1. **OAuth Worker Deployment**: Professional TypeScript OAuth Worker with GitHub authentication
-2. **Client Registration**: Terraform runs `scripts/register-oauth-client.sh` automatically
-3. **Credential Storage**: Client ID and secret stored in local files for persistence
-4. **Output Generation**: Terraform outputs provide ready-to-use MCP configuration
-
-### **Using Persistent Credentials**
-
-After `terraform apply`, get your persistent OAuth credentials:
-
-```bash
-# Get client ID
-terraform output claude_oauth_client_id
-
-# Get client secret
-terraform output claude_oauth_client_secret
-```
-
-### **MCP Client Configuration**
-
-Use the Terraform-generated credentials for permanent OAuth setup:
+MCP clients sign in through the OAuth Worker (`workers/oauth-gateway`): they register themselves
+with Dynamic Client Registration at `/register`, then the user signs in with GitHub. Only the
+logins in `ALLOWED_GITHUB_LOGINS` get a token. Nothing to configure in the client beyond the URL:
 
 ```json
-{
-  "mcpServers": {
-    "docker-remote": {
-      "type": "http",
-      "url": "https://docker-mcp.rainforest.tools/mcp",
-      "oauth": {
-        "client_id": "3E4n4MoSYkyIXXBo",
-        "client_secret": "jkpYLZKtgGJfi0gT6wKgIqEm8KGBimGt"
-      }
-    }
-  }
-}
+{ "mcpServers": { "docker-remote": { "type": "http", "url": "https://docker-mcp.rainforest.tools/mcp" } } }
 ```
 
-### **Benefits of Persistent OAuth**
-
-- ✅ **Infrastructure as Code**: OAuth client managed by Terraform
-- ✅ **Deployment Resilience**: Credentials persist across Worker redeployments  
-- ✅ **Automatic Registration**: No manual client setup required
-- ✅ **Team Sharing**: Consistent credentials across team members
-- ✅ **Backup & Restore**: Credentials stored in Terraform state
-- ✅ **Professional OAuth 2.0**: Full GitHub authentication flow with approval dialog
-
-### **Manual Client Registration** (Alternative)
-
-If needed, you can manually register additional clients:
-
-```bash
-# Run the registration script
-./scripts/register-oauth-client.sh
-
-# Or use curl directly
-curl -X POST "https://docker-mcp.rainforest.tools/register" \
-  -H "Content-Type: application/json" \
-  -d '{"client_name": "My Client", "redirect_uris": ["https://example.com/callback"]}'
-```
+For local development, `http://localhost:3101/mcp` reaches the gateway directly. Never put a
+client ID or secret in this file: the repo is public.
 
 ## Memories MCP (read-only, behind the OAuth Worker)
 

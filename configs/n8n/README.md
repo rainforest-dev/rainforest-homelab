@@ -408,6 +408,30 @@ Then check that the workflows still run: the shared inbox picks up a test file, 
 alone will refuse the migrated schema. Follow "Restore the Postgres database" in
 `configs/backup/RESTORE.md`, using the `pg_dumpall-<ts>.sql.gz` that step 1 wrote.
 
+## Rotating the encryption key
+
+`N8N_ENCRYPTION_KEY` comes from `random_password.n8n_encryption_key` in the root `main.tf`.
+Stored credentials are encrypted with it, and n8n also writes the key into
+`/home/node/.n8n/config`; it refuses to start when that file and the env disagree. So a new key
+needs the credentials exported under the old one and imported under the new one.
+
+```bash
+# 1. Export every credential, decrypted, and copy it off the pod
+kubectl exec -n homelab deploy/homelab-n8n -- n8n export:credentials --all --decrypted --output=/home/node/.n8n/creds.json
+kubectl cp homelab/$(kubectl get pod -n homelab -l app=n8n -o name | cut -d/ -f2):/home/node/.n8n/creds.json ./n8n-creds.json
+
+# 2. Drop the stored key so n8n takes the new one from the env, then roll out the new key
+kubectl exec -n homelab deploy/homelab-n8n -- sh -c 'rm /home/node/.n8n/creds.json /home/node/.n8n/config'
+terraform apply -target=random_password.n8n_encryption_key -target=module.n8n
+
+# 3. Import under the new key, then delete every decrypted copy
+kubectl cp ./n8n-creds.json homelab/$(kubectl get pod -n homelab -l app=n8n -o name | cut -d/ -f2):/home/node/.n8n/creds.json
+kubectl exec -n homelab deploy/homelab-n8n -- sh -c 'n8n import:credentials --input=/home/node/.n8n/creds.json && rm /home/node/.n8n/creds.json'
+rm ./n8n-creds.json
+```
+
+Then run one workflow that uses a credential (the shared inbox) to confirm it decrypts.
+
 ### Instance-level MCP server (n8n 2.18.4 and later)
 
 n8n ships its own MCP server at `/mcp-server/http`. Turn it on in **Settings → Instance-level

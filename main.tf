@@ -11,6 +11,11 @@ resource "random_password" "n8n_password" {
   special = true
 }
 
+resource "random_password" "n8n_encryption_key" {
+  length  = 48
+  special = false
+}
+
 resource "kubernetes_namespace" "homelab" {
   metadata {
     name = "homelab"
@@ -368,7 +373,7 @@ module "n8n" {
   postgres_user    = module.postgresql.postgresql_username
 
   # Encryption
-  encryption_key = "n8n-homelab-encryption-key-2024"
+  encryption_key = random_password.n8n_encryption_key.result
 
   # Shared inbox: only the iCloud Inbox/ folder is mounted into the pod
   inbox_host_path = pathexpand(var.inbox_host_path)
