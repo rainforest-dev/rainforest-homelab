@@ -121,7 +121,7 @@ module "open-webui" {
   ollama_enabled     = false
   ollama_base_url    = var.ollama_base_url
   chart_repository   = "https://helm.openwebui.com/"
-  chart_version      = "10.2.1" # Updated to latest version
+  chart_version      = "16.6.0" # Open WebUI 0.11.4. This, not image_version, sets the running version.
 
   # Switch to Helm deployment with PostgreSQL database
   deployment_type = "helm"
@@ -143,7 +143,7 @@ module "open-webui" {
   image_gen_url     = var.enable_comfyui_adapter ? "https://image-gen.${var.domain_suffix}" : ""
   image_gen_api_key = var.image_gen_api_key
 
-  # Pinned image version (used by docker deployment_type)
+  # Only used when deployment_type = "docker". With "helm" the chart_version above decides the image.
   image_version = var.open_webui_image_version
 
   # No longer depends on PostgreSQL database - using SQLite
