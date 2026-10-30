@@ -135,3 +135,15 @@ variable "image_gen_api_key" {
   default     = ""
   sensitive   = true
 }
+
+variable "existing_claim" {
+  description = "PVC holding /app/backend/data (webui.db, uploads) for the Helm deployment"
+  type        = string
+  default     = "open-webui"
+}
+
+variable "pipelines_existing_claim" {
+  description = "PVC holding the pipelines data for the Helm deployment"
+  type        = string
+  default     = "open-webui-pipelines"
+}

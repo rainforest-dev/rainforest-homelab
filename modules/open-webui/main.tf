@@ -206,33 +206,18 @@ resource "helm_release" "open-webui" {
         }
       }
 
-      # Persistence configuration
-      persistence = var.use_external_storage ? {
-        enabled       = false # Disable helm persistence when using external storage
-        existingClaim = ""    # No existing claim
-        storageClass  = ""    # No storage class
-        } : {
-        enabled = var.enable_persistence
-        size    = var.storage_size
+      # Chart 11+ names new PVCs after fullnameOverride; pin the claims chart 10 created.
+      persistence = {
+        enabled       = var.enable_persistence
+        existingClaim = var.existing_claim
       }
 
-      # External storage configuration
-      extraVolumes = var.use_external_storage ? [
-        {
-          name = "external-storage"
-          hostPath = {
-            path = "${var.external_storage_path}/open-webui"
-            type = "DirectoryOrCreate"
-          }
+      pipelines = {
+        persistence = {
+          enabled       = var.enable_persistence
+          existingClaim = var.pipelines_existing_claim
         }
-      ] : []
-
-      extraVolumeMounts = var.use_external_storage ? [
-        {
-          name      = "external-storage"
-          mountPath = "/app/backend/data"
-        }
-      ] : []
+      }
     })
   ]
 }
