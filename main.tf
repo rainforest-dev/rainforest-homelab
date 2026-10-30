@@ -324,6 +324,11 @@ resource "random_password" "memories_mcp_secret" {
   special = false
 }
 
+module "hermes_backup" {
+  source = "./modules/hermes-backup"
+  count  = var.enable_hermes_backup ? 1 : 0
+}
+
 module "memories_auto_import" {
   source = "./modules/memories-auto-import"
   count  = var.enable_memories_auto_import ? 1 : 0

@@ -287,6 +287,12 @@ variable "memories_notes_dir" {
   default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/notes/personal/memories"
 }
 
+variable "enable_hermes_backup" {
+  description = "Install the launchd agent that zips Hermes Agent's config and data to the T7 nightly"
+  type        = bool
+  default     = false
+}
+
 variable "enable_memories_auto_import" {
   description = "Install the launchd agent that imports LINE drops and Photos into the memories data directory"
   type        = bool
