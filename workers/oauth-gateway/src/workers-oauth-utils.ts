@@ -4,6 +4,18 @@ import type { AuthRequest, ClientInfo } from "@cloudflare/workers-oauth-provider
 
 const COOKIE_NAME = "mcp-approved-clients";
 const ONE_YEAR_IN_SECONDS = 31536000;
+const CSRF_COOKIE = "__Host-mcp-csrf";
+export const OAUTH_STATE_COOKIE_PREFIX = "__Host-mcp-oauth-state-";
+export const SHORT_LIVED_SECONDS = 600;
+
+export function readCookie(cookieHeader: string | null, name: string): string | null {
+	if (!cookieHeader) return null;
+	for (const part of cookieHeader.split(";")) {
+		const [key, ...rest] = part.trim().split("=");
+		if (key === name) return rest.join("=");
+	}
+	return null;
+}
 
 // --- Helper Functions ---
 
@@ -238,6 +250,7 @@ export interface ApprovalDialogOptions {
  */
 export function renderApprovalDialog(request: Request, options: ApprovalDialogOptions): Response {
 	const { client, server, state } = options;
+	const csrfToken = readCookie(request.headers.get("Cookie"), CSRF_COOKIE) ?? crypto.randomUUID();
 
 	// Encode state for form submission
 	const encodedState = btoa(JSON.stringify(state));
@@ -544,6 +557,7 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
             
             <form method="post" action="${new URL(request.url).pathname}">
               <input type="hidden" name="state" value="${encodedState}">
+              <input type="hidden" name="csrf_token" value="${sanitizeHtml(csrfToken)}">
               
               <div class="actions">
                 <button type="button" class="button button-secondary" onclick="window.history.back()">Cancel</button>
@@ -559,6 +573,8 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
 	return new Response(htmlContent, {
 		headers: {
 			"Content-Type": "text/html; charset=utf-8",
+			"Set-Cookie": `${CSRF_COOKIE}=${csrfToken}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${SHORT_LIVED_SECONDS}`,
+			"X-Frame-Options": "DENY",
 		},
 	});
 }
@@ -595,6 +611,14 @@ export async function parseRedirectApproval(
 
 	try {
 		const formData = await request.formData();
+		const csrfToken = formData.get("csrf_token");
+		if (
+			typeof csrfToken !== "string" ||
+			!csrfToken ||
+			readCookie(request.headers.get("Cookie"), CSRF_COOKIE) !== csrfToken
+		) {
+			throw new Error("Invalid CSRF token.");
+		}
 		const encodedState = formData.get("state");
 
 		if (typeof encodedState !== "string" || !encodedState) {
