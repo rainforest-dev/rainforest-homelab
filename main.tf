@@ -518,6 +518,19 @@ module "grafana_alloy" {
   log_opts                    = {}
 }
 
+module "windows_alloy" {
+  count  = var.enable_windows_monitoring ? 1 : 0
+  source = "./modules/windows-alloy"
+
+  ssh_host                    = var.windows_ssh_host
+  machine                     = "rainforest-windows"
+  alloy_version               = var.windows_alloy_version
+  alloy_sha256                = var.windows_alloy_sha256
+  prometheus_remote_write_url = var.rpi_prometheus_url
+  loki_push_url               = var.rpi_loki_url
+  comfyui_log_path            = var.windows_comfyui_log_path
+}
+
 module "docker_stats_metrics" {
   source = "./modules/docker-stats-metrics"
 

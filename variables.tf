@@ -389,6 +389,36 @@ variable "enable_asr_mlx" {
   default     = false
 }
 
+variable "enable_windows_monitoring" {
+  description = "Install Grafana Alloy on the Windows PC. The PC must be awake during apply"
+  type        = bool
+  default     = false
+}
+
+variable "windows_ssh_host" {
+  description = "SSH host of the Windows PC, as named in ~/.ssh/config"
+  type        = string
+  default     = "rainforest-windows"
+}
+
+variable "windows_alloy_version" {
+  description = "Grafana Alloy release installed on the Windows PC"
+  type        = string
+  default     = "v1.21.3"
+}
+
+variable "windows_alloy_sha256" {
+  description = "SHA-256 of alloy-installer-windows-amd64.exe for windows_alloy_version"
+  type        = string
+  default     = "27bab9715c5388b08d41659c2989b164c7efa20108717280a0f4dd9f69a41976"
+}
+
+variable "windows_comfyui_log_path" {
+  description = "ComfyUI log file on the Windows PC, with forward slashes"
+  type        = string
+  default     = "C:/Users/rainf/ComfyUI/logs/err.log"
+}
+
 variable "enable_comfyui_adapter" {
   description = "Enable the ComfyUI OpenAI-compatible image generation adapter"
   type        = bool

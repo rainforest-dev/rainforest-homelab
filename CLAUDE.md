@@ -24,6 +24,7 @@ Each service is organized as a Terraform module in `modules/`:
 - Application modules: `calibre-web/`, `flowise/`, `n8n/`, `open-webui/`, `homepage/`, `whisper/`
 - AI/ML services: `whisper/` (Speech-to-Text API using faster-whisper)
 - External services: `openspeedtest/` (moved to Raspberry Pi)
+- Windows PC: `windows-alloy/` (native Grafana Alloy, installed over SSH)
 - Legacy modules: `traefik/` (removed - replaced by pure Cloudflare Tunnel), `coredns/` (DNS - replaced by Cloudflare), `nfs-persistence/` (storage)
 
 ### Standardized Module Structure
@@ -1063,6 +1064,20 @@ Once running, Alloy scrapes it at `host.docker.internal:9100` and pushes metrics
 brew services info node_exporter
 curl http://localhost:9100/metrics | grep node_cpu_seconds_total | head -3
 ```
+
+### Windows PC (`modules/windows-alloy`)
+
+`enable_windows_monitoring = true` installs native Alloy on the Windows PC over SSH, with the same
+push to the Pi as the Mac Mini: `job="windows-node"`, `machine="rainforest-windows"`, plus Windows
+events (Warning and above, `job="windows-events"`) and ComfyUI's log (`job="comfyui"`) in Loki. Alloy
+has no GPU collector, so the `HomelabGpuMetrics` startup task writes `nvidia_gpu_*` through the
+textfile collector every 30 s, the way `docker-stats-metrics` does on the Mac.
+
+- **Apply:** the PC must be awake, or the apply fails at `ssh`. Only a changed trigger touches it.
+- **Asleep or off:** the PC pushes, so its series just stop. No alert keys on `windows-node`, and
+  none should: the PC is on-demand, and a stale `up` is expected.
+- **Upgrade:** set `windows_alloy_version` and `windows_alloy_sha256` from the release's `SHA256SUMS`.
+- **Check:** `sc query Alloy` on the PC; `up{job="windows-node"}` in Prometheus.
 
 ## Security Considerations
 
