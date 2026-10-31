@@ -11,7 +11,6 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 $alloyDir = 'C:\Program Files\GrafanaLabs\Alloy'
-$homelabDir = Join-Path $env:ProgramData 'homelab'
 $taskName = 'HomelabGpuMetrics'
 
 $installer = Join-Path $env:TEMP "alloy-installer-$Version.exe"
@@ -35,11 +34,11 @@ $process = Start-Process -FilePath $installer -Wait -PassThru -ArgumentList @(
 Remove-Item -LiteralPath $installer
 if ($process.ExitCode -ne 0) { throw "alloy installer exited with $($process.ExitCode)" }
 
-New-Item -ItemType Directory -Force -Path $homelabDir, (Join-Path $alloyDir 'textfile_inputs') | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $alloyDir 'textfile_inputs') | Out-Null
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'alloy.river') -Destination (Join-Path $alloyDir 'config.alloy') -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'gpu-metrics.ps1') -Destination $homelabDir -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'gpu-metrics.ps1') -Destination $alloyDir -Force
 
-$arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$homelabDir\gpu-metrics.ps1`" -OutputDir `"$alloyDir\textfile_inputs`""
+$arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$alloyDir\gpu-metrics.ps1`" -OutputDir `"$alloyDir\textfile_inputs`""
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
