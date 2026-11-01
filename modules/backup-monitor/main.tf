@@ -45,7 +45,7 @@ resource "kubernetes_cron_job_v1" "backup_monitor" {
                   set -u
                   STALE=""
                   for b in ${join(" ", var.buckets)}; do
-                    fresh=$(find "/t7/$b" -type f -size +0c -mmin -${var.max_age_minutes} 2>/dev/null | wc -l)
+                    fresh=$(find "/t7/$b" -type f -size +1k -mmin -${var.max_age_minutes} 2>/dev/null | wc -l)
                     total=$(find "/t7/$b" -type f 2>/dev/null | wc -l)
                     if [ "$fresh" -eq 0 ]; then
                       echo "STALE   $b (files=$total, none newer than ${var.max_age_minutes}m)"
