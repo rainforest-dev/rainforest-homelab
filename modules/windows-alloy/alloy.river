@@ -1,0 +1,80 @@
+// ─── Prometheus: host and GPU metrics ───────────────────────────────────────
+
+prometheus.exporter.windows "host" {
+  enabled_collectors = ["cpu", "memory", "logical_disk", "physical_disk", "net", "os", "system", "textfile"]
+
+  textfile {
+    directories = ["C:/Program Files/GrafanaLabs/Alloy/textfile_inputs"]
+  }
+}
+
+discovery.relabel "windows" {
+  targets = prometheus.exporter.windows.host.targets
+
+  rule {
+    target_label = "job"
+    replacement  = "windows-node"
+  }
+}
+
+prometheus.scrape "windows" {
+  targets         = discovery.relabel.windows.output
+  forward_to      = [prometheus.remote_write.rpi.receiver]
+  scrape_interval = "30s"
+  job_name        = "windows-node"
+}
+
+prometheus.remote_write "rpi" {
+  external_labels = {
+    machine = sys.env("ALLOY_MACHINE"),
+  }
+
+  endpoint {
+    url = sys.env("PROMETHEUS_REMOTE_WRITE_URL")
+
+    queue_config {
+      max_samples_per_send = 1000
+      batch_send_deadline  = "5s"
+    }
+  }
+}
+
+// ─── Loki: Windows events and ComfyUI ───────────────────────────────────────
+
+loki.source.windowsevent "system" {
+  eventlog_name          = "System"
+  xpath_query            = "*[System[(Level=1 or Level=2 or Level=3)]]"
+  use_incoming_timestamp = true
+  labels                 = {job = "windows-events", channel = "System"}
+  forward_to             = [loki.write.rpi.receiver]
+}
+
+loki.source.windowsevent "application" {
+  eventlog_name          = "Application"
+  xpath_query            = "*[System[(Level=1 or Level=2 or Level=3)]]"
+  use_incoming_timestamp = true
+  labels                 = {job = "windows-events", channel = "Application"}
+  forward_to             = [loki.write.rpi.receiver]
+}
+
+local.file_match "comfyui" {
+  path_targets = [{
+    __path__ = sys.env("COMFYUI_LOG_PATH"),
+    job      = "comfyui",
+  }]
+}
+
+loki.source.file "comfyui" {
+  targets    = local.file_match.comfyui.targets
+  forward_to = [loki.write.rpi.receiver]
+}
+
+loki.write "rpi" {
+  external_labels = {
+    machine = sys.env("ALLOY_MACHINE"),
+  }
+
+  endpoint {
+    url = sys.env("LOKI_PUSH_URL")
+  }
+}

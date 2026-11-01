@@ -337,7 +337,7 @@ variable "macos_username" {
 variable "grafana_alloy_version" {
   description = "Grafana Alloy Docker image version"
   type        = string
-  default     = "v1.8.2"
+  default     = "v1.21.3"
 }
 
 variable "rpi_prometheus_url" {
@@ -387,6 +387,72 @@ variable "enable_asr_mlx" {
   description = "Run Qwen3-ASR on the host with MLX behind llama-swap and make it whisper's default model"
   type        = bool
   default     = false
+}
+
+variable "enable_windows_monitoring" {
+  description = "Install Grafana Alloy on the Windows PC. The PC must be awake during apply"
+  type        = bool
+  default     = false
+}
+
+variable "windows_ssh_host" {
+  description = "SSH host of the Windows PC, as named in ~/.ssh/config"
+  type        = string
+  default     = "rainforest-windows"
+}
+
+variable "windows_alloy_version" {
+  description = "Grafana Alloy release installed on the Windows PC"
+  type        = string
+  default     = "v1.21.3"
+}
+
+variable "windows_alloy_sha256" {
+  description = "SHA-256 of alloy-installer-windows-amd64.exe for windows_alloy_version"
+  type        = string
+  default     = "27bab9715c5388b08d41659c2989b164c7efa20108717280a0f4dd9f69a41976"
+}
+
+variable "windows_comfyui_log_path" {
+  description = "ComfyUI log file on the Windows PC, with forward slashes"
+  type        = string
+  default     = "C:/Users/rainf/ComfyUI/logs/err.log"
+}
+
+variable "enable_windows_gpu_services" {
+  description = "Run ComfyUI, Ollama and GPU Whisper on the Windows PC. The PC must be awake during apply"
+  type        = bool
+  default     = false
+}
+
+variable "windows_ollama_version" {
+  description = "Ollama release installed on the Windows PC"
+  type        = string
+  default     = "v0.40.13"
+}
+
+variable "windows_ollama_sha256" {
+  description = "SHA-256 of OllamaSetup.exe for windows_ollama_version"
+  type        = string
+  default     = "9e3c76e54e7184c68e88a2378b909bf59bbe454f83c076cb4f4a717e946ae719"
+}
+
+variable "windows_ollama_model" {
+  description = "Model pulled on the Windows PC. The RTX 5070 has 12 GB of VRAM"
+  type        = string
+  default     = "qwen3:14b"
+}
+
+variable "windows_whisper_model" {
+  description = "Default faster-whisper model on the Windows PC"
+  type        = string
+  default     = "large-v3-turbo"
+}
+
+variable "windows_comfyui_dir" {
+  description = "ComfyUI install directory on the Windows PC"
+  type        = string
+  default     = "C:\\Users\\rainf\\ComfyUI"
 }
 
 variable "enable_comfyui_adapter" {
