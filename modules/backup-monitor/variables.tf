@@ -22,13 +22,19 @@ variable "max_age_minutes" {
 }
 
 variable "buckets" {
-  description = "Bucket directories expected under the T7 offsite copy"
+  description = "Backup directories expected under t7_path"
   type        = list(string)
-  default     = ["velero", "pi5-docker-backup", "mac-docker-backup"]
+  default = [
+    "minio-backup/velero",
+    "minio-backup/pi5-docker-backup",
+    "minio-backup/mac-docker-backup",
+    "postgres-backups",
+    "hermes-backups",
+  ]
 }
 
 variable "t7_path" {
-  description = "The offsite copy produced by minio-t7-sync"
+  description = "T7 directory that holds every backup"
   type        = string
 }
 
