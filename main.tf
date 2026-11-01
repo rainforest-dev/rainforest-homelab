@@ -531,6 +531,18 @@ module "windows_alloy" {
   comfyui_log_path            = var.windows_comfyui_log_path
 }
 
+module "windows_gpu_services" {
+  count  = var.enable_windows_gpu_services ? 1 : 0
+  source = "./modules/windows-gpu-services"
+
+  ssh_host       = var.windows_ssh_host
+  ollama_version = var.windows_ollama_version
+  ollama_sha256  = var.windows_ollama_sha256
+  ollama_model   = var.windows_ollama_model
+  whisper_model  = var.windows_whisper_model
+  comfyui_dir    = var.windows_comfyui_dir
+}
+
 module "docker_stats_metrics" {
   source = "./modules/docker-stats-metrics"
 

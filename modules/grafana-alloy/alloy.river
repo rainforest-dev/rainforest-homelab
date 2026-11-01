@@ -26,11 +26,11 @@ prometheus.scrape "n8n" {
 
 prometheus.remote_write "rpi" {
   external_labels = {
-    machine = env("ALLOY_MACHINE"),
+    machine = sys.env("ALLOY_MACHINE"),
   }
 
   endpoint {
-    url = env("PROMETHEUS_REMOTE_WRITE_URL")
+    url = sys.env("PROMETHEUS_REMOTE_WRITE_URL")
 
     queue_config {
       max_samples_per_send = 1000
@@ -84,7 +84,7 @@ loki.process "drop_self" {
 
 loki.write "rpi" {
   endpoint {
-    url = env("LOKI_PUSH_URL")
+    url = sys.env("LOKI_PUSH_URL")
   }
 }
 
@@ -137,7 +137,7 @@ otelcol.exporter.loki "agents" {
 
 otelcol.exporter.otlphttp "tempo" {
   client {
-    endpoint = env("TEMPO_OTLP_URL")
+    endpoint = sys.env("TEMPO_OTLP_URL")
     tls {
       insecure = true
     }
