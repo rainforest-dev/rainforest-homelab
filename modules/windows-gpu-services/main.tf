@@ -33,7 +33,7 @@ resource "null_resource" "services" {
   provisioner "local-exec" {
     when    = destroy
     command = <<-EOT
-      ssh -o BatchMode=yes -o ConnectTimeout=10 '${self.triggers.ssh_host}' 'schtasks /End /TN Whisper & schtasks /Delete /TN Whisper /F & schtasks /End /TN Ollama & schtasks /Delete /TN Ollama /F'
+      ssh -o BatchMode=yes -o ConnectTimeout=10 '${self.triggers.ssh_host}' 'for %t in (Whisper Ollama ComfyUI) do (schtasks /End /TN %t & schtasks /Delete /TN %t /F) & netsh advfirewall firewall delete rule name="ComfyUI 8188 Private LAN" & netsh advfirewall firewall delete rule name="Ollama 11434 Private LAN" & netsh advfirewall firewall delete rule name="Whisper 8000 Private LAN"'
     EOT
   }
 }
