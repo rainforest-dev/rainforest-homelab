@@ -29,7 +29,6 @@ variable "buckets" {
     "minio-backup/pi5-docker-backup",
     "minio-backup/mac-docker-backup",
     "postgres-backups",
-    "hermes-backups",
   ]
 }
 
