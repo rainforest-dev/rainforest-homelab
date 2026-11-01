@@ -600,7 +600,7 @@ module "docker_volume_backup" {
 module "minio_t7_sync" {
   source    = "./modules/minio-t7-sync"
   namespace = "homelab"
-  t7_path   = var.external_storage_path
+  t7_path   = "${var.external_storage_path}/minio-backup"
 }
 
 # Alerts into the Obsidian daily note when a backup stops arriving. Closes the gap
