@@ -30,7 +30,7 @@ resource "kubernetes_cron_job_v1" "pg_dump" {
               image   = var.postgres_image
               command = ["/bin/sh", "-c"]
               args = [
-                "set -eu; ts=$(date +%Y%m%d-%H%M%S); out=/dump/pg_dumpall-$ts.sql.gz; pg_dumpall -h \"$PGHOST\" -U postgres | gzip > \"$out\"; echo \"wrote $out ($(wc -c < \"$out\") bytes)\"; ls -1t /dump/pg_dumpall-*.sql.gz | tail -n +${var.keep + 1} | xargs -r rm -f"
+                "set -eu -o pipefail; ts=$(date +%Y%m%d-%H%M%S); out=/dump/pg_dumpall-$ts.sql.gz; tmp=\"$out.tmp\"; trap 'rm -f \"$tmp\"' EXIT; pg_dumpall -h \"$PGHOST\" -U postgres | gzip > \"$tmp\"; gzip -t \"$tmp\"; mv \"$tmp\" \"$out\"; echo \"wrote $out ($(wc -c < \"$out\") bytes)\"; ls -1t /dump/pg_dumpall-*.sql.gz | tail -n +${var.keep + 1} | xargs -r rm -f"
               ]
 
               env {

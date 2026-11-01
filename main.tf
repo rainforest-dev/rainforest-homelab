@@ -608,5 +608,9 @@ module "minio_t7_sync" {
 module "backup_monitor" {
   source    = "./modules/backup-monitor"
   namespace = "homelab"
-  t7_path   = "${var.external_storage_path}/minio-backup"
+  t7_path   = var.external_storage_path
+  buckets = concat(
+    ["minio-backup/velero", "minio-backup/pi5-docker-backup", "minio-backup/mac-docker-backup", "postgres-backups"],
+    var.enable_hermes_backup ? ["hermes-backups"] : [],
+  )
 }

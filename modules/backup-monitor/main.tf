@@ -2,10 +2,10 @@
 # days. Velero and the Pi's docker-volume-backup both failed every night with
 # NoSuchBucket, and nothing said a word; the failure was only found by hand.
 #
-# What it checks: the age of the newest file in each bucket directory of the T7
-# offsite copy. That single check covers the WHOLE chain end to end — a backup that
-# never ran, an upload that failed, a sync that broke, or a bucket that vanished all
-# surface the same way: the offsite copy stops getting newer.
+# What it checks: the age of the newest non-empty file in each backup directory on
+# the T7. That single check covers the WHOLE chain end to end — a backup that never
+# ran, an upload that failed, a sync that broke, or a bucket that vanished all surface
+# the same way: the copy on the T7 stops getting newer.
 #
 # Where the alert goes: the n8n webhook that appends to the Obsidian daily note, so
 # it lands in the notebook that is actually read every day. The job also exits
@@ -45,7 +45,7 @@ resource "kubernetes_cron_job_v1" "backup_monitor" {
                   set -u
                   STALE=""
                   for b in ${join(" ", var.buckets)}; do
-                    fresh=$(find "/t7/$b" -type f -mmin -${var.max_age_minutes} 2>/dev/null | wc -l)
+                    fresh=$(find "/t7/$b" -type f -size +1k -mmin -${var.max_age_minutes} 2>/dev/null | wc -l)
                     total=$(find "/t7/$b" -type f 2>/dev/null | wc -l)
                     if [ "$fresh" -eq 0 ]; then
                       echo "STALE   $b (files=$total, none newer than ${var.max_age_minutes}m)"
