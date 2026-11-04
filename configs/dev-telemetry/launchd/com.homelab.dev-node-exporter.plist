@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  node_exporter for the company MacBook Air.
+
+  Deliberately NOT `brew services start node_exporter`, which is what the Mac
+  Mini uses: brew's own plist takes no arguments, and this one needs
+  --collector.textfile.directory so ps-sampler's .prom output is picked up.
+
+  Installed by install.sh, which substitutes __HOME__ and __BREW__.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.homelab.dev-node-exporter</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__BREW__/bin/node_exporter</string>
+        <string>--web.listen-address=127.0.0.1:9100</string>
+        <string>--collector.textfile.directory=__HOME__/.local/state/dev-telemetry/textfile</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>__HOME__/Library/Logs/dev-node-exporter.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/Library/Logs/dev-node-exporter.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>Nice</key>
+    <integer>5</integer>
+</dict>
+</plist>
