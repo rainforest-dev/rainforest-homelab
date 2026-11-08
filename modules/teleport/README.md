@@ -105,6 +105,23 @@ To check: `curl -so /dev/null -w '%{time_total}\n' https://tp.rainforest.tools/w
 should drop from ~0.3 s to a few ms, and the "Network Connection" panel in the Teleport UI should show
 both legs well under 50 ms.
 
+## Upgrading
+
+Teleport supports upgrading the cluster one major version at a time: 15 to 18 is three applies
+(16, 17, 18), never one. Change `teleport_version` in the root `main.tf`, `git pull`,
+`terraform apply`, and check before the next step:
+
+```bash
+kubectl get pods -n homelab -l app.kubernetes.io/instance=homelab-teleport
+kubectl exec -n homelab deploy/homelab-teleport-auth -- tctl status
+tsh login --proxy=tp.rainforest.tools --user=rainforest
+```
+
+Back up the auth data first (the PVC is on internal disk; see `use_external_storage`).
+Keep `tsh` within one major of the cluster, and upgrade it on every machine after the last step.
+On 2026-11-08 a Homebrew `tsh` 18 against the 15 cluster wrote an empty key file and
+`tsh login` failed with `ssh: no key found`; the matching 15.x `tsh` worked.
+
 ## Configuration
 
 | Variable | Description | Default |
