@@ -117,7 +117,24 @@ kubectl exec -n homelab deploy/homelab-teleport-auth -- tctl status
 tsh login --proxy=tp.rainforest.tools --user=rainforest
 ```
 
-Back up the auth data first (the PVC is on internal disk; see `use_external_storage`).
+Back up the auth data first. The PVC is on internal disk (see `use_external_storage`) and is
+the only copy of the cluster CA, users and MFA devices, and Teleport cannot be downgraded:
+
+```bash
+B=~/Backups/teleport/$(date +%F); mkdir -p "$B" && chmod 700 "$B"
+kubectl exec -n homelab deploy/homelab-teleport-auth -- tar czf - -C /var/lib/teleport . > "$B/var-lib-teleport.tgz"
+kubectl exec -n homelab deploy/homelab-teleport-auth -- tctl get all --with-secrets > "$B/tctl-get-all.yaml"
+chmod 600 "$B"/*
+```
+
+`tctl-get-all.yaml` holds the CA private keys: keep it off the repo and cloud. To restore after
+a failed upgrade, set `teleport_version` back, apply, scale `homelab-teleport-auth` to 0, unpack
+`var-lib-teleport.tgz` into the PVC (for example from a busybox pod that mounts it), and scale
+back to 1.
+
+Teleport agents must be the cluster's major or one below. The Mac's own node agent
+(`/usr/local/bin/teleport`, a LaunchDaemon) is not managed here: upgrade it with sudo to the
+current major before the next cluster step, or it drops off when the cluster moves two ahead.
 Keep `tsh` within one major of the cluster, and upgrade it on every machine after the last step.
 On 2026-11-08 a Homebrew `tsh` 18 against the 15 cluster wrote an empty key file and
 `tsh login` failed with `ssh: no key found`; the matching 15.x `tsh` worked.
