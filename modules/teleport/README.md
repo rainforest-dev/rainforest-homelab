@@ -132,9 +132,11 @@ a failed upgrade, set `teleport_version` back, apply, scale `homelab-teleport-au
 `var-lib-teleport.tgz` into the PVC (for example from a busybox pod that mounts it), and scale
 back to 1.
 
-Teleport agents must be the cluster's major or one below. The Mac's own node agent
-(`/usr/local/bin/teleport`, a LaunchDaemon) is not managed here: upgrade it with sudo to the
-current major before the next cluster step, or it drops off when the cluster moves two ahead.
+Teleport agents must be the cluster's major or one below. Before each apply, check
+`/usr/local/bin/teleport version` on the Mac, whose node agent (a LaunchDaemon) is not managed
+here, and upgrade it with sudo to at least the target major minus one. The NAS is an agentless
+OpenSSH node and has no agent to upgrade.
+
 Keep `tsh` within one major of the cluster, and upgrade it on every machine after the last step.
 On 2026-11-08 a Homebrew `tsh` 18 against the 15 cluster wrote an empty key file and
 `tsh login` failed with `ssh: no key found`; the matching 15.x `tsh` worked.
