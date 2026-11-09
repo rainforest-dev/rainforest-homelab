@@ -15,6 +15,10 @@ cloudflare_team_name  = ""  # Add your Cloudflare Zero Trust team name (e.g., "r
 oauth_client_id     = ""  # Cloudflare Access SaaS Application Client ID
 oauth_client_secret = ""  # Cloudflare Access SaaS Application Client Secret
 
+# n8n credential encryption. Keep the value n8n already uses, or every saved credential becomes
+# unreadable. A new install can use: openssl rand -hex 32
+n8n_encryption_key = ""
+
 # Feature Flags
 enable_postgresql        = true   # Enable shared PostgreSQL database
 enable_minio            = true   # Enable MinIO S3-compatible object storage
@@ -61,6 +65,3 @@ service_token_ids = []  # Add service token IDs here for programmatic access
 # teleport_github_organizations = ["your-github-org"]  # GitHub orgs allowed to access
 # Calibre library for personal-calibre (required; directory holding metadata.db)
 calibre_library_path = "/Volumes/YourDisk/Calibre"
-
-# n8n encryption key (required). Must stay the value n8n was first started with
-# n8n_encryption_key = ""

@@ -257,9 +257,14 @@ variable "enable_n8n_mcp" {
 }
 
 variable "n8n_encryption_key" {
-  description = "n8n encryption key for stored credentials; set in terraform.tfvars, never commit it. Changing it makes existing credentials unreadable"
+  description = "n8n N8N_ENCRYPTION_KEY, which encrypts the credentials n8n stores; set in terraform.tfvars. Changing it makes every saved credential unreadable"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.n8n_encryption_key) > 0
+    error_message = "n8n_encryption_key must be set in terraform.tfvars (use the value n8n already uses)."
+  }
 }
 
 variable "n8n_mcp_token" {
