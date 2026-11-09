@@ -178,5 +178,9 @@ resource "kubernetes_config_map" "database_status" {
     force_recreate = var.force_recreate
   }
 
+  lifecycle {
+    ignore_changes = [data["initialized_at"]]
+  }
+
   depends_on = [kubernetes_job.database_init]
 }

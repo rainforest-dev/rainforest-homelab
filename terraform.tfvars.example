@@ -61,3 +61,6 @@ service_token_ids = []  # Add service token IDs here for programmatic access
 # teleport_github_organizations = ["your-github-org"]  # GitHub orgs allowed to access
 # Calibre library for personal-calibre (required; directory holding metadata.db)
 calibre_library_path = "/Volumes/YourDisk/Calibre"
+
+# n8n encryption key (required). Must stay the value n8n was first started with
+# n8n_encryption_key = ""

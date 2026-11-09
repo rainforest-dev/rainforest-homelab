@@ -368,7 +368,7 @@ module "n8n" {
   postgres_user    = module.postgresql.postgresql_username
 
   # Encryption
-  encryption_key = "n8n-homelab-encryption-key-2024"
+  encryption_key = var.n8n_encryption_key
 
   # Shared inbox: only the iCloud Inbox/ folder is mounted into the pod
   inbox_host_path = pathexpand(var.inbox_host_path)

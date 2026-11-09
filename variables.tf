@@ -256,6 +256,12 @@ variable "enable_n8n_mcp" {
   default     = false
 }
 
+variable "n8n_encryption_key" {
+  description = "n8n encryption key for stored credentials; set in terraform.tfvars, never commit it. Changing it makes existing credentials unreadable"
+  type        = string
+  sensitive   = true
+}
+
 variable "n8n_mcp_token" {
   description = "n8n MCP access token (n8n → Settings → Instance-level MCP); set in terraform.tfvars, never commit it"
   type        = string
