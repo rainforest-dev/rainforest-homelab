@@ -148,7 +148,10 @@ resource "helm_release" "teleport" {
             session_recording = "node"
             authentication = {
               type          = "local"
-              second_factor = "on" # supports both TOTP (Google Authenticator) and WebAuthn (passkeys)
+              # TOTP (Google Authenticator) and WebAuthn (passkeys). Teleport 18 refuses to
+              # start when the legacy second_factor is set next to second_factors, which the
+              # 18 chart adds on its own, so only the list form is used.
+              second_factors = ["otp", "webauthn"]
               webauthn = {
                 rp_id = var.public_hostname
               }
