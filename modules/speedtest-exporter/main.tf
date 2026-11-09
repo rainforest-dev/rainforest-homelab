@@ -31,7 +31,7 @@ resource "docker_container" "speedtest_exporter" {
 
   healthcheck {
     test         = ["CMD", "wget", "-qO-", "http://127.0.0.1:${var.port}/"]
-    interval     = "60s"
+    interval     = "1m0s"
     timeout      = "10s"
     retries      = 3
     start_period = "30s"

@@ -65,10 +65,6 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
   tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.homelab.id
 
   config {
-    warp_routing {
-      enabled = false
-    }
-
     origin_request {
       connect_timeout          = "1m0s"
       tls_timeout              = "1m0s"
