@@ -76,7 +76,6 @@ variable "encryption_key" {
   description = "n8n encryption key for securing credentials"
   type        = string
   sensitive   = true
-  default     = "n8n-homelab-encryption-key-2024"
 }
 
 # External Storage
