@@ -1,0 +1,26 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["custom.regex"],
+  "dependencyDashboard": false,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Teleport cluster chart version passed to modules/teleport from the root main.tf",
+      "managerFilePatterns": ["/^main\\.tf$/"],
+      "matchStrings": ["teleport_version\\s*=\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "teleport-cluster",
+      "datasourceTemplate": "helm",
+      "registryUrlTemplate": "https://charts.releases.teleport.dev"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "One major per PR: Teleport only upgrades one major at a time. Never automerge: each step needs a backup, an apply and checks (modules/teleport/README.md).",
+      "matchDepNames": ["teleport-cluster"],
+      "separateMultipleMajor": true,
+      "automerge": false,
+      "labels": ["teleport"]
+    }
+  ]
+}

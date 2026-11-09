@@ -137,7 +137,18 @@ Teleport agents must be the cluster's major or one below. Before each apply, che
 here, and upgrade it with sudo to at least the target major minus one. The NAS is an agentless
 OpenSSH node and has no agent to upgrade.
 
-Keep `tsh` within one major of the cluster, and upgrade it on every machine after the last step.
+Keep `tsh` within one major of the cluster, and never ahead of it: the cluster refuses a client
+on a newer major. `tsh` comes from Homebrew, which always follows the latest release, so keep it
+pinned and move it only after the cluster apply:
+
+```bash
+brew pin teleport                                               # once
+brew unpin teleport && brew upgrade teleport && brew pin teleport   # after each cluster step
+```
+
+Renovate (`renovate.json`) opens a PR for each new `teleport-cluster` chart release, one major
+per PR, never automerged. The order per release is: merge the PR, back up, apply, check, then
+upgrade the Mac's agent and `tsh`.
 On 2026-11-08 a Homebrew `tsh` 18 against the 15 cluster wrote an empty key file and
 `tsh login` failed with `ssh: no key found`; the matching 15.x `tsh` worked.
 
