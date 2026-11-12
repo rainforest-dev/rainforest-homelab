@@ -71,6 +71,9 @@ __pycache__/
 .venv/
 dist/
 build/
-# Terraform plan artifact (binary, regenerated each plan)
-tfplan
+# Terraform plan files are zip archives that embed every input variable
+# (API tokens included) and a full copy of the state. Never commit one.
+*tfplan*
+*.plan
+*.tfplan
 
