@@ -143,6 +143,12 @@ variable "allowed_emails" {
   default     = []
 }
 
+variable "family_emails" {
+  description = "Family members' emails added to the Access policy of the shared services (bambii, od, Home Assistant, ...). Set in terraform.tfvars so personal addresses stay out of this public repo."
+  type        = list(string)
+  default     = []
+}
+
 variable "service_token_ids" {
   description = "List of Cloudflare Access Service Token IDs for programmatic access"
   type        = list(string)
