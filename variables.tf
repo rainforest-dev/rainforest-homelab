@@ -143,6 +143,12 @@ variable "allowed_emails" {
   default     = []
 }
 
+variable "family_allowed_emails" {
+  description = "Extra email addresses allowed on family-facing services; set in terraform.tfvars"
+  type        = list(string)
+  default     = []
+}
+
 variable "service_token_ids" {
   description = "List of Cloudflare Access Service Token IDs for programmatic access"
   type        = list(string)

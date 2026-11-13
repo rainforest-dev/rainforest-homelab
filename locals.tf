@@ -105,7 +105,7 @@ locals {
         service_url    = module.personal-memories[0].tunnel_service_url
         enable_auth    = true
         type           = "docker"
-        allowed_emails = ["ting1110001@gmail.com"]
+        allowed_emails = var.family_allowed_emails
       }
     } : {},
 
@@ -205,7 +205,7 @@ locals {
         service_url    = "http://host.docker.internal:9119"
         enable_auth    = true
         type           = "docker"
-        allowed_emails = ["ting1110001@gmail.com"]
+        allowed_emails = var.family_allowed_emails
       }
     },
 
@@ -215,7 +215,7 @@ locals {
         service_url    = "http://host.docker.internal:8787"
         enable_auth    = true
         type           = "docker"
-        allowed_emails = ["ting1110001@gmail.com"]
+        allowed_emails = var.family_allowed_emails
       }
     },
 
@@ -248,7 +248,7 @@ locals {
         service_url    = "http://${var.raspberry_pi_ip}:8123"
         enable_auth    = false # HA has its own auth; Zero Trust breaks Google OAuth account linking
         type           = "iot"
-        allowed_emails = ["ting1110001@gmail.com"]
+        allowed_emails = var.family_allowed_emails
       }
     } : {},
 
@@ -258,7 +258,7 @@ locals {
         service_url    = "http://${var.raspberry_pi_ip}:8095"
         enable_auth    = false # MA has its own auth; ZT blocks HA's WebSocket connection via tunnel
         type           = "iot"
-        allowed_emails = ["ting1110001@gmail.com"]
+        allowed_emails = var.family_allowed_emails
       }
     } : {},
 
