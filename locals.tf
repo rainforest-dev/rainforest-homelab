@@ -209,6 +209,16 @@ locals {
       }
     },
 
+    {
+      "od" = {
+        hostname       = "od"
+        service_url    = "http://host.docker.internal:8787"
+        enable_auth    = true
+        type           = "docker"
+        allowed_emails = ["ting1110001@gmail.com"]
+      }
+    },
+
     var.enable_teleport ? {
       tp = {
         hostname           = "tp"
