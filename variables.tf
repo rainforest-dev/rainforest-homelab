@@ -144,7 +144,7 @@ variable "allowed_emails" {
 }
 
 variable "family_emails" {
-  description = "Family members' emails added to the Access policy of the shared services (bambii, od, Home Assistant, ...). Set in terraform.tfvars so personal addresses stay out of this public repo."
+  description = "Family members' emails added to the Access policy of the Zero Trust services (bambii, od, ...). Set in terraform.tfvars so personal addresses stay out of this public repo."
   type        = list(string)
   default     = []
 }
