@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>tools.rainforest.od-pages</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/python3</string>
+    <string>-I</string>
+    <string>/Users/rainforest/.hermes/scripts/od-pages-server.py</string>
+    <string>8787</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/Users/rainforest/.hermes/logs/od-pages.log</string>
+  <key>StandardErrorPath</key><string>/Users/rainforest/.hermes/logs/od-pages.log</string>
+</dict>
+</plist>
