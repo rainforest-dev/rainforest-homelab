@@ -44,6 +44,7 @@ minio_storage_size   = "100Gi"  # MinIO storage size (larger default for object 
 # Option A: Domain-specific (recommended for security)
 allowed_email_domains = ["yourdomain.com"]  # Only allow emails from your domain
 allowed_emails        = []                  # Add specific emails if needed
+family_allowed_emails = []                  # Extra emails for family-facing services
 
 # Option B: Public email providers (less secure)
 # allowed_email_domains = ["gmail.com"]     # Allow any Gmail addresses
