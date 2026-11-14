@@ -91,6 +91,11 @@ variable "allowed_emails" {
   description = "The only emails the Access policy admits; set in terraform.tfvars"
   type        = list(string)
   sensitive   = true
+
+  validation {
+    condition     = length(var.allowed_emails) == 2 && alltrue([for e in var.allowed_emails : can(regex("^[^@\\s]+@[^@\\s]+$", e))])
+    error_message = "allowed_emails must list exactly two email addresses."
+  }
 }
 
 variable "cloudflared_version" {
