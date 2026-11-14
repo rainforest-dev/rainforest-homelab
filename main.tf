@@ -318,6 +318,25 @@ module "personal-memories" {
   mcp_secret          = random_password.memories_mcp_secret[0].result
 }
 
+module "memories_next" {
+  source = "./modules/memories-next"
+  count  = var.enable_memories_next ? 1 : 0
+
+  project_name          = var.project_name
+  environment           = var.environment
+  image                 = var.memories_next_image
+  data_dir              = var.memories_data_dir
+  photos_library_path   = var.memories_photos_library_path
+  notes_dir             = var.memories_notes_dir
+  v2_dir                = var.memories_next_v2_dir
+  owner_names           = var.memories_owner_names
+  identities            = var.memories_next_identities
+  allowed_emails        = var.memories_next_allowed_emails
+  domain_suffix         = var.domain_suffix
+  cloudflare_account_id = var.cloudflare_account_id
+  cloudflared_version   = var.cloudflared_version
+}
+
 resource "random_password" "memories_mcp_secret" {
   count   = var.enable_personal_memories ? 1 : 0
   length  = 48
