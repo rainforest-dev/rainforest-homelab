@@ -15,6 +15,26 @@
       "parameters": {}
     },
     {
+      "id": "5b1f0d2e-3c4a-4e8b-9f61-7a2d9c0e4b13",
+      "name": "Hourly flush",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        288
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
       "id": "cc486710-dd17-41a0-8b11-11e3b2841450",
       "name": "Build error record",
       "type": "n8n-nodes-base.code",
@@ -24,7 +44,7 @@
         96
       ],
       "parameters": {
-        "jsCode": "// One record per failed production execution of any workflow that names this\n// one as its error workflow. Times are Asia/Taipei (GENERIC_TIMEZONE is not home time).\nconst e = $json.execution || {};\nconst w = $json.workflow || {};\nconst err = e.error || {};\nconst nodeName = (err.node && err.node.name) || e.lastNodeExecuted || '';\nconst message = String(err.message || 'unknown error').slice(0, 500);\nconst time = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit' });\nconst link = e.url ? ' [execution](' + e.url + ')' : '';\nreturn [{ json: {\n  workflow: w.name || '',\n  workflow_id: String(w.id || ''),\n  execution_id: String(e.id || ''),\n  node: nodeName,\n  message,\n  url: e.url || '',\n  failed_at: new Date().toISOString(),\n  body: '\\n- ' + time + ' ⚠️ workflow failed: **' + (w.name || 'unknown') + '**' + (nodeName ? ' at ' + nodeName : '') + ': ' + message + link + ' #n8n-error',\n} }];"
+        "jsCode": "// One record per failed production execution of any workflow that names this\n// one as its error workflow.\nconst e = $json.execution || {};\nconst w = $json.workflow || {};\nconst err = e.error || {};\nconst nodeName = (err.node && err.node.name) || e.lastNodeExecuted || '';\nconst message = String(err.message || 'unknown error').slice(0, 500);\nreturn [{ json: {\n  workflow: w.name || '',\n  workflow_id: String(w.id || ''),\n  execution_id: String(e.id || ''),\n  node: nodeName,\n  message,\n  url: e.url || '',\n  failed_at: new Date().toISOString(),\n} }];"
       }
     },
     {
@@ -124,12 +144,25 @@
       }
     },
     {
+      "id": "e7c3a1b9-2d4f-4a6e-8b05-3f9c1d7a6e21",
+      "name": "Rate limit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        192
+      ],
+      "parameters": {
+        "jsCode": "const HOUR = 3600000;\nconst FORGET = 24 * HOUR;\nconst now = $now.toMillis();\nconst hhmm = ms => new Date(ms).toLocaleTimeString('en-GB', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit' });\nconst link = url => (url ? ' [execution](' + url + ')' : '');\nconst where = s => '**' + (s.workflow || 'unknown') + '**' + (s.node ? ' at ' + s.node : '');\n\nconst store = $getWorkflowStaticData('global');\nconst seen = store.errorLines || (store.errorLines = {});\nconst lines = [];\n\nfor (const item of $input.all()) {\n  const r = item.json;\n  if (!('workflow_id' in r)) continue;\n  const key = r.workflow_id + '|' + r.node;\n  const s = seen[key];\n  const message = String(r.message).replace(/\\s+/g, ' ');\n  if (s && now - s.writtenAt < HOUR) {\n    s.repeats += 1;\n    s.repeatsSince = s.repeatsSince || now;\n    s.lastAt = now;\n    s.lastMessage = message;\n    s.lastUrl = r.url;\n    continue;\n  }\n  const earlier = s && s.repeats ? ' (+' + s.repeats + '× ' + hhmm(s.repeatsSince) + '–' + hhmm(s.lastAt) + ')' : '';\n  lines.push('- ' + hhmm(now) + ' ⚠️ workflow failed: ' + where(r) + ': ' + message + earlier + link(r.url) + ' #n8n-error');\n  seen[key] = { workflow: r.workflow, node: r.node, writtenAt: now, repeats: 0 };\n}\n\nif (!$input.all().some(i => 'workflow_id' in i.json)) {\n  for (const [key, s] of Object.entries(seen)) {\n    if (now - s.writtenAt < HOUR) continue;\n    if (s.repeats) {\n      lines.push('- ' + hhmm(now) + ' ⚠️ workflow failed ' + s.repeats + '× more: ' + where(s) + ', ' + hhmm(s.repeatsSince) + '–' + hhmm(s.lastAt) + ', last: ' + s.lastMessage + link(s.lastUrl) + ' #n8n-error');\n      seen[key] = { workflow: s.workflow, node: s.node, writtenAt: now, repeats: 0 };\n    } else if (now - s.writtenAt >= FORGET) {\n      delete seen[key];\n    }\n  }\n}\n\nif (!lines.length) return [];\nreturn [{ json: { body: '\\n' + lines.join('\\n') } }];"
+      }
+    },
+    {
       "id": "aec2de66-c6f8-4c5f-a0f2-c43619ad7680",
       "name": "Append to daily note",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        448,
+        672,
         192
       ],
       "parameters": {
@@ -184,6 +217,28 @@
             "type": "main",
             "index": 0
           },
+          {
+            "node": "Rate limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hourly flush": {
+      "main": [
+        [
+          {
+            "node": "Rate limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate limit": {
+      "main": [
+        [
           {
             "node": "Append to daily note",
             "type": "main",
