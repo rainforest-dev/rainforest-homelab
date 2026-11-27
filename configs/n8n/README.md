@@ -423,7 +423,11 @@ Constraints worth preserving when editing:
   `database_specific.last_known_affected_version_range` when present, which drops those.
 - **Each advisory is reported once per component version.** The reported CVE ids live in
   `$getWorkflowStaticData('global').reported`, keyed `name@version`; a run writes a line only when
-  a new id appears, and an upgrade starts a fresh key. Aliases of one CVE count once.
+  a new id appears, and an upgrade starts a fresh key. Aliases of one CVE count once. When there is
+  something to write, `Remember reported` saves the ids only after `Append to daily note`
+  succeeds, so a failed append is retried next week.
+- **A live value must start with a digit.** A tag such as `latest` would parse as `0.0.0` and
+  match every `introduced: 0` range, so it falls back to the table instead.
 - **The first run reports everything already open**, once. Expect a few lines.
 
 ### `workflow-error-alert.json` — error workflow for all the others
