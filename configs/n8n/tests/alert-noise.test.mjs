@@ -23,6 +23,7 @@ test('digest: alerts firing more than 3 days collapse to an ack-or-silence line'
     amAlert({ alertname: 'TargetDown', job: 'node-exporter' }, NOW - 18 * DAY),
     amAlert({ alertname: 'KubePodCrashLooping', pod: 'speedtest-0' }, NOW - 2 * HOUR),
     amAlert({ alertname: 'DiskAlmostFull', instance: 'mini' }, NOW - 3 * DAY + HOUR),
+    { labels: { alertname: 'CustomRule', instance: 'pi' }, startsAt: new Date(NOW - HOUR).toISOString() },
   ];
   const [out] = runCodeNode(wf, 'Build prompt', {
     nodes: { 'Fetch alerts': alerts, 'Fetch sensors': sensors.map(s => s.json) },
@@ -36,8 +37,9 @@ test('digest: alerts firing more than 3 days collapse to an ack-or-silence line'
   assert.deepEqual(alertLines, [
     '- KubePodCrashLooping (warning): speedtest-0',
     '- DiskAlmostFull (warning): mini',
+    '- CustomRule (n/a): pi',
   ]);
-  assert.equal(alertCount, 4);
+  assert.equal(alertCount, 5);
   assert.ok(!prompt.includes('RemoteSiteHostDown'), 'stale alerts stay out of the model prompt');
 });
 
