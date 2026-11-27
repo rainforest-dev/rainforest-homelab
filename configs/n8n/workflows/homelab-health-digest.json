@@ -45,20 +45,29 @@
         200
       ],
       "parameters": {
-        "url": "http://PROMETHEUS_HOST_SUBSTITUTE_ME:30090/api/v1/query",
+        "url": "http://PROMETHEUS_HOST_SUBSTITUTE_ME:30093/api/v2/alerts",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
-              "name": "query",
-              "value": "ALERTS{alertstate=\"firing\",severity!=\"none\"}"
+              "name": "active",
+              "value": "true"
+            },
+            {
+              "name": "silenced",
+              "value": "false"
+            },
+            {
+              "name": "inhibited",
+              "value": "false"
             }
           ]
         },
         "options": {
           "timeout": 30000
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "id": "sensors",
@@ -83,7 +92,8 @@
         "options": {
           "timeout": 30000
         }
-      }
+      },
+      "executeOnce": true
     },
     {
       "id": "prompt",
@@ -95,7 +105,7 @@
         300
       ],
       "parameters": {
-        "jsCode": "const alerts = $('Fetch alerts').first().json.data.result || [];\nconst sensors = $('Fetch sensors').first().json.data.result || [];\n\nconst alertLines = alerts.map(a => {\n  const m = a.metric;\n  const what = m.pod || m.job_name || m.instance || 'unknown';\n  return `- ${m.alertname} (${m.severity || 'n/a'}): ${what}`;\n});\n\nconst sensorLines = sensors.map(s => {\n  const name = s.metric.friendly_name || s.metric.entity || 'sensor';\n  const val = Number(s.value[1]).toFixed(1);\n  return `- ${name}: ${val}`;\n});\n\nconst prompt = [\n  'Summarise this homelab status in at most 4 short sentences.',\n  'State plainly what is wrong and what looks normal. No preamble, no bullet points.',\n  '',\n  `Firing alerts (${alertLines.length}):`,\n  alertLines.length ? alertLines.join('\\n') : '- none',\n  '',\n  'Home sensors:',\n  sensorLines.length ? sensorLines.join('\\n') : '- none',\n].join('\\n');\n\nreturn [{ json: { prompt, alertCount: alertLines.length, alertLines, sensorLines } }];"
+        "jsCode": "const STALE_DAYS = 3;\nconst DAY = 86400000;\nconst now = $now.toMillis();\n\nconst alerts = $('Fetch alerts').all()\n  .map(i => i.json)\n  .filter(a => a && a.labels && a.labels.alertname !== 'Watchdog' && a.labels.severity !== 'none');\nconst sensors = $('Fetch sensors').first().json.data.result || [];\n\nconst alertLines = [];\nconst staleLines = [];\nconst seen = new Set();\nfor (const a of alerts) {\n  const m = a.labels;\n  const what = m.pod || m.job_name || m.instance || m.service || m.job || 'unknown';\n  const key = m.alertname + '|' + what;\n  if (seen.has(key)) continue;\n  seen.add(key);\n  const started = Date.parse(a.startsAt);\n  const ms = Number.isFinite(started) ? now - started : 0;\n  if (ms > STALE_DAYS * DAY) {\n    staleLines.push(`- ${m.alertname} (${m.severity || 'n/a'}): ${what}，仍在 firing ${Math.floor(ms / DAY)} 天：ack 或 silence？`);\n  } else {\n    alertLines.push(`- ${m.alertname} (${m.severity || 'n/a'}): ${what}`);\n  }\n}\n\nconst sensorLines = sensors.map(s => {\n  const name = s.metric.friendly_name || s.metric.entity || 'sensor';\n  const val = Number(s.value[1]).toFixed(1);\n  return `- ${name}: ${val}`;\n});\n\nconst prompt = [\n  'Summarise this homelab status in at most 4 short sentences.',\n  'State plainly what is wrong and what looks normal. No preamble, no bullet points.',\n  '',\n  `New firing alerts (${alertLines.length}):`,\n  alertLines.length ? alertLines.join('\\n') : '- none',\n  `(${staleLines.length} alerts firing for more than ${STALE_DAYS} days are listed separately; do not mention them.)`,\n  '',\n  'Home sensors:',\n  sensorLines.length ? sensorLines.join('\\n') : '- none',\n].join('\\n');\n\nreturn [{ json: { prompt, alertCount: alertLines.length + staleLines.length, alertLines, staleLines, sensorLines } }];"
       }
     },
     {
@@ -128,7 +138,7 @@
         300
       ],
       "parameters": {
-        "jsCode": "const summary = ($('Summarise').first().json.response || '').trim();\nconst p = $('Build prompt').first().json;\nconst stamp = $now.setZone('Asia/Taipei').toFormat('HH:mm');\n\nconst body = [\n  '',\n  '## Homelab health',\n  '',\n  `*checked ${stamp} UTC*`,\n  '',\n  summary || '_summary unavailable_',\n  '',\n  `**Firing alerts:** ${p.alertCount}`,\n  ...(p.alertLines.length ? p.alertLines : ['- none']),\n  '',\n  '**Sensors**',\n  ...(p.sensorLines.length ? p.sensorLines : ['- none']),\n  '',\n].join('\\n');\n\nreturn [{ json: { body } }];"
+        "jsCode": "const summary = ($('Summarise').first().json.response || '').trim();\nconst p = $('Build prompt').first().json;\nconst stamp = $now.setZone('Asia/Taipei').toFormat('HH:mm');\n\nconst body = [\n  '',\n  '## Homelab health',\n  '',\n  `*checked ${stamp}*`,\n  '',\n  summary || '_summary unavailable_',\n  '',\n  `**Firing alerts:** ${p.alertCount}`,\n  ...(p.alertLines.length || p.staleLines.length ? [...p.alertLines, ...p.staleLines] : ['- none']),\n  '',\n  '**Sensors**',\n  ...(p.sensorLines.length ? p.sensorLines : ['- none']),\n  '',\n].join('\\n');\n\nreturn [{ json: { body } }];"
       }
     },
     {

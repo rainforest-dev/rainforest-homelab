@@ -1,0 +1,25 @@
+name: n8n workflow tests
+
+on:
+  pull_request:
+    paths:
+      - 'configs/n8n/**'
+      - '.github/workflows/n8n-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'configs/n8n/**'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test 'configs/n8n/tests/*.test.mjs'

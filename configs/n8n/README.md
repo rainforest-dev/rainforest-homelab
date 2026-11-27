@@ -122,6 +122,15 @@ kubectl rollout restart deployment/homelab-n8n -n homelab
 The restart is required — the CLI warns that changes do not take effect while n8n is
 running.
 
+## Tests
+
+The Code nodes are tested in place: `configs/n8n/tests/harness.mjs` runs a node's `jsCode`
+straight from the workflow JSON with stubbed `$`, `$input`, `$now` and static data.
+
+```bash
+node --test 'configs/n8n/tests/*.test.mjs'
+```
+
 ## Running a workflow on demand
 
 Each workflow carries a `Run now` (`executeWorkflowTrigger`) node alongside its schedule,
@@ -139,9 +148,16 @@ The broker port override is required: the default 5679 is already held by the ru
 
 ### `homelab-health-digest.json` — daily 08:10 Asia/Taipei
 
-Reads firing Prometheus alerts and Home Assistant sensor values, summarises them with
-Ollama, and appends a "Homelab health" section to the Obsidian daily note. It runs after
-the `rss-daily-digest` routine (08:03) so both land in the same note.
+Reads active alerts from the Pi's Alertmanager (`:30093/api/v2/alerts`, silenced and inhibited
+ones excluded) and Home Assistant sensor values from Prometheus, summarises them with Ollama,
+and appends a "Homelab health" section to the Obsidian daily note. It runs after the
+`rss-daily-digest` routine (08:03) so both land in the same note.
+
+An alert whose `startsAt` is more than 3 days old is listed as
+`- <alertname> (<severity>): <instance>，仍在 firing N 天：ack 或 silence？` and is kept out of
+the Ollama prompt, so the summary talks about what is new. Silencing it in Alertmanager removes
+it from the next digest. The source is Alertmanager rather than Prometheus `ALERTS` for that
+reason: `ALERTS` has no start time and ignores silences.
 
 Design: `docs/superpowers/specs/2026-07-26-theme-a-homelab-health-digest-design.md`
 
@@ -152,6 +168,9 @@ Two constraints worth preserving when editing:
   second node is still unexecuted when `$('Fetch sensors')` is evaluated.
 - **The raw alert list is written alongside the model's summary** on purpose. The summary
   can be vague or wrong; the underlying facts must survive.
+- **`Fetch alerts` has `alwaysOutputData`, `Fetch sensors` has `executeOnce`.** Alertmanager
+  answers with a JSON array, which the HTTP node splits into one item per alert: with no
+  alerts the chain would stop, and with many `Fetch sensors` would run once per alert.
 
 ### `voice-memo-transcription.json` — superseded by `shared-inbox`
 
@@ -338,6 +357,11 @@ Three constraints worth preserving when editing:
   the ground truth that must survive a vague summary. Timestamps are `Asia/Taipei`
   (formatted explicitly, so they do not depend on n8n's `GENERIC_TIMEZONE`).
 
+- **`Fetch alerts` retries twice, 5 s apart**, so a Prometheus restart on the Pi does not
+  fail the run. A longer outage still fails every poll (`ECONNREFUSED` or "connection was
+  aborted" at `Fetch alerts`); that is Prometheus being down, not this workflow, and
+  `workflow-error-alert` writes it to the daily note once an hour.
+
 > Note: on a fresh n8n database the open-incident state is empty, so the first poll logs
 > every currently-firing alert once as `🔴 down` — an intentional initial snapshot.
 
@@ -373,6 +397,12 @@ execution is recorded once in the `workflow_errors` data table (workflow, node, 
 execution link) and appended to the daily note as `- HH:MM ⚠️ workflow failed: … #n8n-error`.
 Manual and test runs do not trigger it.
 
+- **At most one daily-note line per workflow + node per hour.** `Rate limit` keeps the last
+  write per `workflow_id|node` in `$getWorkflowStaticData('global').errorLines`. Failures inside
+  the hour are counted, not written; the next line carries them as `(+N× HH:MM–HH:MM)`, and the
+  `Hourly flush` trigger (on the clock hour) writes `failed N× more: …` once the last line is an
+  hour old, so after failures stop the count lands up to two hours after that line.
+  Every failure still gets its own row in `workflow_errors`.
 - **Import it first.** n8n refuses an `errorWorkflow` that has no published version, so a
   rebuild imports and activates this workflow before the others.
 - **The data table is not in git.** Create `workflow_errors` (Data tables, in the personal
