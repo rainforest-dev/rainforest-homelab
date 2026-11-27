@@ -4,11 +4,17 @@ on:
   pull_request:
     paths:
       - 'configs/n8n/**'
+      - 'configs/cve-watch/**'
+      - 'main.tf'
+      - 'variables.tf'
       - '.github/workflows/n8n-tests.yml'
   push:
     branches: [main]
     paths:
       - 'configs/n8n/**'
+      - 'configs/cve-watch/**'
+      - 'main.tf'
+      - 'variables.tf'
 
 permissions:
   contents: read
