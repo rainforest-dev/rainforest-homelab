@@ -400,7 +400,8 @@ Manual and test runs do not trigger it.
 - **At most one daily-note line per workflow + node per hour.** `Rate limit` keeps the last
   write per `workflow_id|node` in `$getWorkflowStaticData('global').errorLines`. Failures inside
   the hour are counted, not written; the next line carries them as `(+N× HH:MM–HH:MM)`, and the
-  `Hourly flush` trigger writes `failed N× more: …` when failures stop before the hour is up.
+  `Hourly flush` trigger (on the clock hour) writes `failed N× more: …` once the last line is an
+  hour old, so after failures stop the count lands up to two hours after that line.
   Every failure still gets its own row in `workflow_errors`.
 - **Import it first.** n8n refuses an `errorWorkflow` that has no published version, so a
   rebuild imports and activates this workflow before the others.
