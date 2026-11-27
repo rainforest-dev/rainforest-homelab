@@ -1,0 +1,7 @@
+claude-personal
+agy-personal
+claude-work
+codex-work
+agy-work
+mini
+air

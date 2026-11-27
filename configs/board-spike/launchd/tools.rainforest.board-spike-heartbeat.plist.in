@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>tools.rainforest.board-spike-heartbeat</string>
+<key>ProgramArguments</key><array><string>__MODULE_DIR__/heartbeat.sh</string></array>
+<key>EnvironmentVariables</key><dict>
+<key>BOARD_HOME</key><string>__BOARD_HOME__</string>
+<key>BOARD_PORT</key><string>__BOARD_PORT__</string>
+<key>BOARD_EXPIRES</key><string>__BOARD_EXPIRES__</string>
+</dict>
+<key>RunAtLoad</key><true/><key>StartInterval</key><integer>300</integer>
+<key>StandardOutPath</key><string>__BOARD_HOME__/tools.rainforest.board-spike-heartbeat.out</string>
+<key>StandardErrorPath</key><string>__BOARD_HOME__/tools.rainforest.board-spike-heartbeat.out</string>
+</dict></plist>
