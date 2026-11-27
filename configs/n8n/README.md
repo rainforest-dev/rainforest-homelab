@@ -107,7 +107,7 @@ kubectl exec -n homelab "$POD" -- n8n import:workflow --input=/tmp/wf.json
 ```
 
 Workflows carrying the placeholder: `homelab-health-digest`, `homelab-incident-log`,
-`ai-home-query`. The others have no hard-coded host.
+`ai-home-query`, `cve-watch`. The others have no hard-coded host.
 
 The JSON carries a stable `id`, so re-importing updates in place rather than creating a
 duplicate.
@@ -389,6 +389,42 @@ Appends a Bambii care checklist to the Obsidian daily note each morning (Compone
 reminder half; the activity-logging half is the HA `bambii_music` → webhook path). The
 checklist in the `Build reminder` node is a **starter template — edit it** to match Bambii's
 real routine (meds, vet dates).
+
+### `cve-watch.json` — weekly, Monday 08:20 Asia/Taipei
+
+Checks the versions that are actually running against [OSV.dev](https://osv.dev) and appends a
+line to the daily note only when an advisory affects one of them:
+
+```
+- 🛡️ **Traefik (Pi ingress)** 3.3.6 (live): 40 advisories, 20 high/critical; ≥3.7.13 fixes 40. New: [CVE-…](https://osv.dev/vulnerability/GHSA-…), … (+35) #cve-watch
+```
+
+The component list is `configs/cve-watch/versions.json`, fetched from `main` on GitHub at run
+time, so editing it needs a merge but no re-import. Each entry names its OSV ecosystem and package
+and where the running version comes from:
+
+| `live.type` | Source |
+|---|---|
+| `prometheus` | a label on a Prometheus series (`n8n_version_info{version}`) |
+| `image` | the tag of a Pi container image in `kube_pod_container_info` (kube-state-metrics on the Pi) |
+| `ollama` | `GET host.docker.internal:11434/api/version` |
+| none | the entry's `version`, copied from Terraform (a test fails when it drifts) or kept by hand |
+
+Claude Code is kept by hand: it auto-updates on the Mac and n8n cannot run `claude --version`.
+Nothing on the Docker Desktop cluster exports image versions, so its components use the
+Terraform pins. A probe that fails falls back to the table version, and a component with neither
+is skipped.
+
+Constraints worth preserving when editing:
+
+- **OSV's version match is rechecked in `Match + build`.** For Go modules without a `/vN` path
+  (Teleport, Grafana) OSV's own range is often a bare `introduced: 0`, which matches every version.
+  The node re-evaluates each advisory against `ecosystem_specific.custom_ranges` and
+  `database_specific.last_known_affected_version_range` when present, which drops those.
+- **Each advisory is reported once per component version.** The reported CVE ids live in
+  `$getWorkflowStaticData('global').reported`, keyed `name@version`; a run writes a line only when
+  a new id appears, and an upgrade starts a fresh key. Aliases of one CVE count once.
+- **The first run reports everything already open**, once. Expect a few lines.
 
 ### `workflow-error-alert.json` — error workflow for all the others
 
