@@ -220,6 +220,25 @@ variable "calibre_library_path" {
   }
 }
 
+variable "pomodoro_image" {
+  description = "Docker image for Bambii Focus at pomodoro.rainforest.tools (e.g. ghcr.io/rainforest-dev/bambii-focus:latest)"
+  type        = string
+  default     = "ghcr.io/rainforest-dev/bambii-focus:latest"
+}
+
+variable "pomodoro_vapid_public_key" {
+  description = "Web Push VAPID public key for pomodoro; set in terraform.tfvars, empty turns push off"
+  type        = string
+  default     = ""
+}
+
+variable "pomodoro_vapid_private_key" {
+  description = "Web Push VAPID private key for pomodoro; set in terraform.tfvars"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "library_hall_image" {
   description = "Docker image for library-hall (e.g. ghcr.io/rainforest-dev/library-hall:latest)"
   type        = string

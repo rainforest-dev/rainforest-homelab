@@ -264,6 +264,19 @@ resource "random_password" "inbox_upload_secret" {
 }
 
 # The hall at / of library.rainforest.tools; reads every collection's hall items without Cloudflare.
+module "pomodoro" {
+  source = "./modules/pomodoro"
+
+  project_name      = var.project_name
+  environment       = var.environment
+  docker_host       = var.docker_host
+  image             = var.pomodoro_image
+  public_origin     = "https://pomodoro.${var.domain_suffix}"
+  vapid_public_key  = var.pomodoro_vapid_public_key
+  vapid_private_key = var.pomodoro_vapid_private_key
+  vapid_subject     = "https://pomodoro.${var.domain_suffix}"
+}
+
 module "library-hall" {
   source = "./modules/library-hall"
 

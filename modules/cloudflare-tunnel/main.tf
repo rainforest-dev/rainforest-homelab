@@ -197,6 +197,42 @@ resource "cloudflare_zero_trust_access_policy" "service_auth_policy" {
   }
 }
 
+locals {
+  bypass_paths = merge([
+    for name, config in var.services : {
+      for path in config.bypass_paths : "${name}/${path}" => {
+        hostname = config.hostname
+        path     = trimprefix(path, "/")
+      }
+    }
+  ]...)
+}
+
+resource "cloudflare_zero_trust_access_application" "bypass" {
+  for_each = local.bypass_paths
+
+  zone_id                   = local.zone_id
+  name                      = "${title(each.value.hostname)} /${each.value.path} (bypass) - ${var.project_name}"
+  domain                    = "${each.value.hostname}.${var.domain_suffix}/${each.value.path}"
+  type                      = "self_hosted"
+  session_duration          = "24h"
+  auto_redirect_to_identity = false
+}
+
+resource "cloudflare_zero_trust_access_policy" "bypass" {
+  for_each = local.bypass_paths
+
+  application_id = cloudflare_zero_trust_access_application.bypass[each.key].id
+  zone_id        = local.zone_id
+  name           = "Bypass ${each.key}"
+  precedence     = 1
+  decision       = "bypass"
+
+  include {
+    everyone = true
+  }
+}
+
 # Create Kubernetes secret for tunnel credentials
 resource "kubectl_manifest" "tunnel_credentials" {
   yaml_body = <<YAML

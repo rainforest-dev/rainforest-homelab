@@ -209,6 +209,19 @@ locals {
       }
     },
 
+    # Bambii Focus: the page behind the family Access policy; the sync and push API bypass
+    # Access because the native apps cannot carry its cookie, and pairing protects it instead.
+    {
+      "pomodoro" = {
+        hostname       = "pomodoro"
+        service_url    = module.pomodoro.tunnel_service_url
+        enable_auth    = true
+        type           = "docker"
+        allowed_emails = var.family_allowed_emails
+        bypass_paths   = ["pair", "push", "healthz"]
+      }
+    },
+
     {
       "od" = {
         hostname       = "od"

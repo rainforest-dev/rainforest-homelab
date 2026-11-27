@@ -75,6 +75,10 @@ variable "services" {
     no_tls_verify      = optional(bool, false)
     path               = optional(string, "")
     service_auth_only  = optional(bool, false)
+    # Paths on this hostname that skip Access (e.g. ["pair", "push"]). Each gets its own
+    # Access application with a Bypass policy, which Cloudflare matches before the
+    # hostname's application because it is more specific; a path covers its subpaths.
+    bypass_paths = optional(list(string), [])
   }))
   default = {}
 }
