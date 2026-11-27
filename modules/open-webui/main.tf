@@ -69,7 +69,7 @@ resource "docker_container" "open_webui" {
 
   # Connect to PostgreSQL network if database is configured
   dynamic "networks_advanced" {
-    for_each = var.database_url != "" ? [1] : []
+    for_each = nonsensitive(var.database_url != "") ? [1] : []
     content {
       name = "${var.project_name}-postgres-network"
     }
