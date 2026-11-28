@@ -304,6 +304,43 @@ variable "memories_notes_dir" {
   default     = "/Users/rainforest/Library/Mobile Documents/iCloud~md~obsidian/Documents/rainforest-obsidian/notes/personal/memories"
 }
 
+variable "enable_memories_next" {
+  description = "Run the Inside Out review build of the album at memories-next.<domain>, beside the live one"
+  type        = bool
+  default     = false
+}
+
+variable "memories_next_image" {
+  description = "Locally built image of the Inside Out variant; the module never pulls it"
+  type        = string
+  default     = "personal-memories:inside-out"
+}
+
+variable "memories_next_v2_dir" {
+  description = "Host path for the review build's writable data (orbs.json); the album's own data stays read-only"
+  type        = string
+  default     = "/Users/rainforest/.local/share/memories-v2"
+}
+
+variable "memories_next_identities" {
+  description = "email=personId pairs for the review build; set in terraform.tfvars, never commit it"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "memories_next_allowed_emails" {
+  description = "Exactly the two emails the memories-next Access policy admits; set in terraform.tfvars"
+  type        = list(string)
+  default     = []
+  sensitive   = true
+
+  validation {
+    condition     = length(var.memories_next_allowed_emails) == 0 || length(var.memories_next_allowed_emails) == 2
+    error_message = "memories_next_allowed_emails must list exactly two emails."
+  }
+}
+
 variable "enable_hermes_backup" {
   description = "Install the launchd agent that zips Hermes Agent's config and data to the T7 nightly"
   type        = bool
