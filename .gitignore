@@ -23,6 +23,8 @@ crash.*.log
 # Additional security exclusions
 *.tfvars.local*
 *.tfvars.backup*
+*.tfvars.bak*
+terraform.tfstate.pre-*
 *-values.yaml
 *-secrets.yaml
 *.env
@@ -32,6 +34,12 @@ secrets/
 *.pem
 *.key
 *.crt
+
+# calibre-web runtime state and secrets
+configs/calibre-web/app.db
+configs/calibre-web/gdrive.db
+configs/calibre-web/calibre-web.log*
+configs/calibre-web/client_secrets.json
 
 # Ignore override files as they are usually used to override resources locally and so
 # are not checked in
