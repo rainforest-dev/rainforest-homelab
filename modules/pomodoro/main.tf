@@ -16,25 +16,29 @@ resource "docker_volume" "data" {
   }
 }
 
-locals {
-  image_repository = regex("^(.*):[^:/]+$", var.image)[0]
-}
+# The image is private, and the provider pulls from ghcr anonymously (it cannot read the macOS
+# keychain where `docker login` keeps the token). So the docker CLI pulls, and the container is
+# pinned to the ID of the image it pulled. A new release: `docker pull` the tag, or apply with
+# -replace=module.pomodoro.terraform_data.pull.
+resource "terraform_data" "pull" {
+  triggers_replace = [var.image]
 
-data "docker_registry_image" "this" {
-  name = var.image
-}
-
-resource "docker_image" "this" {
-  name         = "${local.image_repository}@${data.docker_registry_image.this.sha256_digest}"
-  keep_locally = true
-
-  lifecycle {
-    create_before_destroy = true
+  provisioner "local-exec" {
+    command = "docker pull \"$IMAGE\""
+    environment = {
+      IMAGE       = var.image
+      DOCKER_HOST = var.docker_host
+    }
   }
 }
 
+data "docker_image" "this" {
+  name       = var.image
+  depends_on = [terraform_data.pull]
+}
+
 resource "docker_container" "pomodoro" {
-  image   = docker_image.this.image_id
+  image   = data.docker_image.this.id
   name    = "${var.project_name}-pomodoro"
   restart = "always"
 
@@ -76,23 +80,5 @@ resource "docker_container" "pomodoro" {
   labels {
     label = "service"
     value = "pomodoro"
-  }
-}
-
-# Terraform destroys the container before creating its new image; this dependent's destroy runs first, so the pull goes here.
-resource "terraform_data" "pull_before_replace" {
-  input = {
-    image       = var.image
-    docker_host = var.docker_host
-  }
-  triggers_replace = docker_container.pomodoro.id
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = "docker pull \"$IMAGE\""
-    environment = {
-      IMAGE       = self.input.image
-      DOCKER_HOST = self.input.docker_host
-    }
   }
 }
