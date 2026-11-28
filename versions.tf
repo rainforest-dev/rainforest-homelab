@@ -38,6 +38,15 @@ terraform {
 
 provider "docker" {
   host = var.docker_host
+
+  # Without a registry_auth block the provider talks to registries anonymously, which only
+  # works for public images. This one reads the Docker config on the machine running
+  # terraform, whose credsStore (osxkeychain) holds the `docker login` for ghcr.io, so private
+  # ghcr images resolve and pull like public ones.
+  registry_auth {
+    address     = "ghcr.io"
+    config_file = pathexpand("~/.docker/config.json")
+  }
 }
 
 provider "helm" {
