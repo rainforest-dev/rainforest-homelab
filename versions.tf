@@ -38,6 +38,18 @@ terraform {
 
 provider "docker" {
   host = var.docker_host
+
+  # Public images pull anonymously; a private one (bambii-focus) needs a token. Terraform
+  # cannot read the macOS keychain where `docker login` keeps credentials, so it comes from
+  # terraform.tfvars instead: a classic PAT with only read:packages.
+  dynamic "registry_auth" {
+    for_each = var.ghcr_read_token != "" ? [1] : []
+    content {
+      address  = "ghcr.io"
+      username = var.ghcr_username
+      password = var.ghcr_read_token
+    }
+  }
 }
 
 provider "helm" {
