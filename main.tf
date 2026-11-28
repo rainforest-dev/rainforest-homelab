@@ -263,7 +263,7 @@ resource "random_password" "inbox_upload_secret" {
   special = false
 }
 
-# The hall at / of library.rainforest.tools; reads every collection's hall items without Cloudflare.
+# Bambii Focus at pomodoro.rainforest.tools: the web app and its partner-sync API.
 module "pomodoro" {
   source = "./modules/pomodoro"
 
@@ -277,6 +277,7 @@ module "pomodoro" {
   vapid_subject     = "https://pomodoro.${var.domain_suffix}"
 }
 
+# The hall at / of library.rainforest.tools; reads every collection's hall items without Cloudflare.
 module "library-hall" {
   source = "./modules/library-hall"
 
