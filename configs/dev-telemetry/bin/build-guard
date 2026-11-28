@@ -1,0 +1,118 @@
+#!/bin/sh
+# build-guard [-n SLOTS] [-t WAIT_SECONDS] -- <command...>
+#
+# Serialises expensive builds so concurrent ones cannot exhaust memory, and
+# records how long each one waited.
+#
+# Why a wait-and-run guard rather than a memory cap: the failure being
+# prevented is memory exhaustion, measured at 22.5 GB of swap with 80 MB of
+# RAM free while several next-build processes ran at once. Capping node's heap
+# instead (NODE_OPTIONS=--max-old-space-size) applies everywhere but converts a
+# slow build into a crashed one, since a large Next.js build legitimately wants
+# several GB. Waiting costs time and nothing else.
+#
+# Locks are directories: mkdir is atomic on every filesystem, and macOS ships no
+# flock(1). A slot whose owner died is reclaimed, so a killed build cannot
+# wedge the queue permanently.
+#
+# The guard NEVER refuses to run. If the wait expires it proceeds anyway and
+# says so in the telemetry — a build tool that sometimes silently declines to
+# build would be worse than the contention it prevents.
+
+set -u
+
+SLOTS=1
+WAIT_MAX=900
+STATE_DIR="${DEV_TELEMETRY_STATE:-$HOME/.local/state/dev-telemetry}"
+LOCK_ROOT="$STATE_DIR/build-slots"
+DEVLOG="${DEV_TELEMETRY_BIN:-$HOME/.config/dev-telemetry/bin}/devlog"
+
+while [ $# -gt 0 ]; do
+    case $1 in
+        -n) SLOTS=$2; shift 2 ;;
+        -t) WAIT_MAX=$2; shift 2 ;;
+        --) shift; break ;;
+        *)  break ;;
+    esac
+done
+
+[ $# -gt 0 ] || { echo "usage: build-guard [-n SLOTS] [-t SECONDS] -- <command...>" >&2; exit 2; }
+
+mkdir -p "$LOCK_ROOT" 2>/dev/null
+
+# Drop slots whose owning process is gone. Without this a SIGKILLed build leaks
+# its slot and every later build waits out the full timeout for nothing.
+reap_stale() {
+    for slot in "$LOCK_ROOT"/*; do
+        [ -d "$slot" ] || continue
+        pid=$(cat "$slot/pid" 2>/dev/null) || continue
+        [ -n "$pid" ] || continue
+        kill -0 "$pid" 2>/dev/null || rm -rf "$slot" 2>/dev/null
+    done
+}
+
+HELD=""
+acquire() {
+    i=0
+    while [ "$i" -lt "$SLOTS" ]; do
+        if mkdir "$LOCK_ROOT/slot$i" 2>/dev/null; then
+            echo $$ >"$LOCK_ROOT/slot$i/pid" 2>/dev/null
+            HELD="$LOCK_ROOT/slot$i"
+            return 0
+        fi
+        i=$((i + 1))
+    done
+    return 1
+}
+
+release() { [ -n "$HELD" ] && rm -rf "$HELD" 2>/dev/null; }
+trap 'release' EXIT INT TERM
+
+START=$(date +%s)
+WAITED=0
+TIMED_OUT=0
+
+reap_stale
+until acquire; do
+    if [ $(( $(date +%s) - START )) -ge "$WAIT_MAX" ]; then
+        TIMED_OUT=1
+        break
+    fi
+    # 1s, not 5s: the poll interval is also the resolution of wait_ms, so a
+    # coarse one both wastes idle time after a slot frees and overstates the
+    # contention it is measuring. A waiting process doing one mkdir per second
+    # costs nothing next to the build it is queued behind.
+    sleep 1
+    reap_stale
+done
+
+# Measure AFTER the loop, never inside it. Computing the wait at the top of each
+# iteration records the time before that iteration's sleep, so a build that
+# acquires on the second attempt reports a wait of zero — and wait_ms is the
+# entire reason this guard emits telemetry at all.
+WAITED=$(( $(date +%s) - START ))
+
+RUN_START=$(date +%s)
+"$@"
+EXIT_CODE=$?
+DUR=$(( ($(date +%s) - RUN_START) * 1000 ))
+
+# Free the slot before doing bookkeeping. The trap would release it eventually,
+# but that runs after the telemetry write, so the next queued build would sit
+# waiting on a slot whose work has already finished.
+release
+HELD=""
+
+{
+    [ -x "$DEVLOG" ] && "$DEVLOG" build \
+        "$([ "$EXIT_CODE" -eq 0 ] && echo ok || echo fail)" \
+        cmd "$(basename "$1")" \
+        dur_ms "$DUR" \
+        wait_ms "$((WAITED * 1000))" \
+        queued "$([ "$WAITED" -gt 0 ] && echo 1 || echo 0)" \
+        timed_out "$TIMED_OUT" \
+        exit "$EXIT_CODE" \
+        worktree "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo unknown)")"
+} >/dev/null 2>&1
+
+exit $EXIT_CODE

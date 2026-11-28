@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Per-process CPU/RSS sampler, every 30s.
+
+  StartInterval rather than KeepAlive: this is a run-and-exit script, so
+  KeepAlive would respawn it in a tight loop.
+
+  Nice 5 and LowPriorityIO because a monitor that competes for the resource it
+  is measuring corrupts its own measurement.
+
+  Installed by install.sh, which substitutes __HOME__.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.homelab.dev-ps-sampler</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__HOME__/.config/dev-telemetry/bin/ps-sampler</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>30</integer>
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardErrorPath</key>
+    <string>__HOME__/Library/Logs/dev-ps-sampler.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>Nice</key>
+    <integer>5</integer>
+</dict>
+</plist>

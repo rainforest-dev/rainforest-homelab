@@ -1,0 +1,204 @@
+#!/usr/bin/env python3
+"""Sample per-process CPU/RSS into a node_exporter textfile.
+
+Runs from launchd every 30s. Exists because process-exporter is Linux-only —
+it parses /proc, which Darwin does not have — so there is no drop-in answer to
+"which process ate my CPU" on macOS.
+
+Also derives the two numbers the whole exercise is aimed at:
+
+    dev_vitest_workers   how many vitest processes are alive right now
+    dev_hooks_running    how many git hooks are mid-flight
+
+dev_vitest_workers is why there is no separate vitest emitter. Getting vitest
+to report its own pool size means either a custom reporter registered in
+vitest.config.ts (a committed change to the company repo) or a --reporter flag
+on an invocation that a git hook makes internally, where nothing can be
+injected. Counting the processes from outside needs neither.
+
+Cardinality is bounded on purpose: only the top N by CPU plus a fixed
+allowlist ever become series names. An unbounded process-name label on a dev
+machine grows forever — every one-off binary you run becomes a permanent
+series in the Pi's TSDB.
+"""
+
+import os
+import re
+import subprocess
+import sys
+import time
+
+# Kept byte-identical to running_vitest_workers() in
+# service-dashboard-frontend/.husky/pre-push. See count_vitest().
+VITEST_WORKER_RE = re.compile(
+    r"^[^ ]*/node .*--require [^ ]*vitest/suppress-warnings"
+)
+
+STATE_DIR = os.environ.get(
+    "DEV_TELEMETRY_STATE", os.path.expanduser("~/.local/state/dev-telemetry")
+)
+TEXTFILE_DIR = os.path.join(STATE_DIR, "textfile")
+RUNNING_DIR = os.path.join(STATE_DIR, "running")
+OUT = os.path.join(TEXTFILE_DIR, "dev_telemetry.prom")
+
+TOP_N = 10
+
+# Always reported even when below the top-N cut, so a panel never shows a gap
+# just because the machine was briefly quiet.
+ALWAYS = {
+    "node", "vitest", "esbuild", "tsc", "eslint", "jest",
+    "git", "Docker", "com.docker.backend", "docker",
+    "Code Helper", "rustc", "cargo", "python3", "java",
+}
+
+
+def sample_processes():
+    """Aggregate CPU% and RSS by executable basename."""
+    try:
+        raw = subprocess.run(
+            ["ps", "-Ao", "pcpu=,rss=,comm="],
+            capture_output=True, text=True, timeout=10,
+        ).stdout
+    except (subprocess.SubprocessError, OSError):
+        return {}
+
+    agg = {}
+    for line in raw.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) < 3:
+            continue
+        try:
+            cpu, rss_kb = float(parts[0]), float(parts[1])
+        except ValueError:
+            continue
+        # comm is a full path; the basename is the only part that is both
+        # stable as a label and free of directory names worth not exporting.
+        name = os.path.basename(parts[2].strip())
+        cur = agg.setdefault(name, [0.0, 0.0])
+        cur[0] += cpu
+        cur[1] += rss_kb * 1024
+    return agg
+
+
+def count_vitest():
+    """Count live vitest processes (the pool parent plus its workers).
+
+    Reads full argv because vitest workers are plain `node`, indistinguishable
+    by comm alone. The argv is matched and then discarded — only the count is
+    exported, so no file paths leave the machine through this metric.
+
+    Substring-matching "vitest" across every process is not enough: an editor
+    with a test file open, a `grep vitest`, or the shell that launched this
+    sampler all carry the word in their argv and would inflate the count.
+
+    THE PATTERN BELOW IS DELIBERATELY IDENTICAL to running_vitest_workers() in
+    service-dashboard-frontend's .husky/pre-push, which is what decides whether
+    to set VITEST_MAX_FORKS=3. If this metric counted anything different, the
+    dashboard would disagree with the mechanism it is meant to explain — and a
+    number that quietly means something other than you think is worse than no
+    number. Keep the two in sync; if the hook's regex changes, change this.
+
+    It anchors on a node binary at argv[0] loading vitest's suppress-warnings
+    shim, which is the signature of a real pool worker and nothing else.
+    """
+    try:
+        raw = subprocess.run(
+            ["ps", "-Ao", "args="], capture_output=True, text=True, timeout=10
+        ).stdout
+    except (subprocess.SubprocessError, OSError):
+        return 0
+
+    return sum(1 for line in raw.splitlines() if VITEST_WORKER_RE.match(line))
+
+
+def count_running_hooks():
+    """Count in-flight git hooks, pruning markers whose process is gone.
+
+    A hook killed with SIGKILL never runs its trap, so its marker would leak
+    and inflate the count forever. Checking liveness with signal 0 keeps the
+    gauge honest.
+    """
+    try:
+        names = os.listdir(RUNNING_DIR)
+    except OSError:
+        return 0
+
+    alive = 0
+    for name in names:
+        pid_part = name.split(".", 1)[0]
+        try:
+            pid = int(pid_part)
+        except ValueError:
+            continue
+        try:
+            os.kill(pid, 0)
+            alive += 1
+        except ProcessLookupError:
+            try:
+                os.remove(os.path.join(RUNNING_DIR, name))
+            except OSError:
+                pass
+        except PermissionError:
+            alive += 1
+    return alive
+
+
+def escape(value):
+    return value.replace("\\", r"\\").replace('"', r"\"").replace("\n", "")
+
+
+def render(procs, vitest, hooks):
+    top = sorted(procs.items(), key=lambda kv: kv[1][0], reverse=True)[:TOP_N]
+    selected = dict(top)
+    for name in ALWAYS:
+        if name in procs and name not in selected:
+            selected[name] = procs[name]
+
+    out = [
+        "# HELP dev_proc_cpu_percent CPU percent by process name (summed across PIDs).",
+        "# TYPE dev_proc_cpu_percent gauge",
+    ]
+    for name, (cpu, _) in selected.items():
+        out.append(f'dev_proc_cpu_percent{{name="{escape(name)}"}} {cpu:.2f}')
+
+    out += [
+        "# HELP dev_proc_rss_bytes Resident memory by process name (summed across PIDs).",
+        "# TYPE dev_proc_rss_bytes gauge",
+    ]
+    for name, (_, rss) in selected.items():
+        out.append(f'dev_proc_rss_bytes{{name="{escape(name)}"}} {rss:.0f}')
+
+    out += [
+        "# HELP dev_vitest_workers Live vitest processes (pool parent plus workers).",
+        "# TYPE dev_vitest_workers gauge",
+        f"dev_vitest_workers {vitest}",
+        "# HELP dev_hooks_running Git hooks currently executing.",
+        "# TYPE dev_hooks_running gauge",
+        f"dev_hooks_running {hooks}",
+        "# HELP dev_sampler_last_run_timestamp_seconds Unix time of the last sampler run.",
+        "# TYPE dev_sampler_last_run_timestamp_seconds gauge",
+        f"dev_sampler_last_run_timestamp_seconds {time.time():.0f}",
+    ]
+    return "\n".join(out) + "\n"
+
+
+def main():
+    os.makedirs(TEXTFILE_DIR, exist_ok=True)
+    body = render(sample_processes(), count_vitest(), count_running_hooks())
+
+    # Write-then-rename. node_exporter's textfile collector reads on its own
+    # schedule; catching a half-written file makes it discard the whole batch
+    # and report a parse error. rename(2) within one filesystem is atomic, so
+    # the reader only ever sees a complete file.
+    tmp = OUT + ".tmp"
+    with open(tmp, "w") as fh:
+        fh.write(body)
+    os.replace(tmp, OUT)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as exc:  # noqa: BLE001 - a sampler must not wedge launchd
+        print(f"ps-sampler: {exc}", file=sys.stderr)
+        sys.exit(0)
