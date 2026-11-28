@@ -191,6 +191,15 @@ locals {
       }
     } : {},
 
+    var.enable_vercel_board ? {
+      board = {
+        hostname    = "board"
+        service_url = module.vercel_board[0].tunnel_service_url
+        enable_auth = true
+        type        = "docker"
+      }
+    } : {},
+
     # grafana-mcp removed: folded into the Docker MCP Gateway (default profile).
     # Grafana MCP tools now arrive via docker-mcp.rainforest.tools, not a separate host.
 

@@ -478,6 +478,18 @@ variable "enable_comfyui_adapter" {
   default     = false
 }
 
+variable "enable_vercel_board" {
+  description = "Run the self-hosted Vercel Board (vb serve) in Docker, at board.<domain> behind Access"
+  type        = bool
+  default     = false
+}
+
+variable "vercel_board_user" {
+  description = "Handle the board gives its owner, local:user:<handle>"
+  type        = string
+  default     = "owner"
+}
+
 variable "comfyui_host" {
   description = "ComfyUI backend URL. Default: Mac Mini native install. Override with PC LAN IP for GPU mode."
   type        = string

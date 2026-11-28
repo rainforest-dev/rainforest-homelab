@@ -429,6 +429,17 @@ module "comfyui_adapter" {
   domain_suffix = var.domain_suffix
 }
 
+module "vercel_board" {
+  count  = var.enable_vercel_board ? 1 : 0
+  source = "./modules/vercel-board"
+
+  project_name = var.project_name
+  environment  = var.environment
+  board_user   = var.vercel_board_user
+  token_dir    = pathexpand("~/.config/board/local")
+  allow_hosts  = ["board.${var.domain_suffix}"]
+}
+
 module "metrics_server" {
   source = "./modules/metrics-server"
 
