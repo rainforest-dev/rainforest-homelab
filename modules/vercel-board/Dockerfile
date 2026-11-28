@@ -13,5 +13,5 @@ RUN adduser -D -h /home/board "$BOARD_USER" \
 USER $BOARD_USER
 ENV HOME=/home/board
 
-EXPOSE 4101
+EXPOSE 4101 4748
 CMD ["node", "entrypoint.mjs"]

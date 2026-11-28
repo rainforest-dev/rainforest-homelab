@@ -8,14 +8,14 @@ variable "environment" {
   type        = string
 }
 
-variable "external_port" {
-  description = "Port the board serves on, inside the container and on the host's loopback; its local URL is http://127.0.0.1:<port>/api/board"
+variable "api_port" {
+  description = "Port of the board API, inside the container and on the host's loopback; its local URL is http://127.0.0.1:<port>/api/board"
   type        = number
   default     = 4100
 }
 
 variable "memory_limit" {
-  description = "Memory limit for the container (e.g. 256Mi, 1Gi)"
+  description = "Memory limit for the board container (e.g. 256Mi, 1Gi)"
   type        = string
   default     = "256Mi"
 }
@@ -36,8 +36,34 @@ variable "token_dir" {
   type        = string
 }
 
-variable "allow_hosts" {
-  description = "Public hostnames the board and its inspector answer on behind the tunnel; whoever reaches them acts as the owner, so each must sit behind Cloudflare Access"
+variable "hostname" {
+  description = "Subdomain the inspector is published on"
+  type        = string
+  default     = "board"
+}
+
+variable "domain_suffix" {
+  description = "Cloudflare zone the hostname lives in"
+  type        = string
+}
+
+variable "cloudflare_account_id" {
+  description = "Cloudflare account that owns the board's tunnel"
+  type        = string
+  sensitive   = true
+}
+
+variable "allowed_emails" {
+  description = "Emails Access lets through; whoever passes acts as the board owner"
   type        = list(string)
-  default     = []
+
+  validation {
+    condition     = length(var.allowed_emails) > 0
+    error_message = "allowed_emails needs at least one address; the inspector acts as the owner for everyone Access lets in."
+  }
+}
+
+variable "cloudflared_version" {
+  description = "cloudflared image tag"
+  type        = string
 }

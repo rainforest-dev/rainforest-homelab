@@ -1,5 +1,5 @@
 output "container_name" {
-  description = "Name of the Docker container"
+  description = "Name of the board container"
   value       = docker_container.vercel_board.name
 }
 
@@ -10,10 +10,10 @@ output "data_volume" {
 
 output "board_url" {
   description = "BOARD_URL for vb on the host"
-  value       = "http://127.0.0.1:${var.external_port}/api/board"
+  value       = "http://127.0.0.1:${var.api_port}/api/board"
 }
 
-output "tunnel_service_url" {
-  description = "Internal URL for Cloudflare Tunnel routing"
-  value       = "http://host.docker.internal:${var.external_port}"
+output "public_url" {
+  description = "Inspector behind Cloudflare Access"
+  value       = "https://${local.fqdn}"
 }

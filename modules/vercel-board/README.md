@@ -1,22 +1,33 @@
 # vercel-board
 
 Self-hosted [Vercel Board](https://www.npmjs.com/package/@vercel/board) (`vb serve`, pinned in
-`package.json`) in a Docker container on the Mac mini. It replaces the launchd pilot in
-`configs/board-spike/` (PR #158).
+`package.json`) in a Docker container on the Mac mini, with its own Cloudflare tunnel. It
+replaces the launchd pilot in `configs/board-spike/` (PR #158).
 
 | Piece | Value |
 |---|---|
-| Flag | `enable_vercel_board` (default `false`) |
-| Local API | `http://127.0.0.1:4100/api/board`, host loopback only |
-| Public page | `https://board.<domain>`, Cloudflare Access (`enable_auth = true`) |
+| Flag | `enable_vercel_board` (default `false`); needs `vercel_board_allowed_emails` |
+| Board API | `http://127.0.0.1:4100/api/board` on the host's loopback; every call needs the owner token |
+| Inspector | `https://board.<domain>` only, through this module's tunnel and Access app |
 | Data | Docker volume `homelab-vercel-board-data` (SQLite `local.db` plus attachments) |
 | Owner token | `~/.config/board/local/`, bind-mounted so `vb` on the host finds it |
 | Owner handle | `vercel_board_user` (default `owner`), the board's `local:user:<handle>` |
 
-`vb serve` only listens on `127.0.0.1` inside its container, so `entrypoint.mjs` forwards the
-published port to it. Requests for `board.<domain>` are allowed with `--allow-host`, and whoever
-opens that page acts as the owner, which is why the hostname must stay behind Access. No other
-host is answered (421).
+## Exposure
+
+`vb serve` and `vb inspect` listen on `127.0.0.1` only inside the container, and
+`entrypoint.mjs` forwards two ports to them:
+
+- `4101` to the API (`vb serve --no-inspect`), published on the host as `127.0.0.1:4100`. Other
+  containers and pods can reach it through `host.docker.internal`, as they can any loopback port
+  on Docker Desktop, but without the owner token they get 401, and the API serves no page.
+- `4748` to the inspector (`vb inspect --allow-host board.<domain>`). It is not published. It is
+  reachable only on the `homelab-vercel-board` Docker network, where the only other container is
+  this module's `cloudflared`. The inspector acts as the owner for whoever loads it, so the only
+  way in is Access, with the explicit emails in `vercel_board_allowed_emails`.
+
+The shared k8s `cloudflared` is not used: it reaches Docker services through
+`host.docker.internal`, which every container and pod can also reach.
 
 Measured on the pilot (8 days, 2,272 of 2,273 heartbeats posted): about 30 MB RSS idle, about
 110 MB under load, near-zero CPU, 10 MB of data. It makes no outbound connections and calls no
@@ -27,9 +38,9 @@ model. The 256Mi limit leaves room.
 1. Stop the launchd pilot first; it holds port 4100: `configs/board-spike/teardown.sh` on #158's
    branch, or `launchctl bootout gui/$(id -u)/tools.rainforest.board-spike-serve` and
    `.../board-spike-heartbeat`.
-2. Set `enable_vercel_board = true` (and `vercel_board_user` if you want another handle) in
-   `terraform.tfvars`, then `terraform apply`. The apply rolls the cloudflared pod, because its
-   config checksum changes, so every tunnel route blips for a few seconds.
+2. In `terraform.tfvars` set `enable_vercel_board = true` and `vercel_board_allowed_emails` to
+   your own address, then `terraform apply`. It creates a second tunnel, its DNS record and
+   Access app. The shared tunnel is not touched.
 3. Check it:
 
 ```bash

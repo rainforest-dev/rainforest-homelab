@@ -479,7 +479,7 @@ variable "enable_comfyui_adapter" {
 }
 
 variable "enable_vercel_board" {
-  description = "Run the self-hosted Vercel Board (vb serve) in Docker, at board.<domain> behind Access"
+  description = "Run the self-hosted Vercel Board (vb serve) in Docker, with its inspector at board.<domain> behind its own tunnel and Access app"
   type        = bool
   default     = false
 }
@@ -488,6 +488,12 @@ variable "vercel_board_user" {
   description = "Handle the board gives its owner, local:user:<handle>"
   type        = string
   default     = "owner"
+}
+
+variable "vercel_board_allowed_emails" {
+  description = "Emails Cloudflare Access lets into board.<domain>; each one acts as the board owner"
+  type        = list(string)
+  default     = []
 }
 
 variable "comfyui_host" {
