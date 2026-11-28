@@ -2,11 +2,9 @@
 
 Runs Bambii Focus (`ghcr.io/rainforest-dev/bambii-focus`) at `pomodoro.rainforest.tools`: one
 Node 24 container that serves the web app and the partner-sync API, with its SQLite database on
-the `pomodoro-data` volume at `/data`. The image is private, so unlike the other apps (public
-images the provider pulls anonymously) the `docker` CLI pulls it with the host's ghcr login,
-and the container is pinned to the ID of the image it pulled. To roll out a new release, run
-`docker pull ghcr.io/rainforest-dev/bambii-focus:latest` before `terraform apply`, or apply with
-`-replace=module.pomodoro.terraform_data.pull`.
+the `pomodoro-data` volume at `/data`. The image is private; the root
+provider's `registry_auth` for ghcr.io reads the host's `docker login` (macOS keychain), so it
+resolves and is pinned by digest like the other apps.
 
 Access: the page sits behind the same Access policy as the other family apps. The sync and push
 routes (`/pair`, `/push`, `/healthz`) bypass Access through the tunnel module's `bypass_paths`,
