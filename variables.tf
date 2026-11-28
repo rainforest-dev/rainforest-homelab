@@ -220,19 +220,6 @@ variable "calibre_library_path" {
   }
 }
 
-variable "ghcr_username" {
-  description = "GitHub user for pulling private ghcr.io images"
-  type        = string
-  default     = "rainforest-dev"
-}
-
-variable "ghcr_read_token" {
-  description = "Token with only read:packages for private ghcr.io images (bambii-focus); set in terraform.tfvars. Empty keeps anonymous pulls"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
 variable "pomodoro_image" {
   description = "Docker image for Bambii Focus at pomodoro.rainforest.tools (e.g. ghcr.io/rainforest-dev/bambii-focus:latest)"
   type        = string
