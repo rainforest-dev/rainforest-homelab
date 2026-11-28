@@ -429,6 +429,20 @@ module "comfyui_adapter" {
   domain_suffix = var.domain_suffix
 }
 
+module "vercel_board" {
+  count  = var.enable_vercel_board ? 1 : 0
+  source = "./modules/vercel-board"
+
+  project_name          = var.project_name
+  environment           = var.environment
+  board_user            = var.vercel_board_user
+  token_dir             = pathexpand("~/.config/board/local")
+  domain_suffix         = var.domain_suffix
+  cloudflare_account_id = var.cloudflare_account_id
+  allowed_emails        = var.vercel_board_allowed_emails
+  cloudflared_version   = var.cloudflared_version
+}
+
 module "metrics_server" {
   source = "./modules/metrics-server"
 

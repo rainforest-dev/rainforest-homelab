@@ -1,0 +1,19 @@
+output "container_name" {
+  description = "Name of the board container"
+  value       = docker_container.vercel_board.name
+}
+
+output "data_volume" {
+  description = "Docker volume holding the board's SQLite log and attachments"
+  value       = docker_volume.data.name
+}
+
+output "board_url" {
+  description = "BOARD_URL for vb on the host"
+  value       = "http://127.0.0.1:${var.api_port}/api/board"
+}
+
+output "public_url" {
+  description = "Inspector behind Cloudflare Access"
+  value       = "https://${local.fqdn}"
+}
